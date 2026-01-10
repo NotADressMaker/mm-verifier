@@ -2,11 +2,17 @@ import { ethers } from 'ethers';
 import { wallet } from './blockchain';
 import { logger } from '../utils/logger';
 
+// TODO: Uncomment after compiling contracts and exporting ABIs
+// import { StakingManager, AuditorRegistry } from '../../../shared/abi';
+
+// TEMPORARY: Human-readable ABIs (replace with imports from shared/abi/ after compilation)
 const STAKING_ABI = [
   'function stakeAsVerifier() payable',
   'function hasVerifierStake(address) view returns (bool)',
   'function getStake(address) view returns (tuple(uint256,uint256,uint256,uint256,uint8,bool))',
 ];
+
+// NOTE: After compiling contracts, replace with: const STAKING_ABI = StakingManager.abi;
 
 let stakingContract: ethers.Contract;
 

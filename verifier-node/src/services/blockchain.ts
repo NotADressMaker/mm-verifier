@@ -2,14 +2,22 @@ import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import { logger } from '../utils/logger';
 
+// TODO: Uncomment after compiling contracts and exporting ABIs
+// import { VerifierMarketplace, DisputeLadder, BundleRegistry } from '../../../shared/abi';
+
 dotenv.config({ path: '../../.env' });
 
-// Simplified ABIs
+// TEMPORARY: Human-readable ABIs (replace with imports from shared/abi/ after compilation)
+// Once contracts are compiled, use: VerifierMarketplace.abi
 const MARKETPLACE_ABI = [
   'function commitEvaluation(bytes32 jobId, bytes32 commitHash) external',
   'function revealEvaluation(bytes32 jobId, uint256 score, string verdict, bytes32 evidenceHash, bytes32 salt) external',
   'function getJob(bytes32 jobId) view returns (address, bytes32, string[], uint8, uint256, uint8, uint256)',
 ];
+
+// NOTE: After compiling contracts and running `npm run export-abis` in contracts/,
+// replace the hardcoded ABI above with:
+//   const MARKETPLACE_ABI = VerifierMarketplace.abi;
 
 let provider: ethers.JsonRpcProvider;
 let wallet: ethers.Wallet;

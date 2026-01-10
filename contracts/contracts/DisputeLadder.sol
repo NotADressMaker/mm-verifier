@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "./interfaces/IDisputeInterfaces.sol";
+import "./interfaces/IWETH.sol";
 import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -9,7 +10,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title DisputeLadder
- * @notice Multi-tier dispute resolution with VRF jury selection
+ * @notice Multi-tier dispute resolution with VRF jury selection (WETH-based)
  * @dev Implements L0 (auto-check) → L1 (small jury) → L2 (medium jury) → L3 (large jury) → Final
  *
  * State Machine:
@@ -18,6 +19,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  *                                   (escalate to next level)
  *
  * Each round: SELECTING_JURY → EVIDENCE → VOTING → TALLY_READY → RESOLVED → appealable or finalize
+ *
+ * Bond Management:
+ * - Dispute bonds (challenger/verifier): Managed directly in WETH by DisputeLadder
+ * - Auditor stakes: Managed by AuditorRegistry (IStakeManager)
+ * - Rewards paid in WETH to auditor stakes
  */
 contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     // ========================================================================
@@ -123,6 +129,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     // State Variables
     // ========================================================================
 
+    IWETH public immutable WETH;
     IBundleRegistry public immutable bundleRegistry;
     IStakeManager public immutable stakeManager;
     VRFCoordinatorV2Interface private immutable vrfCoordinator;
@@ -180,19 +187,22 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     // ========================================================================
 
     constructor(
+        IWETH _weth,
         IBundleRegistry _bundleRegistry,
         IStakeManager _stakeManager,
         address _vrfCoordinator,
         bytes32 _keyHash,
         uint64 _subscriptionId
     ) Ownable(msg.sender) VRFConsumerBaseV2(_vrfCoordinator) {
+        require(address(_weth) != address(0), "Invalid WETH");
+        WETH = _weth;
         bundleRegistry = _bundleRegistry;
         stakeManager = _stakeManager;
         vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
         keyHash = _keyHash;
         subscriptionId = _subscriptionId;
 
-        // Default bond requirements
+        // Default bond requirements (in WETH wei)
         minChallengeBond[FaultType.DISAGREEMENT] = 0.01 ether;
         minChallengeBond[FaultType.UNJUSTIFIED_BRANCHING] = 0.02 ether;
         minChallengeBond[FaultType.FABRICATION] = 0.05 ether;
@@ -226,22 +236,28 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     // ========================================================================
 
     /**
-     * @notice Open a new dispute
+     * @notice Open a new dispute (WETH-based)
+     * @dev Challenger must approve this contract to spend WETH first
      * @param bundleId Bundle identifier
      * @param branchId Branch index (0 = whole bundle)
      * @param faultType Type of fault being disputed
+     * @param bondAmount Amount of WETH to bond
      * @return disputeId New dispute ID
      */
     function openDispute(
         bytes32 bundleId,
         uint32 branchId,
-        FaultType faultType
-    ) external payable nonReentrant returns (uint256 disputeId) {
-        require(msg.value >= minChallengeBond[faultType], "Insufficient bond");
+        FaultType faultType,
+        uint256 bondAmount
+    ) external nonReentrant returns (uint256 disputeId) {
+        require(bondAmount >= minChallengeBond[faultType], "Insufficient bond");
 
         address verifier = bundleRegistry.getBundleOwner(bundleId);
         require(verifier != address(0), "Bundle not found");
         require(msg.sender != verifier, "Cannot dispute own bundle");
+
+        // Transfer WETH bond from challenger
+        require(WETH.transferFrom(msg.sender, address(this), bondAmount), "WETH transfer failed");
 
         disputeId = nextDisputeId++;
 
@@ -253,28 +269,34 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
             challenger: msg.sender,
             verifier: verifier,
             createdAt: block.timestamp,
-            challengeBond: msg.value,
+            challengeBond: bondAmount,
             defenseBond: 0,
             currentLevel: 0, // L0
             roundIndex: 0
         });
 
-        emit DisputeOpened(disputeId, bundleId, msg.sender, faultType, msg.value);
+        emit DisputeOpened(disputeId, bundleId, msg.sender, faultType, bondAmount);
     }
 
     /**
-     * @notice Post defense bond (optional)
+     * @notice Post defense bond (optional, WETH-based)
+     * @dev Verifier must approve this contract to spend WETH first
      * @param disputeId Dispute ID
+     * @param bondAmount Amount of WETH to bond
      */
-    function postDefenseBond(uint256 disputeId) external payable nonReentrant {
+    function postDefenseBond(uint256 disputeId, uint256 bondAmount) external nonReentrant {
         Dispute storage dispute = disputes[disputeId];
         require(dispute.status != DisputeStatus.NONE, "Dispute not found");
         require(msg.sender == dispute.verifier, "Only verifier");
         require(dispute.status != DisputeStatus.FINALIZED, "Already finalized");
+        require(bondAmount > 0, "Bond amount must be > 0");
 
-        dispute.defenseBond += msg.value;
+        // Transfer WETH bond from verifier
+        require(WETH.transferFrom(msg.sender, address(this), bondAmount), "WETH transfer failed");
 
-        emit DefenseBondPosted(disputeId, msg.sender, msg.value);
+        dispute.defenseBond += bondAmount;
+
+        emit DefenseBondPosted(disputeId, msg.sender, bondAmount);
     }
 
     // ========================================================================
@@ -699,10 +721,12 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     // ========================================================================
 
     /**
-     * @notice Appeal current round outcome
+     * @notice Appeal current round outcome (WETH-based)
+     * @dev Appellant must approve this contract to spend WETH first
      * @param disputeId Dispute ID
+     * @param bondAmount Amount of WETH to bond for appeal
      */
-    function appeal(uint256 disputeId) external payable nonReentrant {
+    function appeal(uint256 disputeId, uint256 bondAmount) external nonReentrant {
         Dispute storage dispute = disputes[disputeId];
         Round storage round = rounds[disputeId][dispute.roundIndex];
 
@@ -716,16 +740,19 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         require(isLoser, "Only loser can appeal");
 
         RoundLevel nextLevel = RoundLevel(dispute.currentLevel + 1);
-        require(msg.value >= appealBondRequired[nextLevel], "Insufficient appeal bond");
+        require(bondAmount >= appealBondRequired[nextLevel], "Insufficient appeal bond");
+
+        // Transfer WETH bond from appellant
+        require(WETH.transferFrom(msg.sender, address(this), bondAmount), "WETH transfer failed");
 
         // Add appeal bond to appropriate side
         if (msg.sender == dispute.challenger) {
-            dispute.challengeBond += msg.value;
+            dispute.challengeBond += bondAmount;
         } else {
-            dispute.defenseBond += msg.value;
+            dispute.defenseBond += bondAmount;
         }
 
-        emit Appealed(disputeId, msg.sender, nextLevel, msg.value);
+        emit Appealed(disputeId, msg.sender, nextLevel, bondAmount);
 
         // Escalate to next level
         _escalateToNextLevel(disputeId);
@@ -736,7 +763,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     // ========================================================================
 
     /**
-     * @notice Finalize dispute after appeal deadline or if no appeal
+     * @notice Finalize dispute after appeal deadline or if no appeal (WETH-based)
      * @param disputeId Dispute ID
      */
     function finalize(uint256 disputeId) external nonReentrant {
@@ -752,15 +779,15 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         // Compute payouts and slashing
         (uint256 challengerPayout, uint256 verifierPayout) = _computePayouts(disputeId);
 
-        // Distribute juror rewards
+        // Distribute juror rewards (in WETH)
         _distributeJurorRewards(disputeId);
 
-        // Transfer payouts
+        // Transfer WETH payouts
         if (challengerPayout > 0) {
-            payable(dispute.challenger).transfer(challengerPayout);
+            require(WETH.transfer(dispute.challenger, challengerPayout), "WETH transfer failed");
         }
         if (verifierPayout > 0) {
-            payable(dispute.verifier).transfer(verifierPayout);
+            require(WETH.transfer(dispute.verifier, verifierPayout), "WETH transfer failed");
         }
 
         emit DisputeFinalized(disputeId, round.winner, challengerPayout, verifierPayout);
@@ -794,7 +821,8 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     }
 
     /**
-     * @notice Distribute rewards to jurors
+     * @notice Distribute WETH rewards to jurors
+     * @dev Transfers WETH directly to jurors (not added to stake automatically)
      */
     function _distributeJurorRewards(uint256 disputeId) internal {
         Dispute storage dispute = disputes[disputeId];
@@ -810,7 +838,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         for (uint256 i = 0; i < round.jurors.length; i++) {
             address juror = round.jurors[i];
             if (hasVoted[disputeId][dispute.roundIndex][juror]) {
-                stakeManager.reward{value: rewardPerJuror}(juror, rewardPerJuror);
+                require(WETH.transfer(juror, rewardPerJuror), "WETH transfer failed");
             }
         }
     }
@@ -876,6 +904,4 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     function getVote(uint256 disputeId, uint8 roundIndex, address juror) external view returns (JurorVote memory) {
         return voteOf[disputeId][roundIndex][juror];
     }
-
-    receive() external payable {}
 }

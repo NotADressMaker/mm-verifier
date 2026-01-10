@@ -65,10 +65,11 @@ async function main() {
   const bundleRegistryAddress = await bundleRegistry.getAddress();
   console.log("✅ BundleRegistry deployed to:", bundleRegistryAddress, "\n");
 
-  // Deploy DisputeLadder (multi-tier dispute resolution)
+  // Deploy DisputeLadder (multi-tier dispute resolution with WETH)
   console.log("Deploying DisputeLadder...");
   const DisputeLadder = await ethers.getContractFactory("DisputeLadder");
   const disputeLadder = await DisputeLadder.deploy(
+    WETH_ADDRESS,
     bundleRegistryAddress,
     auditorRegistryAddress,
     VRF_COORDINATOR,
@@ -78,7 +79,8 @@ async function main() {
   await disputeLadder.waitForDeployment();
   const disputeLadderAddress = await disputeLadder.getAddress();
   console.log("✅ DisputeLadder deployed to:", disputeLadderAddress);
-  console.log("   Ladder: L0 (auto) → L1 (5 jurors) → L2 (15 jurors) → L3 (51 jurors)\n");
+  console.log("   Ladder: L0 (auto) → L1 (5 jurors) → L2 (15 jurors) → L3 (51 jurors)");
+  console.log("   Bond mode: WETH\n");
 
   // Deploy DisputeResolver (legacy)
   console.log("Deploying DisputeResolver (legacy)...");
@@ -91,7 +93,7 @@ async function main() {
   const disputeResolverAddress = await disputeResolver.getAddress();
   console.log("✅ DisputeResolver deployed to:", disputeResolverAddress, "\n");
 
-  // Deploy VerificationMarketplace (WETH-based)
+  // Deploy VerificationMarketplace (WETH-based) - note: deployed before BondVault
   console.log("Deploying VerifierMarketplace...");
   const VerifierMarketplace = await ethers.getContractFactory("VerifierMarketplace");
   const marketplace = await VerifierMarketplace.deploy(
@@ -105,6 +107,19 @@ async function main() {
   console.log("   WETH:", WETH_ADDRESS);
   console.log("   Eval Bond:", ethers.formatEther(EVAL_BOND), "WETH");
   console.log("   Dispute Bond:", ethers.formatEther(DISPUTE_BOND), "WETH\n");
+
+  // Deploy BondVaultWETH (centralized bond management)
+  console.log("Deploying BondVaultWETH...");
+  const BondVaultWETH = await ethers.getContractFactory("BondVaultWETH");
+  const bondVault = await BondVaultWETH.deploy(
+    WETH_ADDRESS,
+    marketplaceAddress,
+    disputeLadderAddress
+  );
+  await bondVault.waitForDeployment();
+  const bondVaultAddress = await bondVault.getAddress();
+  console.log("✅ BondVaultWETH deployed to:", bondVaultAddress);
+  console.log("   Authorized: Marketplace (lock/unlock), DisputeLadder (slash), Both (reward)\n");
 
   // Set up contract relationships
   console.log("Setting up contract relationships...");
@@ -136,6 +151,7 @@ async function main() {
   console.log("  DisputeLadder:           ", disputeLadderAddress);
   console.log("  DisputeResolver (legacy):", disputeResolverAddress);
   console.log("  VerifierMarketplace:     ", marketplaceAddress);
+  console.log("  BondVaultWETH:           ", bondVaultAddress);
   console.log("\nWETH & Bond Configuration:");
   console.log("  WETH Address:            ", WETH_ADDRESS);
   console.log("  Evaluator Bond:          ", ethers.formatEther(EVAL_BOND), "WETH");
@@ -162,6 +178,7 @@ async function main() {
       DisputeLadder: disputeLadderAddress,
       DisputeResolver: disputeResolverAddress,
       VerifierMarketplace: marketplaceAddress,
+      BondVaultWETH: bondVaultAddress,
     },
     weth: {
       address: WETH_ADDRESS,

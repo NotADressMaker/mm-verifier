@@ -2,9 +2,13 @@ import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import { logger } from '../utils/logger';
 
+// TODO: Uncomment after compiling contracts and exporting ABIs
+// import { VerifierMarketplace, BondVaultWETH, AuditorRegistry } from '../../../shared/abi';
+
 dotenv.config({ path: '../../.env' });
 
-// Contract ABIs (simplified - would import from compiled artifacts)
+// TEMPORARY: Human-readable ABIs (replace with imports from shared/abi/ after compilation)
+// Once contracts are compiled, use: VerifierMarketplace.abi, BondVaultWETH.abi, etc.
 const MARKETPLACE_ABI = [
   'function submitJob(bytes32 promptHash, string[] models, uint8 taskType, uint256 deadline) payable returns (bytes32)',
   'function getJob(bytes32 jobId) view returns (address requester, bytes32 promptHash, string[] models, uint8 taskType, uint256 rewardPool, uint8 status, uint256 consensusScore)',
@@ -23,6 +27,12 @@ const AUDITOR_REGISTRY_ABI = [
   'function registerAuditor()',
   'function getAuditor(address auditor) view returns (tuple(bool registered, uint256 reputation, uint256 totalVotes, uint256 correctVotes, uint256 totalEarnings, bool active))',
 ];
+
+// NOTE: After compiling contracts and running `npm run export-abis` in contracts/,
+// replace the hardcoded ABIs above with:
+//   const MARKETPLACE_ABI = VerifierMarketplace.abi;
+//   const STAKING_ABI = StakingManager.abi;
+//   const AUDITOR_REGISTRY_ABI = AuditorRegistry.abi;
 
 let provider: ethers.JsonRpcProvider;
 let wallet: ethers.Wallet;
