@@ -15,6 +15,13 @@ async function main() {
   const VRF_KEY_HASH = process.env.CHAINLINK_VRF_KEY_HASH || "0x1770bdc7eec7771f7ba4ffd640f34260d7f095b79c92d34a5b2551d6f6cfd2be";
   const VRF_SUBSCRIPTION_ID = process.env.CHAINLINK_SUBSCRIPTION_ID || "1";
 
+  // WETH addresses (Arbitrum One: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, Sepolia: 0x980B62Da83eFf3D4576C647993b0c1D7faf17c73)
+  const WETH_ADDRESS = process.env.WETH_ADDRESS || "0x980B62Da83eFf3D4576C647993b0c1D7faf17c73";
+
+  // Bond amounts (in wei) - configurable via .env
+  const EVAL_BOND = process.env.EVAL_BOND || ethers.parseEther("0.02"); // 0.02 WETH
+  const DISPUTE_BOND = process.env.DISPUTE_BOND || ethers.parseEther("0.01"); // 0.01 WETH
+
   const feeCollector = deployer.address; // Using deployer as fee collector for now
 
   // Deploy StakingManager
@@ -48,22 +55,26 @@ async function main() {
   const disputeResolverAddress = await disputeResolver.getAddress();
   console.log("✅ DisputeResolver deployed to:", disputeResolverAddress, "\n");
 
-  // Deploy VerificationMarketplace
-  console.log("Deploying VerificationMarketplace...");
-  const VerificationMarketplace = await ethers.getContractFactory("VerificationMarketplace");
-  const marketplace = await VerificationMarketplace.deploy(
-    stakingManagerAddress,
-    feeCollector
+  // Deploy VerificationMarketplace (WETH-based)
+  console.log("Deploying VerifierMarketplace...");
+  const VerifierMarketplace = await ethers.getContractFactory("VerifierMarketplace");
+  const marketplace = await VerifierMarketplace.deploy(
+    WETH_ADDRESS,
+    EVAL_BOND,
+    DISPUTE_BOND
   );
   await marketplace.waitForDeployment();
   const marketplaceAddress = await marketplace.getAddress();
-  console.log("✅ VerificationMarketplace deployed to:", marketplaceAddress, "\n");
+  console.log("✅ VerifierMarketplace deployed to:", marketplaceAddress);
+  console.log("   WETH:", WETH_ADDRESS);
+  console.log("   Eval Bond:", ethers.formatEther(EVAL_BOND), "WETH");
+  console.log("   Dispute Bond:", ethers.formatEther(DISPUTE_BOND), "WETH\n");
 
   // Set up contract relationships
   console.log("Setting up contract relationships...");
 
-  // Transfer ownership of StakingManager to marketplace
-  console.log("Transferring StakingManager ownership to VerificationMarketplace...");
+  // Transfer ownership of StakingManager to marketplace (for V1 contracts)
+  console.log("Transferring StakingManager ownership to marketplace...");
   await stakingManager.transferOwnership(marketplaceAddress);
   console.log("✅ Ownership transferred\n");
 
@@ -72,10 +83,8 @@ async function main() {
   await auditorRegistry.transferOwnership(disputeResolverAddress);
   console.log("✅ Ownership transferred\n");
 
-  // Set DisputeResolver in marketplace
-  console.log("Setting DisputeResolver in VerificationMarketplace...");
-  await marketplace.setDisputeResolver(disputeResolverAddress);
-  console.log("✅ DisputeResolver set\n");
+  // Note: VerifierMarketplace dispute integration happens via owner-only markDisputed/markResolved calls
+  console.log("✅ Marketplace configured for dispute integration via owner calls\n");
 
   // Print deployment summary
   console.log("=" .repeat(60));
@@ -87,11 +96,15 @@ async function main() {
   console.log("  StakingManager:          ", stakingManagerAddress);
   console.log("  AuditorRegistry:         ", auditorRegistryAddress);
   console.log("  DisputeResolver:         ", disputeResolverAddress);
-  console.log("  VerificationMarketplace: ", marketplaceAddress);
+  console.log("  VerifierMarketplace:     ", marketplaceAddress);
   console.log("\nChainlink VRF Configuration:");
   console.log("  VRF Coordinator:         ", VRF_COORDINATOR);
   console.log("  Key Hash:                ", VRF_KEY_HASH);
   console.log("  Subscription ID:         ", VRF_SUBSCRIPTION_ID);
+  console.log("\nWETH & Bond Configuration:");
+  console.log("  WETH Address:            ", WETH_ADDRESS);
+  console.log("  Evaluator Bond:          ", ethers.formatEther(EVAL_BOND), "WETH");
+  console.log("  Dispute Bond:            ", ethers.formatEther(DISPUTE_BOND), "WETH");
   console.log("\nFee Collector:             ", feeCollector);
   console.log("=" .repeat(60));
 
@@ -104,12 +117,17 @@ async function main() {
       StakingManager: stakingManagerAddress,
       AuditorRegistry: auditorRegistryAddress,
       DisputeResolver: disputeResolverAddress,
-      VerificationMarketplace: marketplaceAddress,
+      VerifierMarketplace: marketplaceAddress,
     },
     chainlink: {
       vrfCoordinator: VRF_COORDINATOR,
       keyHash: VRF_KEY_HASH,
       subscriptionId: VRF_SUBSCRIPTION_ID,
+    },
+    weth: {
+      address: WETH_ADDRESS,
+      evalBond: ethers.formatEther(EVAL_BOND),
+      disputeBond: ethers.formatEther(DISPUTE_BOND),
     },
     feeCollector: feeCollector,
     deployedAt: new Date().toISOString(),

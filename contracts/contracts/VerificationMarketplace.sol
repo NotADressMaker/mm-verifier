@@ -1,424 +1,290 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./interfaces/IWETH.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "./StakingManager.sol";
-import "./DisputeResolver.sol";
 
 /**
  * @title VerificationMarketplace
- * @notice Core marketplace for LLM verification jobs with commit-reveal
- * @dev Coordinates job submission, verifier commitments, reveals, and payouts
+ * @notice WETH-based marketplace for LLM verification with commit-reveal protocol
+ * @dev Evaluators post WETH bonds, commit scores, reveal with evidence bundles,
+ *      and earn rewards based on accuracy (proximity to median consensus)
  */
-contract VerificationMarketplace is Ownable, ReentrancyGuard {
-    StakingManager public immutable stakingManager;
-    DisputeResolver public disputeResolver;
+contract VerifierMarketplace is Ownable, ReentrancyGuard {
+    IWETH public immutable WETH;
 
-    enum JobStatus {
-        Open,
-        CommitPhase,
-        RevealPhase,
-        Completed,
-        Disputed,
-        Cancelled
-    }
+    uint256 public evalBond;          // WETH posted by evaluator at commit
+    uint256 public disputeBond;       // WETH posted to open dispute
+    uint256 public protocolFeeBps = 500; // 5%
 
-    enum TaskType {
-        FactualQA,
-        MathProof,
-        PolicyCompliance,
-        CitationCheck,
-        General
-    }
-
-    struct Job {
-        bytes32 id;
-        address requester;
-        bytes32 promptHash;
-        string[] models;
-        TaskType taskType;
-        uint256 rewardPool;
-        uint256 deadline;
-        uint256 commitDeadline;
-        uint256 revealDeadline;
-        JobStatus status;
-        uint256 createdAt;
-        address[] verifiers;
-        bytes32 consensusResult;
-        uint256 consensusScore;
-    }
-
-    struct Commitment {
-        bytes32 commitHash;
-        uint256 committedAt;
-        bool revealed;
-    }
+    enum TaskState { Open, Reveal, Finalized, Disputed, Resolved }
 
     struct Evaluation {
-        uint256 score; // 0-100
-        string verdict; // "reliable", "mixed", "unreliable"
-        bytes32 evidenceHash; // IPFS/Arweave hash
-        uint256 revealedAt;
+        bytes32 commitHash;
+        bool committed;
+        bool revealed;
+        uint16 scoreBps;        // 0..10000
+        bytes32 bundleHash;     // hash of bundle json/cbor
+        string bundleURI;       // optional ipfs/arweave
     }
 
-    // Job storage
-    mapping(bytes32 => Job) public jobs;
-    bytes32[] public jobList;
+    struct Task {
+        TaskState state;
+        address requester;
 
-    // Commitments: jobId => verifier => commitment
-    mapping(bytes32 => mapping(address => Commitment)) public commitments;
+        bytes32 promptHash;
+        bytes32 rubricHash;
 
-    // Evaluations: jobId => verifier => evaluation
-    mapping(bytes32 => mapping(address => Evaluation)) public evaluations;
+        uint40 commitDeadline;
+        uint40 revealDeadline;
+        uint40 disputeDeadline;
 
-    // Job phases timing
-    uint256 public constant COMMIT_PHASE_DURATION = 1 hours;
-    uint256 public constant REVEAL_PHASE_DURATION = 1 hours;
-    uint256 public constant CHALLENGE_WINDOW = 24 hours;
+        uint8 minEvals;
+        uint8 maxEvals;
 
-    // Minimum reward pool
-    uint256 public constant MIN_REWARD_POOL = 0.01 ether;
+        uint256 feePool; // WETH
+        uint16 finalScoreBps;
 
-    // Verifier reward distribution
-    uint256 public constant VERIFIER_REWARD_PERCENTAGE = 80;
-    uint256 public constant PROTOCOL_FEE_PERCENTAGE = 20;
-
-    // Protocol fee collector
-    address public feeCollector;
-
-    // Events
-    event JobSubmitted(
-        bytes32 indexed jobId,
-        address indexed requester,
-        bytes32 promptHash,
-        uint256 rewardPool
-    );
-    event CommitmentSubmitted(bytes32 indexed jobId, address indexed verifier);
-    event EvaluationRevealed(
-        bytes32 indexed jobId,
-        address indexed verifier,
-        uint256 score,
-        string verdict
-    );
-    event JobCompleted(bytes32 indexed jobId, uint256 consensusScore, bytes32 consensusResult);
-    event JobCancelled(bytes32 indexed jobId);
-    event RewardDistributed(bytes32 indexed jobId, address indexed verifier, uint256 amount);
-
-    constructor(
-        address _stakingManager,
-        address _feeCollector
-    ) Ownable(msg.sender) {
-        stakingManager = StakingManager(_stakingManager);
-        feeCollector = _feeCollector;
+        address[] evaluators;
+        mapping(address => Evaluation) evals;
     }
 
-    /**
-     * @notice Set dispute resolver contract
-     * @param _disputeResolver Dispute resolver address
-     */
-    function setDisputeResolver(address _disputeResolver) external onlyOwner {
-        disputeResolver = DisputeResolver(_disputeResolver);
+    uint256 public nextTaskId = 1;
+    mapping(uint256 => Task) private tasks;
+
+    event TaskCreated(uint256 indexed taskId, address indexed requester, uint256 feePool);
+    event Committed(uint256 indexed taskId, address indexed evaluator, bytes32 commitHash);
+    event Revealed(uint256 indexed taskId, address indexed evaluator, uint16 scoreBps, bytes32 bundleHash, string bundleURI);
+    event Finalized(uint256 indexed taskId, uint16 finalScoreBps, uint256 feePool);
+    event DisputeOpened(uint256 indexed taskId, address indexed challenger);
+
+    constructor(IWETH _weth, uint256 _evalBond, uint256 _disputeBond) Ownable(msg.sender) {
+        WETH = _weth;
+        evalBond = _evalBond;
+        disputeBond = _disputeBond;
     }
 
-    /**
-     * @notice Submit verification job
-     * @param promptHash Hash of the prompt
-     * @param models Array of model names to query
-     * @param taskType Type of verification task
-     * @param deadline Job deadline timestamp
-     * @return jobId Job identifier
-     */
-    function submitJob(
-        bytes32 promptHash,
-        string[] calldata models,
-        TaskType taskType,
-        uint256 deadline
-    ) external payable nonReentrant returns (bytes32) {
-        require(msg.value >= MIN_REWARD_POOL, "Insufficient reward pool");
-        require(models.length > 0, "At least one model required");
-        require(deadline > block.timestamp, "Deadline must be in future");
+    function setBonds(uint256 _evalBond, uint256 _disputeBond) external onlyOwner {
+        evalBond = _evalBond;
+        disputeBond = _disputeBond;
+    }
 
-        bytes32 jobId = keccak256(
-            abi.encodePacked(promptHash, msg.sender, block.timestamp)
+    function setProtocolFeeBps(uint256 bps) external onlyOwner {
+        require(bps <= 2000, "too high");
+        protocolFeeBps = bps;
+    }
+
+    function getTaskMeta(uint256 taskId)
+        external
+        view
+        returns (
+            TaskState state,
+            address requester,
+            bytes32 promptHash,
+            bytes32 rubricHash,
+            uint40 commitDeadline,
+            uint40 revealDeadline,
+            uint40 disputeDeadline,
+            uint8 minEvals,
+            uint8 maxEvals,
+            uint256 feePool,
+            uint16 finalScoreBps,
+            uint256 evalCount
+        )
+    {
+        Task storage t = tasks[taskId];
+        return (
+            t.state, t.requester, t.promptHash, t.rubricHash,
+            t.commitDeadline, t.revealDeadline, t.disputeDeadline,
+            t.minEvals, t.maxEvals, t.feePool, t.finalScoreBps, t.evaluators.length
         );
-
-        uint256 commitDeadline = block.timestamp + COMMIT_PHASE_DURATION;
-        uint256 revealDeadline = commitDeadline + REVEAL_PHASE_DURATION;
-
-        jobs[jobId] = Job({
-            id: jobId,
-            requester: msg.sender,
-            promptHash: promptHash,
-            models: models,
-            taskType: taskType,
-            rewardPool: msg.value,
-            deadline: deadline,
-            commitDeadline: commitDeadline,
-            revealDeadline: revealDeadline,
-            status: JobStatus.CommitPhase,
-            createdAt: block.timestamp,
-            verifiers: new address[](0),
-            consensusResult: bytes32(0),
-            consensusScore: 0
-        });
-
-        jobList.push(jobId);
-
-        emit JobSubmitted(jobId, msg.sender, promptHash, msg.value);
-
-        return jobId;
     }
 
-    /**
-     * @notice Commit evaluation hash (commit phase)
-     * @param jobId Job identifier
-     * @param commitHash Hash of (jobId, verifier, salt, score, verdict, evidenceHash)
-     */
-    function commitEvaluation(bytes32 jobId, bytes32 commitHash) external nonReentrant {
-        Job storage job = jobs[jobId];
-        require(job.status == JobStatus.CommitPhase, "Not in commit phase");
-        require(block.timestamp <= job.commitDeadline, "Commit phase ended");
-        require(commitments[jobId][msg.sender].commitHash == bytes32(0), "Already committed");
-        require(stakingManager.hasVerifierStake(msg.sender), "Insufficient stake");
+    function createTask(
+        bytes32 promptHash,
+        bytes32 rubricHash,
+        uint40 commitDeadline,
+        uint40 revealDeadline,
+        uint40 disputeWindowSeconds,
+        uint8 minEvals,
+        uint8 maxEvals,
+        uint256 feePool
+    ) external nonReentrant returns (uint256 taskId) {
+        require(commitDeadline > block.timestamp, "bad commit deadline");
+        require(revealDeadline > commitDeadline, "bad reveal deadline");
+        require(minEvals > 0 && maxEvals >= minEvals && maxEvals <= 10, "bad eval bounds");
+        require(feePool > 0, "feePool=0");
 
-        // Lock verifier stake
-        stakingManager.lockStake(msg.sender, stakingManager.MIN_VERIFIER_STAKE(), jobId);
+        WETH.transferFrom(msg.sender, address(this), feePool);
 
-        commitments[jobId][msg.sender] = Commitment({
-            commitHash: commitHash,
-            committedAt: block.timestamp,
-            revealed: false
-        });
+        taskId = nextTaskId++;
+        Task storage t = tasks[taskId];
+        t.state = TaskState.Open;
+        t.requester = msg.sender;
+        t.promptHash = promptHash;
+        t.rubricHash = rubricHash;
+        t.commitDeadline = commitDeadline;
+        t.revealDeadline = revealDeadline;
+        t.disputeDeadline = uint40(revealDeadline + disputeWindowSeconds);
+        t.minEvals = minEvals;
+        t.maxEvals = maxEvals;
+        t.feePool = feePool;
 
-        job.verifiers.push(msg.sender);
-
-        emit CommitmentSubmitted(jobId, msg.sender);
+        emit TaskCreated(taskId, msg.sender, feePool);
     }
 
-    /**
-     * @notice Reveal evaluation (reveal phase)
-     * @param jobId Job identifier
-     * @param score Score (0-100)
-     * @param verdict Verdict string
-     * @param evidenceHash Evidence bundle hash
-     * @param salt Random salt used in commitment
-     */
+    function commitEvaluation(uint256 taskId, bytes32 commitHash) external nonReentrant {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Open, "not open");
+        require(block.timestamp <= t.commitDeadline, "commit ended");
+        require(t.evaluators.length < t.maxEvals, "max evals");
+        Evaluation storage e = t.evals[msg.sender];
+        require(!e.committed, "already committed");
+
+        // post evaluator bond
+        WETH.transferFrom(msg.sender, address(this), evalBond);
+
+        e.committed = true;
+        e.commitHash = commitHash;
+        t.evaluators.push(msg.sender);
+
+        emit Committed(taskId, msg.sender, commitHash);
+
+        // move to reveal early if full
+        if (t.evaluators.length == t.maxEvals) {
+            t.state = TaskState.Reveal;
+        }
+    }
+
+    function openReveal(uint256 taskId) external {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Open, "bad state");
+        require(block.timestamp > t.commitDeadline, "too early");
+        t.state = TaskState.Reveal;
+    }
+
     function revealEvaluation(
-        bytes32 jobId,
-        uint256 score,
-        string calldata verdict,
-        bytes32 evidenceHash,
+        uint256 taskId,
+        uint16 scoreBps,
+        bytes32 bundleHash,
+        string calldata bundleURI,
         bytes32 salt
-    ) external nonReentrant {
-        Job storage job = jobs[jobId];
+    ) external {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Reveal, "not reveal");
+        require(block.timestamp <= t.revealDeadline, "reveal ended");
+        require(scoreBps <= 10_000, "score>100%");
+        Evaluation storage e = t.evals[msg.sender];
+        require(e.committed, "no commit");
+        require(!e.revealed, "already revealed");
 
-        // Transition to reveal phase if needed
-        if (job.status == JobStatus.CommitPhase && block.timestamp > job.commitDeadline) {
-            job.status = JobStatus.RevealPhase;
-        }
+        bytes32 expected = keccak256(abi.encodePacked(taskId, msg.sender, scoreBps, bundleHash, salt));
+        require(expected == e.commitHash, "commit mismatch");
 
-        require(job.status == JobStatus.RevealPhase, "Not in reveal phase");
-        require(block.timestamp <= job.revealDeadline, "Reveal phase ended");
+        e.revealed = true;
+        e.scoreBps = scoreBps;
+        e.bundleHash = bundleHash;
+        e.bundleURI = bundleURI;
 
-        Commitment storage commitment = commitments[jobId][msg.sender];
-        require(commitment.commitHash != bytes32(0), "No commitment found");
-        require(!commitment.revealed, "Already revealed");
-
-        // Verify commitment
-        bytes32 computedHash = keccak256(
-            abi.encodePacked(jobId, msg.sender, salt, score, verdict, evidenceHash)
-        );
-        require(computedHash == commitment.commitHash, "Invalid reveal");
-
-        require(score <= 100, "Score must be <= 100");
-
-        evaluations[jobId][msg.sender] = Evaluation({
-            score: score,
-            verdict: verdict,
-            evidenceHash: evidenceHash,
-            revealedAt: block.timestamp
-        });
-
-        commitment.revealed = true;
-
-        emit EvaluationRevealed(jobId, msg.sender, score, verdict);
+        emit Revealed(taskId, msg.sender, scoreBps, bundleHash, bundleURI);
     }
 
-    /**
-     * @notice Finalize job and compute consensus
-     * @param jobId Job identifier
-     */
-    function finalizeJob(bytes32 jobId) external nonReentrant {
-        Job storage job = jobs[jobId];
+    function finalize(uint256 taskId) external nonReentrant {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Reveal, "bad state");
+        require(block.timestamp > t.revealDeadline, "too early");
 
-        require(job.status == JobStatus.RevealPhase, "Not in reveal phase");
-        require(block.timestamp > job.revealDeadline, "Reveal phase not ended");
+        // collect revealed scores
+        uint256 n = t.evaluators.length;
+        uint16[] memory scores = new uint16[](n);
+        uint256 revealedCount = 0;
 
-        // Compute consensus score (median of revealed scores)
-        uint256[] memory scores = new uint256[](job.verifiers.length);
-        uint256 validCount = 0;
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            if (t.evals[ev].revealed) {
+                scores[revealedCount] = t.evals[ev].scoreBps;
+                revealedCount++;
+            }
+        }
+        require(revealedCount >= t.minEvals, "not enough reveals");
 
-        for (uint256 i = 0; i < job.verifiers.length; i++) {
-            address verifier = job.verifiers[i];
-            if (commitments[jobId][verifier].revealed) {
-                scores[validCount] = evaluations[jobId][verifier].score;
-                validCount++;
+        // sort scores[0:revealedCount] (insertion sort; revealedCount <= 10)
+        for (uint256 i = 1; i < revealedCount; i++) {
+            uint16 key = scores[i];
+            uint256 j = i;
+            while (j > 0 && scores[j - 1] > key) {
+                scores[j] = scores[j - 1];
+                j--;
+            }
+            scores[j] = key;
+        }
+
+        uint16 median = scores[revealedCount / 2];
+        t.finalScoreBps = median;
+        t.state = TaskState.Finalized;
+
+        // protocol fee
+        uint256 fee = (t.feePool * protocolFeeBps) / 10_000;
+        uint256 payoutPool = t.feePool - fee;
+        if (fee > 0) WETH.transfer(owner(), fee);
+
+        // pay evaluators: equal split among revealers + small "accuracy bonus"
+        // bonus: within 250 bps of median gets +20% share weight
+        uint256 baseWeight = 100;
+        uint256 bonusWeight = 120;
+        uint256 totalWeight = 0;
+
+        uint256[] memory weights = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            Evaluation storage e = t.evals[ev];
+            if (!e.revealed) continue;
+
+            uint256 w = baseWeight;
+            uint256 diff = e.scoreBps > median ? (e.scoreBps - median) : (median - e.scoreBps);
+            if (diff <= 250) w = bonusWeight;
+
+            weights[i] = w;
+            totalWeight += w;
+        }
+
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            Evaluation storage e = t.evals[ev];
+
+            // return eval bond if committed (revealed or not)
+            if (e.committed) {
+                WETH.transfer(ev, evalBond);
+            }
+
+            // rewards only to revealers
+            uint256 w = weights[i];
+            if (w > 0) {
+                uint256 amt = (payoutPool * w) / totalWeight;
+                if (amt > 0) WETH.transfer(ev, amt);
             }
         }
 
-        require(validCount > 0, "No valid evaluations");
-
-        // Sort scores for median calculation
-        uint256[] memory validScores = new uint256[](validCount);
-        for (uint256 i = 0; i < validCount; i++) {
-            validScores[i] = scores[i];
-        }
-        _sortScores(validScores);
-
-        uint256 consensusScore = validCount % 2 == 0
-            ? (validScores[validCount / 2 - 1] + validScores[validCount / 2]) / 2
-            : validScores[validCount / 2];
-
-        job.consensusScore = consensusScore;
-        job.consensusResult = keccak256(abi.encodePacked(consensusScore));
-        job.status = JobStatus.Completed;
-
-        emit JobCompleted(jobId, consensusScore, job.consensusResult);
-
-        // Distribute rewards
-        _distributeRewards(jobId, validCount);
+        emit Finalized(taskId, median, t.feePool);
     }
 
-    /**
-     * @notice Distribute rewards to honest verifiers
-     */
-    function _distributeRewards(bytes32 jobId, uint256 validVerifierCount) private {
-        Job storage job = jobs[jobId];
-
-        uint256 protocolFee = (job.rewardPool * PROTOCOL_FEE_PERCENTAGE) / 100;
-        uint256 verifierPool = job.rewardPool - protocolFee;
-        uint256 rewardPerVerifier = verifierPool / validVerifierCount;
-
-        // Transfer protocol fee
-        payable(feeCollector).transfer(protocolFee);
-
-        // Distribute to verifiers who revealed
-        for (uint256 i = 0; i < job.verifiers.length; i++) {
-            address verifier = job.verifiers[i];
-
-            if (commitments[jobId][verifier].revealed) {
-                // Unlock stake
-                stakingManager.unlockStake(verifier, stakingManager.MIN_VERIFIER_STAKE(), jobId);
-
-                // Pay reward
-                payable(verifier).transfer(rewardPerVerifier);
-
-                emit RewardDistributed(jobId, verifier, rewardPerVerifier);
-            } else {
-                // Punish non-revealer by keeping stake locked temporarily
-                // (Can be unlocked after a penalty period)
-            }
-        }
+    /// @dev Called by DisputeManager. Here for MVP wiring.
+    function markDisputed(uint256 taskId) external onlyOwner {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Finalized, "not finalized");
+        t.state = TaskState.Disputed;
     }
 
-    /**
-     * @notice Sort scores array (bubble sort, ok for small arrays)
-     */
-    function _sortScores(uint256[] memory arr) private pure {
-        uint256 n = arr.length;
-        for (uint256 i = 0; i < n - 1; i++) {
-            for (uint256 j = 0; j < n - i - 1; j++) {
-                if (arr[j] > arr[j + 1]) {
-                    (arr[j], arr[j + 1]) = (arr[j + 1], arr[j]);
-                }
-            }
-        }
+    function markResolved(uint256 taskId, uint16 newFinalScoreBps) external onlyOwner {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Disputed, "not disputed");
+        t.finalScoreBps = newFinalScoreBps;
+        t.state = TaskState.Resolved;
     }
 
-    /**
-     * @notice Cancel job if no commitments received
-     * @param jobId Job identifier
-     */
-    function cancelJob(bytes32 jobId) external nonReentrant {
-        Job storage job = jobs[jobId];
-        require(msg.sender == job.requester, "Not requester");
-        require(job.status == JobStatus.CommitPhase, "Cannot cancel");
-        require(job.verifiers.length == 0, "Verifiers already committed");
-
-        job.status = JobStatus.Cancelled;
-
-        // Refund requester
-        payable(job.requester).transfer(job.rewardPool);
-
-        emit JobCancelled(jobId);
-    }
-
-    /**
-     * @notice Get job details
-     * @param jobId Job identifier
-     */
-    function getJob(bytes32 jobId) external view returns (
-        address requester,
-        bytes32 promptHash,
-        string[] memory models,
-        TaskType taskType,
-        uint256 rewardPool,
-        JobStatus status,
-        uint256 consensusScore
-    ) {
-        Job storage job = jobs[jobId];
-        return (
-            job.requester,
-            job.promptHash,
-            job.models,
-            job.taskType,
-            job.rewardPool,
-            job.status,
-            job.consensusScore
-        );
-    }
-
-    /**
-     * @notice Get job verifiers
-     * @param jobId Job identifier
-     */
-    function getJobVerifiers(bytes32 jobId) external view returns (address[] memory) {
-        return jobs[jobId].verifiers;
-    }
-
-    /**
-     * @notice Get verifier evaluation
-     * @param jobId Job identifier
-     * @param verifier Verifier address
-     */
-    function getEvaluation(bytes32 jobId, address verifier) external view returns (
-        uint256 score,
-        string memory verdict,
-        bytes32 evidenceHash,
-        bool revealed
-    ) {
-        Evaluation memory eval = evaluations[jobId][verifier];
-        Commitment memory commit = commitments[jobId][verifier];
-        return (
-            eval.score,
-            eval.verdict,
-            eval.evidenceHash,
-            commit.revealed
-        );
-    }
-
-    /**
-     * @notice Get all jobs
-     */
-    function getAllJobs() external view returns (bytes32[] memory) {
-        return jobList;
-    }
-
-    /**
-     * @notice Get job count
-     */
-    function getJobCount() external view returns (uint256) {
-        return jobList.length;
+    /// @dev Dispute bond escrowed in DisputeManager; emitted here for indexing convenience.
+    function emitDisputeOpened(uint256 taskId, address challenger) external onlyOwner {
+        emit DisputeOpened(taskId, challenger);
     }
 }
