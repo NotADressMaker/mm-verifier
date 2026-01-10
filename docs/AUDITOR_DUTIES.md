@@ -5,7 +5,7 @@
 
 ## Overview
 
-Auditors in the LLM Verifier system perform **bundle integrity checks** and **rubric compliance validation**, **not** full re-evaluation of LLM outputs.
+Auditors in the MM Verifier system perform **bundle integrity checks** and **rubric compliance validation**, **not** full re-evaluation of LLM outputs.
 
 ### Key Principle
 

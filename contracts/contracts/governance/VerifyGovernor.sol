@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 
 /**
  * @title VerifyGovernor
- * @notice On-chain governance for LLM Verifier protocol
+ * @notice On-chain governance for MM Verifier protocol
  * @dev Implements OpenZeppelin Governor pattern with timelock
  *
  * Parameters:
@@ -42,7 +42,7 @@ contract VerifyGovernor is
     GovernorTimelockControl
 {
     constructor(IVotes _token, TimelockController _timelock)
-        Governor("LLM Verify Governor")
+        Governor("MM Verify Governor")
         GovernorSettings(
             1,        // voting delay: 1 block
             50400,    // voting period: ~7 days (assuming 12s blocks)

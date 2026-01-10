@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title VerifyToken
- * @notice Governance token for LLM Verifier protocol
+ * @notice Governance token for MM Verifier protocol
  * @dev ERC20Votes enables on-chain governance with delegation
  *
  * Features:
@@ -39,8 +39,8 @@ contract VerifyToken is ERC20, ERC20Burnable, ERC20Votes, ERC20Permit, Ownable {
         address _miningRewards,
         address _airdrop
     )
-        ERC20("LLM Verify", "VERIFY")
-        ERC20Permit("LLM Verify")
+        ERC20("MM Verify", "VERIFY")
+        ERC20Permit("MM Verify")
         Ownable(msg.sender)
     {
         require(_treasury != address(0), "Invalid treasury");

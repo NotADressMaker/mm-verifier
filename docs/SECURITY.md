@@ -1,6 +1,6 @@
-# LLM Verifier Security Features
+# MM Verifier Security Features
 
-This document outlines the comprehensive security measures implemented in LLM Verifier to ensure economic accountability, prevent gaming, and maintain system integrity.
+This document outlines the comprehensive security measures implemented in MM Verifier to ensure economic accountability, prevent gaming, and maintain system integrity.
 
 ## Table of Contents
 
@@ -601,7 +601,7 @@ Before mainnet launch:
 
 ## Conclusion
 
-LLM Verifier's security model combines:
+MM Verifier's security model combines:
 1. **Economic incentives** (slashing, rewards)
 2. **Cryptographic proofs** (commit/reveal, VRF)
 3. **Decentralized verification** (multi-auditor, consensus)

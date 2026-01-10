@@ -1,4 +1,4 @@
-# LLM Verifier Scoring Pipeline
+# MM Verifier Scoring Pipeline
 
 **Version**: 1.0
 **Status**: Deterministic & Reproducible
@@ -1075,7 +1075,7 @@ Model Responses:
 
 ## Conclusion
 
-The LLM Verifier scoring pipeline is:
+The MM Verifier scoring pipeline is:
 - ✅ **Deterministic**: Same inputs → same outputs
 - ✅ **Reproducible**: Auditors can verify scores
 - ✅ **Transparent**: All steps documented

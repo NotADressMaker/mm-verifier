@@ -1,12 +1,12 @@
-# LLM Verifier
+# MM Verifier
 
 **AI Reliability Through Economic Accountability**
 
-LLM Verifier is a decentralized marketplace for verifying AI model outputs with economic guarantees. Instead of trusting a single AI model, get consensus-based verification with stake-backed accountability.
+MM Verifier is a decentralized marketplace for verifying AI model outputs with economic guarantees. Instead of trusting a single AI model, get consensus-based verification with stake-backed accountability.
 
 ## What It Does
 
-When you ask an AI a question, the answer can sound confident and still be wrong. LLM Verifier gives you a structured second opinion:
+When you ask an AI a question, the answer can sound confident and still be wrong. MM Verifier gives you a structured second opinion:
 
 - **Multi-LLM Cross-Check**: Runs prompts across multiple LLMs (OpenAI, Anthropic, Google, open-source models)
 - **Consensus Scoring**: Compares responses for agreement and contradictions
@@ -43,7 +43,7 @@ llm-verifier/
 
 ### The Marketplace Model
 
-LLM Verifier operates as an **open verification marketplace** where independent verifiers compete:
+MM Verifier operates as an **open verification marketplace** where independent verifiers compete:
 
 1. **Verifiers stake ETH** to participate
 2. They submit evaluations with **structured evidence**
@@ -115,8 +115,8 @@ Why Arbitrum:
 
 ```bash
 # Clone the repository
-git clone https://github.com/michaelmannen3-oss/LLM-Verifier.git
-cd LLM-Verifier
+git clone https://github.com/michaelmannen3-oss/MM-Verifier.git
+cd MM-Verifier
 
 # Install dependencies
 npm install
@@ -327,7 +327,7 @@ MIT License - see [LICENSE](./LICENSE)
 ## Support
 
 - Documentation: [docs/](./docs/)
-- Issues: [GitHub Issues](https://github.com/michaelmannen3-oss/LLM-Verifier/issues)
+- Issues: [GitHub Issues](https://github.com/michaelmannen3-oss/MM-Verifier/issues)
 - Discord: [Join our community](#)
 
 ## Acknowledgments

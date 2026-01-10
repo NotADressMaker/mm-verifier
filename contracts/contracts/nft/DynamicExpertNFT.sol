@@ -49,7 +49,7 @@ contract DynamicExpertNFT is ERC721, Ownable {
     constructor(
         address _marketplace,
         address _auditorRegistry
-    ) ERC721("LLM Verify Expert", "VERIFY-EXPERT") Ownable(msg.sender) {
+    ) ERC721("MM Verify Expert", "VERIFY-EXPERT") Ownable(msg.sender) {
         marketplace = _marketplace;
         auditorRegistry = _auditorRegistry;
         isSoulbound = true; // Default to soulbound
@@ -158,7 +158,7 @@ contract DynamicExpertNFT is ERC721, Ownable {
             disputeWins.toString(), '/', disputes.toString(), '</text>',
             '<text x="60" y="290" fill="#00D4FF" font-size="18" font-weight="bold">Status:</text>',
             '<circle cx="275" cy="283" r="8" fill="', statusColor, '"/>',
-            '<text x="175" y="370" text-anchor="middle" fill="#888" font-size="14">LLM Verify Protocol</text>',
+            '<text x="175" y="370" text-anchor="middle" fill="#888" font-size="14">MM Verify Protocol</text>',
             '<text x="175" y="395" text-anchor="middle" fill="#666" font-size="12">Dynamic Expert Profile</text>',
             '</svg>'
         ));
@@ -191,7 +191,7 @@ contract DynamicExpertNFT is ERC721, Ownable {
 
         string memory json = Base64.encode(bytes(string(abi.encodePacked(
             '{"name": "Expert #', tokenId.toString(), ' (', (accuracyBps / 100).toString(), '% Accuracy)",',
-            '"description": "Dynamic LLM Verify expert profile - updates automatically with performance",',
+            '"description": "Dynamic MM Verify expert profile - updates automatically with performance",',
             '"image": "data:image/svg+xml;base64,', Base64.encode(bytes(svg)), '",',
             '"attributes": [',
             '{"trait_type": "Expert ID", "value": "', tokenId.toString(), '"},',

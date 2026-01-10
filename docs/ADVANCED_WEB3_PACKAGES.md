@@ -1,6 +1,6 @@
 # Advanced Web3 Packages Integration Guide
 
-Complete deployment and integration guide for LLM Verifier's advanced Web3 packages.
+Complete deployment and integration guide for MM Verifier's advanced Web3 packages.
 
 ---
 
@@ -18,7 +18,7 @@ This guide covers three major expansion packages:
 
 ### Overview
 
-Enable LLM Verifier to operate across multiple blockchains with unified liquidity and state.
+Enable MM Verifier to operate across multiple blockchains with unified liquidity and state.
 
 **Contracts:**
 - `LayerZeroBridge.sol` - Cross-chain VERIFY token bridge
@@ -317,7 +317,7 @@ const deposited = await router.getUserTotalDeposited(myAddress);
 
 ```
 ┌──────────────────────────────────────────┐
-│          LLM Verifier Protocol           │
+│          MM Verifier Protocol           │
 │                                          │
 │  ┌────────────┐      ┌────────────┐     │
 │  │  Staking   │──────│   Mining   │     │
@@ -510,7 +510,7 @@ const medianScore = await evaluator.finalizeTask(taskId);
 
 ```
 ┌──────────────────────────────────────────────┐
-│         LLM Verifier Protocol                │
+│         MM Verifier Protocol                │
 │                                              │
 │  ┌─────────────────────────────────────┐    │
 │  │    AutomatedEvaluator               │    │
@@ -575,7 +575,7 @@ evaluator.on("TaskAssigned", async (taskId, agents) => {
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                  LLM Verifier Ecosystem                  │
+│                  MM Verifier Ecosystem                  │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
 │  │              Core Protocol (Base Layer)            │ │

@@ -66,7 +66,7 @@ contract ReputationBadges is ERC721, Ownable {
     event BadgeRevoked(uint256 indexed tokenId, address indexed recipient);
     event MinterSet(address indexed minter, bool authorized);
 
-    constructor() ERC721("LLM Verify Badges", "VERIFY-BADGE") Ownable(msg.sender) {
+    constructor() ERC721("MM Verify Badges", "VERIFY-BADGE") Ownable(msg.sender) {
         // Initialize badge colors and names
         badgeColors[BadgeType.EXPERT_VERIFIED] = "#FFD700";      // Gold
         badgeColors[BadgeType.ACCURACY_GOLD] = "#FFD700";        // Gold
@@ -175,7 +175,7 @@ contract ReputationBadges is ERC721, Ownable {
             '<text x="175" y="220" text-anchor="middle" fill="white" font-size="24" font-weight="bold">',
             name,
             '</text>',
-            '<text x="175" y="260" text-anchor="middle" fill="#aaa" font-size="14">LLM Verify Protocol</text>',
+            '<text x="175" y="260" text-anchor="middle" fill="#aaa" font-size="14">MM Verify Protocol</text>',
             '<text x="175" y="290" text-anchor="middle" fill="#888" font-size="12">#', tokenId.toString(), '</text>',
             '</svg>'
         ));
@@ -195,7 +195,7 @@ contract ReputationBadges is ERC721, Ownable {
 
         string memory json = Base64.encode(bytes(string(abi.encodePacked(
             '{"name": "', name, ' #', tokenId.toString(), '",',
-            '"description": "LLM Verify Protocol achievement badge - soulbound and non-transferable",',
+            '"description": "MM Verify Protocol achievement badge - soulbound and non-transferable",',
             '"image": "data:image/svg+xml;base64,', Base64.encode(bytes(svg)), '",',
             '"attributes": [',
             '{"trait_type": "Badge Type", "value": "', name, '"},',

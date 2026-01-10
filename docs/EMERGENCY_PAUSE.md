@@ -207,7 +207,7 @@ await updateStatusPage({
 
 ## Status: PAUSED
 
-We have temporarily paused LLM Verifier operations due to [brief description].
+We have temporarily paused MM Verifier operations due to [brief description].
 
 **What happened:**
 - [Timeline of events]
@@ -341,7 +341,7 @@ console.log('Operations resumed');
 // Notify users
 await sendNotification({
   title: 'Operations Resumed',
-  message: 'LLM Verifier is back online. All systems normal.',
+  message: 'MM Verifier is back online. All systems normal.',
 });
 ```
 
