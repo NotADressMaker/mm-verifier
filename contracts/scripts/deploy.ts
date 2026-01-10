@@ -21,6 +21,7 @@ async function main() {
   // Bond amounts (in wei) - configurable via .env
   const EVAL_BOND = process.env.EVAL_BOND || ethers.parseEther("0.02"); // 0.02 WETH
   const DISPUTE_BOND = process.env.DISPUTE_BOND || ethers.parseEther("0.01"); // 0.01 WETH
+  const AUDITOR_MIN_STAKE = process.env.AUDITOR_MIN_STAKE || ethers.parseEther("0.25"); // 0.25 WETH
 
   const feeCollector = deployer.address; // Using deployer as fee collector for now
 
@@ -32,17 +33,29 @@ async function main() {
   const stakingManagerAddress = await stakingManager.getAddress();
   console.log("✅ StakingManager deployed to:", stakingManagerAddress, "\n");
 
-  // Deploy AuditorRegistry
-  console.log("Deploying AuditorRegistry...");
+  // Deploy AuditorRegistry (WETH-based)
+  console.log("Deploying AuditorRegistry (WETH-based)...");
   const AuditorRegistry = await ethers.getContractFactory("AuditorRegistry");
   const auditorRegistry = await AuditorRegistry.deploy(
-    VRF_COORDINATOR,
-    VRF_KEY_HASH,
-    VRF_SUBSCRIPTION_ID
+    WETH_ADDRESS,
+    AUDITOR_MIN_STAKE
   );
   await auditorRegistry.waitForDeployment();
   const auditorRegistryAddress = await auditorRegistry.getAddress();
-  console.log("✅ AuditorRegistry deployed to:", auditorRegistryAddress, "\n");
+  console.log("✅ AuditorRegistry deployed to:", auditorRegistryAddress);
+  console.log("   Min Stake:", ethers.formatEther(AUDITOR_MIN_STAKE), "WETH\n");
+
+  // Deploy BLSSlashingManager
+  console.log("Deploying BLSSlashingManager...");
+  const BLSSlashingManager = await ethers.getContractFactory("BLSSlashingManager");
+  const blsSlashingManager = await BLSSlashingManager.deploy(
+    WETH_ADDRESS,
+    auditorRegistryAddress
+  );
+  await blsSlashingManager.waitForDeployment();
+  const blsSlashingManagerAddress = await blsSlashingManager.getAddress();
+  console.log("✅ BLSSlashingManager deployed to:", blsSlashingManagerAddress);
+  console.log("   Default slashing params: a=0.10, b=0.60, gamma=2.7, c=0.05\n");
 
   // Deploy DisputeResolver
   console.log("Deploying DisputeResolver...");
@@ -78,9 +91,9 @@ async function main() {
   await stakingManager.transferOwnership(marketplaceAddress);
   console.log("✅ Ownership transferred\n");
 
-  // Transfer ownership of AuditorRegistry to DisputeResolver
-  console.log("Transferring AuditorRegistry ownership to DisputeResolver...");
-  await auditorRegistry.transferOwnership(disputeResolverAddress);
+  // Transfer ownership of AuditorRegistry to BLSSlashingManager (for slashing)
+  console.log("Transferring AuditorRegistry ownership to BLSSlashingManager...");
+  await auditorRegistry.transferOwnership(blsSlashingManagerAddress);
   console.log("✅ Ownership transferred\n");
 
   // Note: VerifierMarketplace dispute integration happens via owner-only markDisputed/markResolved calls
@@ -95,16 +108,19 @@ async function main() {
   console.log("\nContract Addresses:");
   console.log("  StakingManager:          ", stakingManagerAddress);
   console.log("  AuditorRegistry:         ", auditorRegistryAddress);
+  console.log("  BLSSlashingManager:      ", blsSlashingManagerAddress);
   console.log("  DisputeResolver:         ", disputeResolverAddress);
   console.log("  VerifierMarketplace:     ", marketplaceAddress);
-  console.log("\nChainlink VRF Configuration:");
-  console.log("  VRF Coordinator:         ", VRF_COORDINATOR);
-  console.log("  Key Hash:                ", VRF_KEY_HASH);
-  console.log("  Subscription ID:         ", VRF_SUBSCRIPTION_ID);
   console.log("\nWETH & Bond Configuration:");
   console.log("  WETH Address:            ", WETH_ADDRESS);
   console.log("  Evaluator Bond:          ", ethers.formatEther(EVAL_BOND), "WETH");
+  console.log("  Auditor Min Stake:       ", ethers.formatEther(AUDITOR_MIN_STAKE), "WETH");
   console.log("  Dispute Bond:            ", ethers.formatEther(DISPUTE_BOND), "WETH");
+  console.log("\nBLS Slashing Configuration:");
+  console.log("  Ordinary disagreement:   a=0.10 (quadratic)");
+  console.log("  Unjustified branching:   b=0.60, gamma=2.7 (superlinear)");
+  console.log("  Overlap bonus:           c=0.05");
+  console.log("  Legit threshold:         0.65");
   console.log("\nFee Collector:             ", feeCollector);
   console.log("=" .repeat(60));
 
@@ -116,18 +132,22 @@ async function main() {
     contracts: {
       StakingManager: stakingManagerAddress,
       AuditorRegistry: auditorRegistryAddress,
+      BLSSlashingManager: blsSlashingManagerAddress,
       DisputeResolver: disputeResolverAddress,
       VerifierMarketplace: marketplaceAddress,
-    },
-    chainlink: {
-      vrfCoordinator: VRF_COORDINATOR,
-      keyHash: VRF_KEY_HASH,
-      subscriptionId: VRF_SUBSCRIPTION_ID,
     },
     weth: {
       address: WETH_ADDRESS,
       evalBond: ethers.formatEther(EVAL_BOND),
+      auditorMinStake: ethers.formatEther(AUDITOR_MIN_STAKE),
       disputeBond: ethers.formatEther(DISPUTE_BOND),
+    },
+    bls: {
+      a: "0.10",
+      b: "0.60",
+      gamma: "2.7",
+      c: "0.05",
+      legitThreshold: "0.65",
     },
     feeCollector: feeCollector,
     deployedAt: new Date().toISOString(),

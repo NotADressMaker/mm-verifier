@@ -462,4 +462,314 @@ export const CONSTANTS = {
   // Bundle
   BUNDLE_VERSION: '0.1',
   SOFTWARE_NAME: 'verifier-node',
+
+  // BLS (Branch Legitimacy Scoring)
+  BLS_LEGIT_THRESHOLD: 0.65,         // Minimum legitimacy score for "legit" branch
+  BLS_REDUNDANCY_THRESHOLD: 0.85,    // Cosine similarity threshold for duplicate detection
+  BLS_LAMBDA_EXCESS_WEIGHT: 2.0,     // Weight multiplier for branches exceeding budget
+};
+
+// ============================================================================
+// Branch Legitimacy Scoring (BLS) System
+// ============================================================================
+
+/**
+ * Decision branch in a branching decision tree
+ * Each branch represents a conditional path: IF condition THEN verdict + confidence
+ */
+export interface DecisionBranch {
+  branch_id: string;                   // "b1", "b2", etc.
+
+  // Condition (machine-checkable)
+  if_condition: string;                // Canonicalized boolean expression
+  condition_parseable: boolean;        // Can be parsed and evaluated
+  condition_type: ConditionType;       // "boolean" | "comparison" | "enumeration" | "free-text"
+
+  // Verdict
+  then_verdict: string;                // e.g., "reliable", "unreliable", "mixed"
+  then_confidence: number;             // 0-1 confidence in this branch's verdict
+
+  // Evidence support
+  supports: string[];                  // Evidence IDs (from evidence bundle)
+  quote_spans?: QuoteSpan[];           // Optional byte ranges / hashes for quotes
+  checks?: string[];                   // Contradiction checks / invariants used
+
+  // Scores (0-1)
+  scores: {
+    evidence_quality: number;          // E_i: Evidence presence and relevance
+    quote_attribution: number;         // Q_i: Quote correctness
+    necessity: number;                 // N_i: Non-redundancy
+    condition_clarity: number;         // C_i: Machine-checkability
+    scope_correctness: number;         // S_i: No overclaiming
+    legitimacy: number;                // Legit_i: Weighted average
+  };
+}
+
+export type ConditionType = 'boolean' | 'comparison' | 'enumeration' | 'free-text' | 'unparseable';
+
+export interface QuoteSpan {
+  evidence_id: string;                 // Reference to evidence item
+  byte_start?: number;                 // Start position in evidence
+  byte_end?: number;                   // End position in evidence
+  hash?: string;                       // Hash of quoted text
+  text: string;                        // The quote itself
+}
+
+/**
+ * Branching decision tree
+ * Contains multiple branches with conditions and verdicts
+ */
+export interface BranchingDecisionTree {
+  tree_id: string;
+  task_id: number | string;
+  evaluator: string;                   // ETH address
+
+  // Declared budget
+  declared_budget: number;             // B: Number of branches the evaluator claims to need
+  trust_score: number;                 // TrustScore that determined the budget
+
+  // Branches
+  branches: DecisionBranch[];
+  branch_count: number;                // K: Actual number of branches
+
+  // Coverage
+  has_else_branch: boolean;            // Does tree have exhaustive coverage?
+  coverage_complete: boolean;          // Are all plausible outcomes covered?
+
+  // Tree-level scores
+  scores: {
+    avg_legitimacy: number;            // Average legitimacy across all branches
+    coverage_factor: number;           // 0.7-1.0: Coverage completeness
+    complexity_discipline: number;     // 0.5-1.0: Penalty for exceeding budget
+    bls_score: number;                 // 0-100: Final Branch Legitimacy Score
+  };
+
+  // Timestamps
+  created_at: string;
+  bundle_hash: string;                 // Hash of associated evidence bundle
+}
+
+/**
+ * BLS Scoring Weights (configurable rubric)
+ */
+export interface BLSWeights {
+  // Per-branch component weights (should sum to 1.0)
+  evidence_quality: number;            // wE: default 0.35
+  quote_attribution: number;           // wQ: default 0.20
+  necessity: number;                   // wN: default 0.15
+  condition_clarity: number;           // wC: default 0.15
+  scope_correctness: number;           // wS: default 0.15
+}
+
+export const DEFAULT_BLS_WEIGHTS: BLSWeights = {
+  evidence_quality: 0.35,
+  quote_attribution: 0.20,
+  necessity: 0.15,
+  condition_clarity: 0.15,
+  scope_correctness: 0.15,
+};
+
+/**
+ * Evidence quality component (E_i)
+ */
+export interface EvidenceQualityScore {
+  has_evidence: boolean;               // supports_i non-empty
+  source_scores: number[];             // src(j) for each support
+  relevance_scores: number[];          // rel(j) for each support
+  combined_score: number;              // E_i: avg( sqrt(src * rel) )
+}
+
+/**
+ * Quote attribution component (Q_i)
+ */
+export interface QuoteAttributionScore {
+  has_quotes: boolean;
+  total_quotes: number;
+  mismatched_quotes: number;           // Wrong spans
+  out_of_context_quotes: number;       // Misleading context
+  quote_error_rate: number;            // (mismatched + out_of_context) / total
+  score: number;                       // Q_i: 1 - min(1, error_rate)
+}
+
+/**
+ * Necessity / non-redundancy component (N_i)
+ */
+export interface NecessityScore {
+  max_similarity: number;              // Max cosine similarity to other branches
+  is_redundant: boolean;               // similarity > threshold
+  score: number;                       // N_i: penalized if redundant
+}
+
+/**
+ * Condition clarity component (C_i)
+ */
+export interface ConditionClarityScore {
+  parseable: boolean;
+  uses_allowed_grammar: boolean;       // Boolean ops, comparisons, etc.
+  falsifiable: boolean;                // Can be proven false
+  score: number;                       // C_i: 0 / 0.5 / 1.0
+}
+
+/**
+ * Scope correctness component (S_i)
+ */
+export interface ScopeCorrectnessScore {
+  claim_confidence: number;            // conf_i: Branch confidence
+  evidence_entailment: number;         // entail_i: Evidence → claim strength
+  overclaim_penalty: number;           // over_i: clamp(conf - entail, 0, 1)
+  score: number;                       // S_i: 1 - overclaim_penalty
+}
+
+/**
+ * Fault classification for slashing
+ */
+export interface FaultClassification {
+  // Ordinary disagreement (gentle penalty)
+  ordinary_disagreement_rate: number;  // D: Wrong but legit branches (0-1)
+  legit_branch_count: number;          // Branches with Legit_i >= Lmin
+  incorrect_legit_branches: number;    // Legit branches contradicted by ground truth
+
+  // Unjustified branching (harsh penalty)
+  unjustified_severity: number;        // U: Low-legit + spam branches (0-1)
+  illegit_branch_count: number;        // Branches with Legit_i < Lmin
+  total_deficit: number;               // Sum of legitimacy deficits
+  exceeds_budget: boolean;             // K > B
+  excess_ratio: number;                // (K - B) / B
+}
+
+/**
+ * Slashing calculation
+ */
+export interface SlashingCalculation {
+  stake: string;                       // WETH amount in wei
+
+  // Inputs
+  ordinary_disagreement: number;       // D (0-1)
+  unjustified_severity: number;        // U (0-1)
+
+  // Component penalties
+  sD: number;                          // Ordinary disagreement penalty: a * D^2
+  sU: number;                          // Unjustified branching penalty: b * U^gamma
+  overlap_bonus: number;               // c * (D * U) to avoid double-counting
+
+  // Hard triggers
+  hard_triggers: {
+    fabricated_quote: boolean;         // Proven fake citation → 80% slash
+    high_confidence_no_support: boolean; // conf > 0.75, empty supports → 50% slash
+    spam_redundancy: boolean;          // >30% redundancy → 40% slash
+  };
+
+  // Final slash rate (0-1)
+  slash_rate: number;                  // clamp01(sD + sU - overlap + triggers)
+  slash_amount: string;                // WETH in wei
+
+  // Parameters used
+  params: {
+    a: number;                         // Ordinary disagreement coefficient (default 0.10)
+    b: number;                         // Unjustified branching coefficient (default 0.60)
+    gamma: number;                     // Unjustified branching exponent (default 2.7)
+    c: number;                         // Overlap bonus coefficient (default 0.05)
+  };
+}
+
+export const DEFAULT_BLS_SLASHING_PARAMS = {
+  a: 0.10,    // Ordinary disagreement: quadratic but gentle
+  b: 0.60,    // Unjustified branching: aggressive
+  gamma: 2.7, // Superlinear punishment for high U
+  c: 0.05,    // Small overlap correction
+};
+
+/**
+ * BLS Evaluation Result
+ * Complete evaluation of a branching decision tree
+ */
+export interface BLSEvaluationResult {
+  tree_id: string;
+  task_id: number | string;
+  evaluator: string;
+
+  // Tree structure
+  tree: BranchingDecisionTree;
+
+  // Per-branch evaluations
+  branch_evaluations: {
+    branch_id: string;
+    evidence_quality: EvidenceQualityScore;
+    quote_attribution: QuoteAttributionScore;
+    necessity: NecessityScore;
+    condition_clarity: ConditionClarityScore;
+    scope_correctness: ScopeCorrectnessScore;
+    legitimacy_score: number;          // Legit_i (0-1)
+    is_legitimate: boolean;            // Legit_i >= Lmin
+  }[];
+
+  // Tree-level scores
+  bls_score: number;                   // 0-100
+  avg_legitimacy: number;              // Average Legit_i
+  coverage_factor: number;             // 0.7-1.0
+  complexity_discipline: number;       // 0.5-1.0
+
+  // Fault classification
+  faults: FaultClassification;
+
+  // Slashing (if applicable)
+  slashing?: SlashingCalculation;
+
+  // Ground truth comparison (for post-resolution)
+  ground_truth?: {
+    final_verdict: string;
+    branch_correctness: Record<string, boolean>; // branch_id → correct?
+  };
+
+  // Timestamps
+  evaluated_at: string;
+}
+
+/**
+ * BLS Configuration (tunable parameters)
+ */
+export interface BLSConfig {
+  // Legitimacy thresholds
+  legit_threshold: number;             // Lmin: Minimum for "legit" branch (0.60-0.75)
+
+  // Component weights
+  weights: BLSWeights;
+
+  // Slashing parameters
+  slashing_params: {
+    a: number;                         // Ordinary disagreement
+    b: number;                         // Unjustified branching
+    gamma: number;                     // Unjustified branching exponent
+    c: number;                         // Overlap bonus
+  };
+
+  // Hard trigger thresholds
+  hard_triggers: {
+    min_slash_fabricated_quote: number;     // Default 0.80
+    min_slash_no_support: number;           // Default 0.50 (for high confidence)
+    min_slash_spam: number;                 // Default 0.40 (for >30% redundancy)
+    high_confidence_threshold: number;      // Default 0.75
+    spam_redundancy_threshold: number;      // Default 0.30 (30% of branches)
+  };
+
+  // Redundancy detection
+  redundancy_threshold: number;        // τdup: Cosine similarity threshold (0.85)
+
+  // Excess branching
+  lambda_excess_weight: number;        // λ: Weight multiplier for branches > budget (2.0)
+}
+
+export const DEFAULT_BLS_CONFIG: BLSConfig = {
+  legit_threshold: 0.65,
+  weights: DEFAULT_BLS_WEIGHTS,
+  slashing_params: DEFAULT_BLS_SLASHING_PARAMS,
+  hard_triggers: {
+    min_slash_fabricated_quote: 0.80,
+    min_slash_no_support: 0.50,
+    min_slash_spam: 0.40,
+    high_confidence_threshold: 0.75,
+    spam_redundancy_threshold: 0.30,
+  },
+  redundancy_threshold: 0.85,
+  lambda_excess_weight: 2.0,
 };
