@@ -1,0 +1,46 @@
+{
+  "name": "llm-verifier",
+  "version": "0.1.0",
+  "description": "Decentralized marketplace for verifying AI model outputs with economic accountability",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "npm install && cd contracts && npm install && cd ../api && npm install && cd ../verifier-node && npm install",
+    "build": "npm run build:contracts && npm run build:api && npm run build:verifier",
+    "build:contracts": "cd contracts && npm run compile",
+    "build:api": "cd api && npm run build",
+    "build:verifier": "cd verifier-node && npm run build",
+    "test": "npm run test:contracts && npm run test:api && npm run test:verifier",
+    "test:contracts": "cd contracts && npm test",
+    "test:api": "cd api && npm test",
+    "test:verifier": "cd verifier-node && npm test",
+    "dev:api": "cd api && npm run dev",
+    "dev:verifier": "cd verifier-node && npm run dev",
+    "deploy:sepolia": "cd contracts && npx hardhat run scripts/deploy.ts --network arbitrum-sepolia",
+    "deploy:mainnet": "cd contracts && npx hardhat run scripts/deploy.ts --network arbitrum-one"
+  },
+  "keywords": [
+    "llm",
+    "verification",
+    "blockchain",
+    "arbitrum",
+    "ai",
+    "smart-contracts",
+    "decentralized"
+  ],
+  "author": "LLM Verifier Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michaelmannen3-oss/LLM-Verifier.git"
+  },
+  "workspaces": [
+    "contracts",
+    "api",
+    "verifier-node",
+    "shared"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}
