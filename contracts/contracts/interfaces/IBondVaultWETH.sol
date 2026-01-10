@@ -22,12 +22,12 @@ interface IBondVaultWETH {
     // Events
     // ========================================================================
 
-    event BondDeposited(address indexed user, uint256 amount);
-    event BondWithdrawn(address indexed user, uint256 amount);
-    event BondLocked(bytes32 indexed taskId, address indexed user, uint256 amount);
-    event BondUnlocked(bytes32 indexed taskId, address indexed user, uint256 amount);
-    event BondSlashed(bytes32 indexed refId, address indexed user, uint256 amount, address indexed to);
-    event RewardPaid(bytes32 indexed refId, address indexed to, uint256 amount);
+    event BondDeposited(address indexed user, uint256 amount, uint256 timestamp);
+    event BondWithdrawn(address indexed user, uint256 amount, uint256 timestamp);
+    event BondLocked(bytes32 indexed taskId, address indexed user, uint256 amount, uint256 timestamp);
+    event BondUnlocked(bytes32 indexed taskId, address indexed user, uint256 amount, uint256 timestamp);
+    event BondSlashed(bytes32 indexed refId, address indexed user, uint256 amount, address indexed to, uint256 timestamp);
+    event RewardPaid(bytes32 indexed refId, address indexed to, uint256 amount, uint256 timestamp);
 
     // ========================================================================
     // View Functions
@@ -73,6 +73,19 @@ interface IBondVaultWETH {
      * @return Total WETH held by vault
      */
     function vaultBalance() external view returns (uint256);
+
+    /**
+     * @notice Get comprehensive bond summary for user (dashboard helper)
+     * @param user Address to query
+     * @return total Total bond (free + locked)
+     * @return free Free bond available for withdrawal
+     * @return locked Total locked bond across all tasks
+     */
+    function getUserBondSummary(address user) external view returns (
+        uint256 total,
+        uint256 free,
+        uint256 locked
+    );
 
     // ========================================================================
     // User Operations (Deposit/Withdraw)

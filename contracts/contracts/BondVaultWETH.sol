@@ -102,6 +102,23 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         return lockedBondOf[taskId][user];
     }
 
+    /**
+     * @notice Get comprehensive bond summary for user (dashboard helper)
+     * @param user Address to query
+     * @return total Total bond (free + locked)
+     * @return free Free bond available for withdrawal
+     * @return locked Total locked bond across all tasks
+     */
+    function getUserBondSummary(address user) external view returns (
+        uint256 total,
+        uint256 free,
+        uint256 locked
+    ) {
+        total = totalBondOf[user];
+        locked = totalLockedOf[user];
+        free = total - locked;
+    }
+
     // ========================================================================
     // User Operations (Deposit/Withdraw)
     // ========================================================================
@@ -121,7 +138,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         // Update accounting
         totalBondOf[msg.sender] += amount;
 
-        emit BondDeposited(msg.sender, amount);
+        emit BondDeposited(msg.sender, amount, block.timestamp);
     }
 
     /**
@@ -137,7 +154,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         // Update accounting
         totalBondOf[msg.sender] += msg.value;
 
-        emit BondDeposited(msg.sender, msg.value);
+        emit BondDeposited(msg.sender, msg.value, block.timestamp);
     }
 
     /**
@@ -156,7 +173,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         bool success = WETH.transfer(msg.sender, amount);
         if (!success) revert TransferFailed();
 
-        emit BondWithdrawn(msg.sender, amount);
+        emit BondWithdrawn(msg.sender, amount, block.timestamp);
     }
 
     // ========================================================================
@@ -183,7 +200,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         lockedBondOf[taskId][user] += amount;
         totalLockedOf[user] += amount;
 
-        emit BondLocked(taskId, user, amount);
+        emit BondLocked(taskId, user, amount, block.timestamp);
     }
 
     /**
@@ -206,7 +223,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         lockedBondOf[taskId][user] -= amount;
         totalLockedOf[user] -= amount;
 
-        emit BondUnlocked(taskId, user, amount);
+        emit BondUnlocked(taskId, user, amount, block.timestamp);
     }
 
     // ========================================================================
@@ -252,7 +269,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         bool success = WETH.transfer(to, slashAmount);
         if (!success) revert TransferFailed();
 
-        emit BondSlashed(refId, user, slashAmount, to);
+        emit BondSlashed(refId, user, slashAmount, to, block.timestamp);
     }
 
     // ========================================================================
@@ -281,7 +298,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         bool success = WETH.transfer(to, amount);
         if (!success) revert TransferFailed();
 
-        emit RewardPaid(refId, to, amount);
+        emit RewardPaid(refId, to, amount, block.timestamp);
     }
 
     /**

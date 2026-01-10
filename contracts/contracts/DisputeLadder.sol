@@ -177,19 +177,19 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
     // Events
     // ========================================================================
 
-    event DisputeOpened(uint256 indexed disputeId, bytes32 indexed bundleId, address indexed challenger, FaultType faultType, uint256 bond);
-    event DefenseBondPosted(uint256 indexed disputeId, address indexed verifier, uint256 amount);
-    event RoundStarted(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, RoundPhase phase);
-    event VRFRequested(uint256 indexed disputeId, uint256 indexed requestId, RoundLevel level, uint32 jurySize);
-    event JurySelected(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, address[] jurors);
-    event EvidenceSubmitted(uint256 indexed disputeId, bool forChallenger, bytes32 evidenceRoot, EvidenceTier maxTierClaimed);
-    event VotingStarted(uint256 indexed disputeId, uint64 voteDeadline);
-    event VoteCast(uint256 indexed disputeId, address indexed juror, Winner winner);
-    event RoundResolved(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, Winner winner, uint8 marginBps, bool fabricationProven, uint16 invalidBranchMedian);
-    event Appealed(uint256 indexed disputeId, address indexed appellant, RoundLevel newLevel, uint256 bond);
-    event DisputeFinalized(uint256 indexed disputeId, Winner finalWinner, uint256 challengerPayout, uint256 verifierPayout);
-    event RewardsAccumulated(uint256 indexed disputeId, address indexed juror, uint256 amount);
-    event RewardsClaimed(address indexed juror, uint256 amount);
+    event DisputeOpened(uint256 indexed disputeId, bytes32 indexed bundleId, address indexed challenger, FaultType faultType, uint256 bond, uint256 timestamp);
+    event DefenseBondPosted(uint256 indexed disputeId, address indexed verifier, uint256 amount, uint256 timestamp);
+    event RoundStarted(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, RoundPhase phase, uint256 timestamp);
+    event VRFRequested(uint256 indexed disputeId, uint256 indexed requestId, RoundLevel level, uint32 jurySize, uint256 timestamp);
+    event JurySelected(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, address[] jurors, uint256 timestamp);
+    event EvidenceSubmitted(uint256 indexed disputeId, bool forChallenger, bytes32 evidenceRoot, EvidenceTier maxTierClaimed, uint256 timestamp);
+    event VotingStarted(uint256 indexed disputeId, uint64 voteDeadline, uint256 timestamp);
+    event VoteCast(uint256 indexed disputeId, address indexed juror, Winner winner, uint256 timestamp);
+    event RoundResolved(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, Winner winner, uint8 marginBps, bool fabricationProven, uint16 invalidBranchMedian, uint256 timestamp);
+    event Appealed(uint256 indexed disputeId, address indexed appellant, RoundLevel newLevel, uint256 bond, uint256 timestamp);
+    event DisputeFinalized(uint256 indexed disputeId, Winner finalWinner, uint256 challengerPayout, uint256 verifierPayout, uint256 timestamp);
+    event RewardsAccumulated(uint256 indexed disputeId, address indexed juror, uint256 amount, uint256 timestamp);
+    event RewardsClaimed(address indexed juror, uint256 amount, uint256 timestamp);
 
     // ========================================================================
     // Constructor
@@ -284,7 +284,49 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             roundIndex: 0
         });
 
-        emit DisputeOpened(disputeId, bundleId, msg.sender, faultType, bondAmount);
+        emit DisputeOpened(disputeId, bundleId, msg.sender, faultType, bondAmount, block.timestamp);
+    }
+
+    /**
+     * @notice Open a new dispute with ETH (convenience wrapper)
+     * @dev Wraps ETH to WETH and calls openDispute logic inline
+     * @param bundleId Bundle identifier
+     * @param branchId Branch index (0 = whole bundle)
+     * @param faultType Type of fault being disputed
+     * @return disputeId New dispute ID
+     */
+    function openDisputeWithETH(
+        bytes32 bundleId,
+        uint32 branchId,
+        FaultType faultType
+    ) external payable nonReentrant whenNotPaused returns (uint256 disputeId) {
+        require(msg.value >= minChallengeBond[faultType], "Insufficient bond");
+
+        address verifier = bundleRegistry.getBundleOwner(bundleId);
+        require(verifier != address(0), "Bundle not found");
+        require(msg.sender != verifier, "Cannot dispute own bundle");
+
+        // Wrap ETH to WETH
+        WETH.deposit{value: msg.value}();
+
+        uint256 bondAmount = msg.value;
+        disputeId = nextDisputeId++;
+
+        disputes[disputeId] = Dispute({
+            status: DisputeStatus.OPEN,
+            bundleId: bundleId,
+            branchId: branchId,
+            faultType: faultType,
+            challenger: msg.sender,
+            verifier: verifier,
+            createdAt: block.timestamp,
+            challengeBond: bondAmount,
+            defenseBond: 0,
+            currentLevel: 0, // L0
+            roundIndex: 0
+        });
+
+        emit DisputeOpened(disputeId, bundleId, msg.sender, faultType, bondAmount, block.timestamp);
     }
 
     /**
@@ -305,7 +347,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
 
         dispute.defenseBond += bondAmount;
 
-        emit DefenseBondPosted(disputeId, msg.sender, bondAmount);
+        emit DefenseBondPosted(disputeId, msg.sender, bondAmount, block.timestamp);
     }
 
     // ========================================================================
@@ -325,7 +367,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         round.level = RoundLevel.L0;
         round.phase = RoundPhase.AUTO_CHECK;
 
-        emit RoundStarted(disputeId, 0, RoundLevel.L0, RoundPhase.AUTO_CHECK);
+        emit RoundStarted(disputeId, 0, RoundLevel.L0, RoundPhase.AUTO_CHECK, block.timestamp);
 
         // Run mechanical checks
         bool violation = _runMechanicalChecks(dispute.bundleId, dispute.branchId, dispute.faultType);
@@ -338,7 +380,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             round.appealDeadline = uint64(block.timestamp + appealWindows[RoundLevel.L0]);
             dispute.status = DisputeStatus.ROUND_RESOLVED;
 
-            emit RoundResolved(disputeId, 0, RoundLevel.L0, Winner.CHALLENGER, 100, false, 0);
+            emit RoundResolved(disputeId, 0, RoundLevel.L0, Winner.CHALLENGER, 100, false, 0, block.timestamp);
         } else {
             // L0 finds no mechanical fault → escalate to L1
             _escalateToNextLevel(disputeId);
@@ -403,7 +445,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         round.phase = RoundPhase.SELECTING_JURY;
         round.jurySize = jurySizes[newLevel];
 
-        emit RoundStarted(disputeId, dispute.roundIndex, newLevel, RoundPhase.SELECTING_JURY);
+        emit RoundStarted(disputeId, dispute.roundIndex, newLevel, RoundPhase.SELECTING_JURY, block.timestamp);
 
         // Request VRF for jury selection
         _requestJuryVRF(disputeId, dispute.roundIndex);
@@ -429,7 +471,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         vrfRequestToDispute[requestId] = disputeId;
         vrfRequestToRound[requestId] = roundIndex;
 
-        emit VRFRequested(disputeId, requestId, round.level, round.jurySize);
+        emit VRFRequested(disputeId, requestId, round.level, round.jurySize, block.timestamp);
     }
 
     // ========================================================================
@@ -476,7 +518,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             round.phase = RoundPhase.EVIDENCE;
         }
 
-        emit JurySelected(disputeId, roundIndex, round.level, selectedJurors);
+        emit JurySelected(disputeId, roundIndex, round.level, selectedJurors, block.timestamp);
     }
 
     /**
@@ -556,7 +598,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             round.verifierEvidence = meta;
         }
 
-        emit EvidenceSubmitted(disputeId, forChallenger, meta.evidenceRoot, meta.maxTierClaimed);
+        emit EvidenceSubmitted(disputeId, forChallenger, meta.evidenceRoot, meta.maxTierClaimed, block.timestamp);
     }
 
     /**
@@ -573,7 +615,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         round.phase = RoundPhase.VOTING;
         round.voteDeadline = uint64(block.timestamp + voteWindows[round.level]);
 
-        emit VotingStarted(disputeId, round.voteDeadline);
+        emit VotingStarted(disputeId, round.voteDeadline, block.timestamp);
     }
 
     // ========================================================================
@@ -598,7 +640,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         hasVoted[disputeId][dispute.roundIndex][msg.sender] = true;
         round.votesCast++;
 
-        emit VoteCast(disputeId, msg.sender, vote.winner);
+        emit VoteCast(disputeId, msg.sender, vote.winner, block.timestamp);
 
         // If all jurors voted, allow early tally
         if (round.votesCast == round.jurySize) {
@@ -701,7 +743,8 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             round.winner,
             round.marginBps,
             round.fabricationProven,
-            round.invalidBranchCountMedian
+            round.invalidBranchCountMedian,
+            block.timestamp
         );
     }
 
@@ -761,7 +804,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             dispute.defenseBond += bondAmount;
         }
 
-        emit Appealed(disputeId, msg.sender, nextLevel, bondAmount);
+        emit Appealed(disputeId, msg.sender, nextLevel, bondAmount, block.timestamp);
 
         // Escalate to next level
         _escalateToNextLevel(disputeId);
@@ -799,7 +842,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             require(WETH.transfer(dispute.verifier, verifierPayout), "WETH transfer failed");
         }
 
-        emit DisputeFinalized(disputeId, round.winner, challengerPayout, verifierPayout);
+        emit DisputeFinalized(disputeId, round.winner, challengerPayout, verifierPayout, block.timestamp);
     }
 
     /**
@@ -849,7 +892,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             address juror = round.jurors[i];
             if (hasVoted[disputeId][dispute.roundIndex][juror]) {
                 pendingRewards[juror] += rewardPerJuror;
-                emit RewardsAccumulated(disputeId, juror, rewardPerJuror);
+                emit RewardsAccumulated(disputeId, juror, rewardPerJuror, block.timestamp);
             }
         }
     }
@@ -868,7 +911,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         // Transfer WETH to juror
         require(WETH.transfer(msg.sender, amount), "WETH transfer failed");
 
-        emit RewardsClaimed(msg.sender, amount);
+        emit RewardsClaimed(msg.sender, amount, block.timestamp);
     }
 
     // ========================================================================
@@ -951,5 +994,45 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
 
     function getVote(uint256 disputeId, uint8 roundIndex, address juror) external view returns (JurorVote memory) {
         return voteOf[disputeId][roundIndex][juror];
+    }
+
+    /**
+     * @notice Get comprehensive dispute summary (dashboard helper)
+     * @param disputeId Dispute ID
+     * @return status Current dispute status
+     * @return bundleId Bundle identifier
+     * @return challenger Challenger address
+     * @return verifier Verifier address
+     * @return challengeBond Challenge bond amount
+     * @return defenseBond Defense bond amount
+     * @return currentLevel Current round level (0=L0, 1=L1, 2=L2, 3=L3)
+     * @return roundPhase Current round phase
+     * @return winner Current round winner (if resolved)
+     */
+    function getDisputeSummary(uint256 disputeId) external view returns (
+        DisputeStatus status,
+        bytes32 bundleId,
+        address challenger,
+        address verifier,
+        uint256 challengeBond,
+        uint256 defenseBond,
+        uint8 currentLevel,
+        RoundPhase roundPhase,
+        Winner winner
+    ) {
+        Dispute storage dispute = disputes[disputeId];
+        Round storage round = rounds[disputeId][dispute.roundIndex];
+
+        return (
+            dispute.status,
+            dispute.bundleId,
+            dispute.challenger,
+            dispute.verifier,
+            dispute.challengeBond,
+            dispute.defenseBond,
+            dispute.currentLevel,
+            round.phase,
+            round.winner
+        );
     }
 }
