@@ -16,12 +16,18 @@ contract AuditorRegistry is IStakeManager, Ownable, ReentrancyGuard {
     IWETH public immutable WETH;
 
     uint256 public minStake;
+    uint256 public minHumanExpertStake; // Higher stake requirement for human experts
     uint256 public slashBps = 2_000; // 20% default max slash (governable)
 
     mapping(address => uint256) public stakeOf;
     mapping(address => uint256) public lockedStake;
     mapping(address => bool) public active;
     mapping(address => uint16) public reputationBps; // 0-10000 (0-100%)
+
+    // Human expert system
+    mapping(address => bool) public isHumanExpert;
+    mapping(address => string) public expertCredentials; // IPFS hash of credentials/bio
+    uint256 public humanExpertCount;
 
     address[] public auditorList;
     mapping(address => uint256) private indexOf; // 1-based index
@@ -32,10 +38,13 @@ contract AuditorRegistry is IStakeManager, Ownable, ReentrancyGuard {
     event Activated(address indexed auditor, bool activeStatus);
     event Rewarded(address indexed auditor, uint256 amount);
     event StakeLocked(address indexed auditor, uint256 amount, uint64 until);
+    event HumanExpertRegistered(address indexed expert, string credentials, uint256 timestamp);
+    event HumanExpertRemoved(address indexed expert, uint256 timestamp);
 
     constructor(IWETH _weth, uint256 _minStake) Ownable(msg.sender) {
         WETH = _weth;
         minStake = _minStake;
+        minHumanExpertStake = _minStake * 5; // 5x minimum stake for human experts
     }
 
     function auditorsCount() external view returns (uint256) {
@@ -47,6 +56,7 @@ contract AuditorRegistry is IStakeManager, Ownable, ReentrancyGuard {
     }
 
     function setMinStake(uint256 v) external onlyOwner { minStake = v; }
+    function setMinHumanExpertStake(uint256 v) external onlyOwner { minHumanExpertStake = v; }
     function setSlashBps(uint256 v) external onlyOwner { require(v <= 10_000); slashBps = v; }
 
     function stake(uint256 amount) external nonReentrant {
@@ -81,6 +91,59 @@ contract AuditorRegistry is IStakeManager, Ownable, ReentrancyGuard {
     function _activate(address a, bool v) internal {
         active[a] = v;
         emit Activated(a, v);
+    }
+
+    // ========================================================================
+    // Human Expert Management
+    // ========================================================================
+
+    /**
+     * @notice Register as a human expert (requires higher stake)
+     * @param credentialsHash IPFS hash of credentials/bio/certifications
+     */
+    function registerAsHumanExpert(string calldata credentialsHash) external nonReentrant {
+        require(stakeOf[msg.sender] >= minHumanExpertStake, "Insufficient stake for human expert");
+        require(!isHumanExpert[msg.sender], "Already registered as expert");
+        require(active[msg.sender], "Must be active auditor");
+        require(bytes(credentialsHash).length > 0, "Credentials required");
+
+        isHumanExpert[msg.sender] = true;
+        expertCredentials[msg.sender] = credentialsHash;
+        humanExpertCount++;
+
+        emit HumanExpertRegistered(msg.sender, credentialsHash, block.timestamp);
+    }
+
+    /**
+     * @notice Owner can designate verified human experts (governance/multisig)
+     * @param expert Address to designate as human expert
+     * @param credentialsHash IPFS hash of credentials
+     */
+    function designateHumanExpert(address expert, string calldata credentialsHash) external onlyOwner {
+        require(stakeOf[expert] >= minHumanExpertStake, "Expert must meet stake requirement");
+        require(!isHumanExpert[expert], "Already a human expert");
+        require(active[expert], "Expert must be active");
+
+        isHumanExpert[expert] = true;
+        expertCredentials[expert] = credentialsHash;
+        humanExpertCount++;
+
+        emit HumanExpertRegistered(expert, credentialsHash, block.timestamp);
+    }
+
+    /**
+     * @notice Remove human expert status (self or owner)
+     * @param expert Address to remove expert status from
+     */
+    function removeHumanExpert(address expert) external {
+        require(msg.sender == expert || msg.sender == owner(), "Only expert or owner");
+        require(isHumanExpert[expert], "Not a human expert");
+
+        isHumanExpert[expert] = false;
+        delete expertCredentials[expert];
+        humanExpertCount--;
+
+        emit HumanExpertRemoved(expert, block.timestamp);
     }
 
     // ========================================================================
@@ -174,6 +237,71 @@ contract AuditorRegistry is IStakeManager, Ownable, ReentrancyGuard {
 
     function auditorReputationBps(address who) external view override returns (uint16) {
         return reputationBps[who];
+    }
+
+    // ========================================================================
+    // Human Expert View Functions
+    // ========================================================================
+
+    /**
+     * @notice Get list of all human experts
+     * @return experts Array of human expert addresses
+     */
+    function getHumanExperts() external view returns (address[] memory experts) {
+        // Count human experts
+        uint256 count = 0;
+        for (uint256 i = 0; i < auditorList.length; i++) {
+            if (isHumanExpert[auditorList[i]]) {
+                count++;
+            }
+        }
+
+        // Build array
+        experts = new address[](count);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < auditorList.length; i++) {
+            if (isHumanExpert[auditorList[i]]) {
+                experts[idx] = auditorList[i];
+                idx++;
+            }
+        }
+    }
+
+    /**
+     * @notice Get active human experts (for jury selection)
+     * @return experts Array of active human expert addresses
+     */
+    function getActiveHumanExperts() external view returns (address[] memory experts) {
+        // Count active human experts
+        uint256 count = 0;
+        for (uint256 i = 0; i < auditorList.length; i++) {
+            address auditor = auditorList[i];
+            if (isHumanExpert[auditor] && active[auditor]) {
+                count++;
+            }
+        }
+
+        // Build array
+        experts = new address[](count);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < auditorList.length; i++) {
+            address auditor = auditorList[i];
+            if (isHumanExpert[auditor] && active[auditor]) {
+                experts[idx] = auditor;
+                idx++;
+            }
+        }
+    }
+
+    /**
+     * @notice Check if auditor qualifies as human expert (stake + flag)
+     * @param auditor Address to check
+     * @return qualified True if meets stake requirement and has expert flag
+     */
+    function isQualifiedHumanExpert(address auditor) external view returns (bool qualified) {
+        return isHumanExpert[auditor]
+            && active[auditor]
+            && stakeOf[auditor] >= minHumanExpertStake;
     }
 
     // ========================================================================
