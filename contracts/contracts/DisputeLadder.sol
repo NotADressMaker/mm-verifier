@@ -7,6 +7,7 @@ import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title DisputeLadder
@@ -24,8 +25,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - Dispute bonds (challenger/verifier): Managed directly in WETH by DisputeLadder
  * - Auditor stakes: Managed by AuditorRegistry (IStakeManager)
  * - Rewards paid in WETH to auditor stakes
+ *
+ * Emergency Control:
+ * - Pausable for production safety (dispute operations can be paused)
  */
-contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
+contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 {
     // ========================================================================
     // Enums
     // ========================================================================
@@ -166,6 +170,9 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     mapping(RoundLevel => uint64) public voteWindows;
     mapping(RoundLevel => uint64) public appealWindows;
 
+    // Juror rewards (pull-based)
+    mapping(address => uint256) public pendingRewards;
+
     // ========================================================================
     // Events
     // ========================================================================
@@ -181,6 +188,8 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     event RoundResolved(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, Winner winner, uint8 marginBps, bool fabricationProven, uint16 invalidBranchMedian);
     event Appealed(uint256 indexed disputeId, address indexed appellant, RoundLevel newLevel, uint256 bond);
     event DisputeFinalized(uint256 indexed disputeId, Winner finalWinner, uint256 challengerPayout, uint256 verifierPayout);
+    event RewardsAccumulated(uint256 indexed disputeId, address indexed juror, uint256 amount);
+    event RewardsClaimed(address indexed juror, uint256 amount);
 
     // ========================================================================
     // Constructor
@@ -249,7 +258,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         uint32 branchId,
         FaultType faultType,
         uint256 bondAmount
-    ) external nonReentrant returns (uint256 disputeId) {
+    ) external nonReentrant whenNotPaused returns (uint256 disputeId) {
         require(bondAmount >= minChallengeBond[faultType], "Insufficient bond");
 
         address verifier = bundleRegistry.getBundleOwner(bundleId);
@@ -284,7 +293,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
      * @param disputeId Dispute ID
      * @param bondAmount Amount of WETH to bond
      */
-    function postDefenseBond(uint256 disputeId, uint256 bondAmount) external nonReentrant {
+    function postDefenseBond(uint256 disputeId, uint256 bondAmount) external nonReentrant whenNotPaused {
         Dispute storage dispute = disputes[disputeId];
         require(dispute.status != DisputeStatus.NONE, "Dispute not found");
         require(msg.sender == dispute.verifier, "Only verifier");
@@ -532,7 +541,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         uint256 disputeId,
         bool forChallenger,
         EvidencePacketMeta calldata meta
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         Dispute storage dispute = disputes[disputeId];
         Round storage round = rounds[disputeId][dispute.roundIndex];
 
@@ -576,7 +585,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
      * @param disputeId Dispute ID
      * @param vote Juror vote
      */
-    function castVote(uint256 disputeId, JurorVote calldata vote) external nonReentrant {
+    function castVote(uint256 disputeId, JurorVote calldata vote) external nonReentrant whenNotPaused {
         Dispute storage dispute = disputes[disputeId];
         Round storage round = rounds[disputeId][dispute.roundIndex];
 
@@ -726,7 +735,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
      * @param disputeId Dispute ID
      * @param bondAmount Amount of WETH to bond for appeal
      */
-    function appeal(uint256 disputeId, uint256 bondAmount) external nonReentrant {
+    function appeal(uint256 disputeId, uint256 bondAmount) external nonReentrant whenNotPaused {
         Dispute storage dispute = disputes[disputeId];
         Round storage round = rounds[disputeId][dispute.roundIndex];
 
@@ -821,8 +830,9 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
     }
 
     /**
-     * @notice Distribute WETH rewards to jurors
-     * @dev Transfers WETH directly to jurors (not added to stake automatically)
+     * @notice Accumulate WETH rewards for jurors (pull-based pattern)
+     * @dev Jurors must call claimRewards() to withdraw accumulated rewards
+     *      This prevents one failed transfer from blocking the entire finalization
      */
     function _distributeJurorRewards(uint256 disputeId) internal {
         Dispute storage dispute = disputes[disputeId];
@@ -838,9 +848,27 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         for (uint256 i = 0; i < round.jurors.length; i++) {
             address juror = round.jurors[i];
             if (hasVoted[disputeId][dispute.roundIndex][juror]) {
-                require(WETH.transfer(juror, rewardPerJuror), "WETH transfer failed");
+                pendingRewards[juror] += rewardPerJuror;
+                emit RewardsAccumulated(disputeId, juror, rewardPerJuror);
             }
         }
+    }
+
+    /**
+     * @notice Claim accumulated juror rewards
+     * @dev Pull-based reward withdrawal for gas efficiency and safety
+     */
+    function claimRewards() external nonReentrant {
+        uint256 amount = pendingRewards[msg.sender];
+        require(amount > 0, "No rewards to claim");
+
+        // Clear pending rewards before transfer (reentrancy protection)
+        pendingRewards[msg.sender] = 0;
+
+        // Transfer WETH to juror
+        require(WETH.transfer(msg.sender, amount), "WETH transfer failed");
+
+        emit RewardsClaimed(msg.sender, amount);
     }
 
     // ========================================================================
@@ -868,6 +896,26 @@ contract DisputeLadder is Ownable, ReentrancyGuard, VRFConsumerBaseV2 {
         evidenceWindows[level] = evidenceWindow;
         voteWindows[level] = voteWindow;
         appealWindows[level] = appealWindow;
+    }
+
+    // ========================================================================
+    // Emergency Functions
+    // ========================================================================
+
+    /**
+     * @notice Pause dispute operations in case of emergency
+     * @dev Only callable by owner (governance/multisig)
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Unpause dispute operations after emergency resolved
+     * @dev Only callable by owner (governance/multisig)
+     */
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     // ========================================================================

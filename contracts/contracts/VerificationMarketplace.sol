@@ -2,6 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "./interfaces/IWETH.sol";
+import "./libraries/VerifierTypes.sol";
+import "./libraries/VerifierHash.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -10,6 +12,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @notice WETH-based marketplace for LLM verification with commit-reveal protocol
  * @dev Evaluators post WETH bonds, commit scores, reveal with evidence bundles,
  *      and earn rewards based on accuracy (proximity to median consensus)
+ *
+ * TODO: Migrate to canonical libraries for type consistency
+ * - Replace Task struct with VerifierTypes.TaskMeta
+ * - Replace Evaluation with VerifierTypes.CommitInfo + VerifierTypes.RevealBundle
+ * - Use VerifierHash.commitHash() for canonical commitment computation
+ * - Use bytes32 taskId (from VerifierHash.generateTaskId()) instead of uint256
+ * - This will ensure consistency with DisputeLadder and BondVaultWETH
  */
 contract VerifierMarketplace is Ownable, ReentrancyGuard {
     IWETH public immutable WETH;

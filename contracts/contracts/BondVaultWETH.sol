@@ -2,8 +2,11 @@
 pragma solidity ^0.8.20;
 
 import "./interfaces/IWETH.sol";
+import "./interfaces/IBondVaultWETH.sol";
 import "./libraries/VerifierTypes.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title BondVaultWETH
@@ -22,30 +25,9 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * 3. Transparent accounting: Free vs locked bonds tracked separately
  * 4. Gas efficiency: Minimal storage operations
  * 5. Safety: ReentrancyGuard on all state-changing functions
+ * 6. Emergency control: Pausable for production safety
  */
-contract BondVaultWETH is ReentrancyGuard {
-    // ========================================================================
-    // Errors
-    // ========================================================================
-
-    error NotAuthorized();
-    error InsufficientFreeBond();
-    error LockNotFound();
-    error ZeroAmount();
-    error InsufficientLockedBond();
-    error TransferFailed();
-
-    // ========================================================================
-    // Events
-    // ========================================================================
-
-    event BondDeposited(address indexed user, uint256 amount);
-    event BondWithdrawn(address indexed user, uint256 amount);
-    event BondLocked(bytes32 indexed taskId, address indexed user, uint256 amount);
-    event BondUnlocked(bytes32 indexed taskId, address indexed user, uint256 amount);
-    event BondSlashed(bytes32 indexed refId, address indexed user, uint256 amount, address indexed to);
-    event RewardPaid(bytes32 indexed refId, address indexed to, uint256 amount);
-
+contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
     // ========================================================================
     // Immutable State
     // ========================================================================
@@ -87,7 +69,7 @@ contract BondVaultWETH is ReentrancyGuard {
         IWETH _weth,
         address _marketplace,
         address _disputeLadder
-    ) {
+    ) Ownable(msg.sender) {
         require(address(_weth) != address(0), "Invalid WETH");
         require(_marketplace != address(0), "Invalid marketplace");
         require(_disputeLadder != address(0), "Invalid disputeLadder");
@@ -129,7 +111,7 @@ contract BondVaultWETH is ReentrancyGuard {
      * @dev User must approve this contract to spend WETH first
      * @param amount Amount of WETH to deposit
      */
-    function deposit(uint256 amount) external nonReentrant {
+    function deposit(uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
 
         // Transfer WETH from user
@@ -146,7 +128,7 @@ contract BondVaultWETH is ReentrancyGuard {
      * @notice Deposit ETH and wrap to WETH
      * @dev Convenience function for users who have ETH but not WETH
      */
-    function depositETH() external payable nonReentrant {
+    function depositETH() external payable nonReentrant whenNotPaused {
         if (msg.value == 0) revert ZeroAmount();
 
         // Wrap ETH to WETH
@@ -163,7 +145,7 @@ contract BondVaultWETH is ReentrancyGuard {
      * @dev Can only withdraw unlocked bonds
      * @param amount Amount of WETH to withdraw
      */
-    function withdraw(uint256 amount) external nonReentrant {
+    function withdraw(uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
         if (freeBondOf(msg.sender) < amount) revert InsufficientFreeBond();
 
@@ -192,7 +174,7 @@ contract BondVaultWETH is ReentrancyGuard {
         bytes32 taskId,
         address user,
         uint256 amount
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         if (msg.sender != marketplace) revert NotAuthorized();
         if (amount == 0) revert ZeroAmount();
         if (freeBondOf(user) < amount) revert InsufficientFreeBond();
@@ -215,7 +197,7 @@ contract BondVaultWETH is ReentrancyGuard {
         bytes32 taskId,
         address user,
         uint256 amount
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         if (msg.sender != marketplace) revert NotAuthorized();
         if (amount == 0) revert ZeroAmount();
         if (lockedBondOf[taskId][user] < amount) revert InsufficientLockedBond();
@@ -244,7 +226,7 @@ contract BondVaultWETH is ReentrancyGuard {
         address user,
         uint256 amount,
         address to
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         if (msg.sender != disputeLadder) revert NotAuthorized();
         if (amount == 0) revert ZeroAmount();
         if (to == address(0)) revert TransferFailed();
@@ -288,7 +270,7 @@ contract BondVaultWETH is ReentrancyGuard {
         bytes32 refId,
         address to,
         uint256 amount
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         if (msg.sender != marketplace && msg.sender != disputeLadder) {
             revert NotAuthorized();
         }
@@ -307,7 +289,7 @@ contract BondVaultWETH is ReentrancyGuard {
      * @dev Marketplace/DisputeLadder must deposit WETH before paying rewards
      * @param amount Amount of WETH to fund
      */
-    function fundVault(uint256 amount) external nonReentrant {
+    function fundVault(uint256 amount) external nonReentrant whenNotPaused {
         if (msg.sender != marketplace && msg.sender != disputeLadder) {
             revert NotAuthorized();
         }
@@ -324,6 +306,22 @@ contract BondVaultWETH is ReentrancyGuard {
     // ========================================================================
     // Emergency Functions
     // ========================================================================
+
+    /**
+     * @notice Pause bond operations in case of emergency
+     * @dev Only callable by owner (governance/multisig)
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @notice Unpause bond operations after emergency resolved
+     * @dev Only callable by owner (governance/multisig)
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 
     /**
      * @notice Get vault WETH balance
