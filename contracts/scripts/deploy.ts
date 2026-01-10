@@ -57,8 +57,31 @@ async function main() {
   console.log("✅ BLSSlashingManager deployed to:", blsSlashingManagerAddress);
   console.log("   Default slashing params: a=0.10, b=0.60, gamma=2.7, c=0.05\n");
 
-  // Deploy DisputeResolver
-  console.log("Deploying DisputeResolver...");
+  // Deploy BundleRegistry
+  console.log("Deploying BundleRegistry...");
+  const BundleRegistry = await ethers.getContractFactory("BundleRegistry");
+  const bundleRegistry = await BundleRegistry.deploy();
+  await bundleRegistry.waitForDeployment();
+  const bundleRegistryAddress = await bundleRegistry.getAddress();
+  console.log("✅ BundleRegistry deployed to:", bundleRegistryAddress, "\n");
+
+  // Deploy DisputeLadder (multi-tier dispute resolution)
+  console.log("Deploying DisputeLadder...");
+  const DisputeLadder = await ethers.getContractFactory("DisputeLadder");
+  const disputeLadder = await DisputeLadder.deploy(
+    bundleRegistryAddress,
+    auditorRegistryAddress,
+    VRF_COORDINATOR,
+    VRF_KEY_HASH,
+    VRF_SUBSCRIPTION_ID
+  );
+  await disputeLadder.waitForDeployment();
+  const disputeLadderAddress = await disputeLadder.getAddress();
+  console.log("✅ DisputeLadder deployed to:", disputeLadderAddress);
+  console.log("   Ladder: L0 (auto) → L1 (5 jurors) → L2 (15 jurors) → L3 (51 jurors)\n");
+
+  // Deploy DisputeResolver (legacy)
+  console.log("Deploying DisputeResolver (legacy)...");
   const DisputeResolver = await ethers.getContractFactory("DisputeResolver");
   const disputeResolver = await DisputeResolver.deploy(
     stakingManagerAddress,
@@ -109,7 +132,9 @@ async function main() {
   console.log("  StakingManager:          ", stakingManagerAddress);
   console.log("  AuditorRegistry:         ", auditorRegistryAddress);
   console.log("  BLSSlashingManager:      ", blsSlashingManagerAddress);
-  console.log("  DisputeResolver:         ", disputeResolverAddress);
+  console.log("  BundleRegistry:          ", bundleRegistryAddress);
+  console.log("  DisputeLadder:           ", disputeLadderAddress);
+  console.log("  DisputeResolver (legacy):", disputeResolverAddress);
   console.log("  VerifierMarketplace:     ", marketplaceAddress);
   console.log("\nWETH & Bond Configuration:");
   console.log("  WETH Address:            ", WETH_ADDRESS);
@@ -133,6 +158,8 @@ async function main() {
       StakingManager: stakingManagerAddress,
       AuditorRegistry: auditorRegistryAddress,
       BLSSlashingManager: blsSlashingManagerAddress,
+      BundleRegistry: bundleRegistryAddress,
+      DisputeLadder: disputeLadderAddress,
       DisputeResolver: disputeResolverAddress,
       VerifierMarketplace: marketplaceAddress,
     },
