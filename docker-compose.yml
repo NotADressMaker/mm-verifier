@@ -4,7 +4,7 @@ services:
   # Redis for job queue and caching
   redis:
     image: redis:7-alpine
-    container_name: llm-verifier-redis
+    container_name: mmverifier-redis
     ports:
       - '6379:6379'
     volumes:
@@ -19,9 +19,9 @@ services:
   # PostgreSQL for API data
   postgres:
     image: postgres:15-alpine
-    container_name: llm-verifier-postgres
+    container_name: mmverifier-postgres
     environment:
-      POSTGRES_DB: llm_verifier
+      POSTGRES_DB: mmverifier
       POSTGRES_USER: verifier
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     ports:
@@ -37,7 +37,7 @@ services:
   # IPFS for evidence storage
   ipfs:
     image: ipfs/kubo:latest
-    container_name: llm-verifier-ipfs
+    container_name: mmverifier-ipfs
     ports:
       - '4001:4001' # P2P
       - '5001:5001' # API
@@ -47,19 +47,38 @@ services:
     environment:
       IPFS_PROFILE: server
 
+  # Local Hardhat node for development
+  hardhat:
+    build:
+      context: ./contracts
+      dockerfile: Dockerfile.hardhat
+    container_name: mmverifier-hardhat
+    ports:
+      - '8545:8545'
+    volumes:
+      - ./contracts:/app
+      - hardhat_cache:/app/cache
+      - hardhat_artifacts:/app/artifacts
+    command: npx hardhat node
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:8545 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # API server
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: llm-verifier-api
+    container_name: mmverifier-api
     ports:
       - '3000:3000'
     environment:
       NODE_ENV: production
       API_PORT: 3000
       REDIS_URL: redis://redis:6379
-      DATABASE_URL: postgresql://verifier:${DB_PASSWORD:-changeme}@postgres:5432/llm_verifier
+      DATABASE_URL: postgresql://verifier:${DB_PASSWORD:-changeme}@postgres:5432/mmverifier
       ARBITRUM_SEPOLIA_RPC_URL: ${ARBITRUM_SEPOLIA_RPC_URL}
       PRIVATE_KEY: ${PRIVATE_KEY}
       MARKETPLACE_ADDRESS: ${MARKETPLACE_ADDRESS}
@@ -76,7 +95,7 @@ services:
     build:
       context: ./verifier-node
       dockerfile: Dockerfile
-    container_name: llm-verifier-node
+    container_name: mmverifier-node
     environment:
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
@@ -100,7 +119,9 @@ volumes:
   redis-data:
   postgres-data:
   ipfs-data:
+  hardhat_cache:
+  hardhat_artifacts:
 
 networks:
   default:
-    name: llm-verifier-network
+    name: mmverifier-network

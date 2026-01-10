@@ -1,0 +1,189 @@
+[
+  {
+    "id": "fact-001",
+    "prompt": "What is the capital of France?",
+    "response": "The capital of France is Paris. Paris has been the capital since the 12th century and is located in the north-central part of the country.",
+    "groundTruth": {
+      "isCorrect": true,
+      "confidence": 1.0,
+      "category": "factual-qa",
+      "claims": [
+        "The capital of France is Paris",
+        "Paris has been the capital since the 12th century",
+        "Paris is located in the north-central part of France"
+      ]
+    },
+    "metadata": {
+      "domain": "geography",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "id": "fact-002",
+    "prompt": "How many planets are in our solar system?",
+    "response": "There are 8 planets in our solar system: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. Pluto was reclassified as a dwarf planet in 2006.",
+    "groundTruth": {
+      "isCorrect": true,
+      "confidence": 1.0,
+      "category": "factual-qa",
+      "claims": [
+        "There are 8 planets in our solar system",
+        "The planets are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune",
+        "Pluto was reclassified as a dwarf planet in 2006"
+      ]
+    },
+    "metadata": {
+      "domain": "astronomy",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "id": "fact-003",
+    "prompt": "Who wrote Romeo and Juliet?",
+    "response": "Romeo and Juliet was written by Charles Dickens in 1597.",
+    "groundTruth": {
+      "isCorrect": false,
+      "confidence": 1.0,
+      "category": "factual-qa",
+      "claims": [
+        "Romeo and Juliet was written by Charles Dickens",
+        "Romeo and Juliet was written in 1597"
+      ]
+    },
+    "metadata": {
+      "domain": "literature",
+      "difficulty": "easy",
+      "note": "Incorrect author - should be William Shakespeare"
+    }
+  },
+  {
+    "id": "fact-004",
+    "prompt": "What is the speed of light?",
+    "response": "The speed of light in a vacuum is approximately 299,792,458 meters per second, often rounded to 3 × 10^8 m/s. This is a fundamental constant of nature.",
+    "groundTruth": {
+      "isCorrect": true,
+      "confidence": 1.0,
+      "category": "factual-qa",
+      "claims": [
+        "The speed of light is approximately 299,792,458 meters per second",
+        "The speed of light is often rounded to 3 × 10^8 m/s",
+        "The speed of light is a fundamental constant of nature"
+      ]
+    },
+    "metadata": {
+      "domain": "physics",
+      "difficulty": "medium"
+    }
+  },
+  {
+    "id": "fact-005",
+    "prompt": "When did World War II end?",
+    "response": "World War II ended in 1945. The war in Europe ended on May 8, 1945 (V-E Day), and the war with Japan ended on September 2, 1945 (V-J Day).",
+    "groundTruth": {
+      "isCorrect": true,
+      "confidence": 1.0,
+      "category": "factual-qa",
+      "claims": [
+        "World War II ended in 1945",
+        "The war in Europe ended on May 8, 1945 (V-E Day)",
+        "The war with Japan ended on September 2, 1945 (V-J Day)"
+      ]
+    },
+    "metadata": {
+      "domain": "history",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "id": "calc-001",
+    "prompt": "What is 234 × 567?",
+    "response": "234 × 567 = 132,678",
+    "groundTruth": {
+      "isCorrect": true,
+      "confidence": 1.0,
+      "category": "calculation",
+      "claims": [
+        "234 × 567 = 132,678"
+      ]
+    },
+    "metadata": {
+      "domain": "mathematics",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "id": "calc-002",
+    "prompt": "What is the square root of 144?",
+    "response": "The square root of 144 is 13.",
+    "groundTruth": {
+      "isCorrect": false,
+      "confidence": 1.0,
+      "category": "calculation",
+      "claims": [
+        "The square root of 144 is 13"
+      ]
+    },
+    "metadata": {
+      "domain": "mathematics",
+      "difficulty": "easy",
+      "note": "Incorrect - should be 12"
+    }
+  },
+  {
+    "id": "logic-001",
+    "prompt": "If all cats are mammals, and all mammals have hearts, do cats have hearts?",
+    "response": "Yes, cats have hearts. This follows from logical syllogism: All cats are mammals (premise 1), all mammals have hearts (premise 2), therefore all cats have hearts (conclusion).",
+    "groundTruth": {
+      "isCorrect": true,
+      "confidence": 1.0,
+      "category": "logical",
+      "claims": [
+        "Cats have hearts",
+        "This follows from logical syllogism",
+        "All cats are mammals",
+        "All mammals have hearts"
+      ]
+    },
+    "metadata": {
+      "domain": "logic",
+      "difficulty": "easy"
+    }
+  },
+  {
+    "id": "logic-002",
+    "prompt": "If it's raining, the ground is wet. The ground is wet. Is it raining?",
+    "response": "Yes, it must be raining because the ground is wet.",
+    "groundTruth": {
+      "isCorrect": false,
+      "confidence": 0.8,
+      "category": "logical",
+      "claims": [
+        "It must be raining because the ground is wet"
+      ]
+    },
+    "metadata": {
+      "domain": "logic",
+      "difficulty": "medium",
+      "note": "Affirming the consequent fallacy - ground could be wet for other reasons"
+    }
+  },
+  {
+    "id": "code-001",
+    "prompt": "What does this Python code do? `x = [i**2 for i in range(5)]`",
+    "response": "This code creates a list of squares from 0 to 4. The list comprehension iterates through range(5) (0, 1, 2, 3, 4) and squares each number, resulting in x = [0, 1, 4, 9, 16].",
+    "groundTruth": {
+      "isCorrect": true,
+      "confidence": 1.0,
+      "category": "coding",
+      "claims": [
+        "The code creates a list of squares from 0 to 4",
+        "The list comprehension iterates through range(5)",
+        "The result is x = [0, 1, 4, 9, 16]"
+      ]
+    },
+    "metadata": {
+      "domain": "programming",
+      "difficulty": "easy"
+    }
+  }
+]

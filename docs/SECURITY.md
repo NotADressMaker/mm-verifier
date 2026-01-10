@@ -618,3 +618,372 @@ The system becomes **more secure over time** as:
 - Attack costs increase (progressive stakes)
 - Detection improves (historical patterns)
 - Community governance strengthens
+
+---
+
+## Threat Model
+
+This section formalizes what MM Verifier protects against, what it doesn't, and the assumptions it makes.
+
+### In-Scope Threats
+
+#### 1. **Economic Attacks**
+- ✅ Verifier collusion to provide false evaluations
+- ✅ Griefing attacks (spam disputes to waste gas/time)
+- ✅ Flash-loan attacks on governance
+- ✅ Bond manipulation to avoid slashing
+- ✅ Front-running evaluation submissions
+
+#### 2. **Technical Attacks**
+- ✅ Evidence manipulation after submission
+- ✅ IPFS unavailability exploits
+- ✅ Sybil attacks via multiple identities
+- ✅ VRF prediction/manipulation
+- ✅ Reentrancy attacks on fund withdrawals
+
+#### 3. **Governance Attacks**
+- ✅ Parameter manipulation (fee rates, thresholds)
+- ✅ Emergency pause abuse
+- ✅ Ownership transfer exploits
+- ✅ Proposal spam/DOS
+
+### Out-of-Scope Threats
+
+#### 1. **Infrastructure Failures**
+- ❌ Complete IPFS network failure
+- ❌ Ethereum consensus failure
+- ❌ Chainlink VRF outage >7 days
+- ❌ All LLM providers offline
+
+*Mitigation: System degrades gracefully but requires manual intervention*
+
+#### 2. **Legal/Regulatory**
+- ❌ Government seizure of contracts
+- ❌ Jurisdictional bans on participation
+- ❌ Liability for AI outputs
+
+*Mitigation: Decentralization + jurisdiction shopping*
+
+#### 3. **Cryptographic Breaks**
+- ❌ SHA-256 collision attacks
+- ❌ ECDSA private key recovery
+- ❌ VRF bias attacks
+
+*Mitigation: Upgrade path if cryptography breaks*
+
+### Threat Severity Matrix
+
+| Threat | Likelihood | Impact | Mitigation | Residual Risk |
+|--------|-----------|--------|------------|---------------|
+| Verifier Collusion | MEDIUM | HIGH | Slashing + VRF + Reputation | LOW |
+| Griefing Disputes | HIGH | MEDIUM | Escalating stakes + cooldowns | LOW |
+| Flash Loan Governance | LOW | HIGH | 48h timelock + proposal threshold | VERY LOW |
+| Sybil Attacks | MEDIUM | MEDIUM | Progressive stakes + reputation | LOW |
+| IPFS Unavailability | LOW | HIGH | Multi-provider pinning + cache | MEDIUM |
+| Reentrancy | MEDIUM | HIGH | ReentrancyGuard + checks-effects | VERY LOW |
+
+### Assumptions
+
+1. **Ethereum Security**: Assume Ethereum consensus is secure
+2. **VRF Randomness**: Chainlink VRF provides unbiased randomness
+3. **Economic Rationality**: Most actors are profit-maximizing
+4. **Majority Honesty**: >50% of stake is controlled by honest actors
+5. **LLM Availability**: At least 2/N LLM providers are functional
+6. **IPFS Persistence**: Content pinned to 2+ providers persists >30 days
+
+---
+
+## Smart Contract Invariants
+
+Critical properties that must always hold. These should be enforced via invariant tests (Foundry/Echidna).
+
+### Bond Vault Invariants
+
+```solidity
+// contracts/BondVaultWETH.sol
+
+// INVARIANT 1: Total bonds never exceed sum of individual bonds
+assert(totalBondsLocked <= sum(bondedAmount[verifier] for all verifiers));
+
+// INVARIANT 2: Bonds can only decrease via slash or withdraw
+assert(bondedAmount[verifier] <= bondedAmount_prev[verifier]);
+
+// INVARIANT 3: Slashed bonds are transferred, never destroyed
+assert(WETH.balanceOf(address(this)) + totalSlashedAndWithdrawn == initialDeposits);
+
+// INVARIANT 4: Cannot withdraw more than bonded
+assert(withdrawAmount <= bondedAmount[msg.sender]);
+```
+
+### Dispute Ladder Invariants
+
+```solidity
+// contracts/DisputeLadder.sol
+
+// INVARIANT 1: Dispute state transitions are monotonic
+assert(newState >= currentState); // PENDING(0) → VOTING(1) → RESOLVED(2)
+
+// INVARIANT 2: Resolved disputes cannot be reopened
+assert(dispute.state == RESOLVED => dispute.state' == RESOLVED);
+
+// INVARIANT 3: Total jury votes <= jury size
+assert(sum(votes) <= jurySize);
+
+// INVARIANT 4: Dispute bonds >= tier minimum
+assert(dispute.bondAmount >= tierMinimumBond[tier]);
+
+// INVARIANT 5: Rewards never exceed slashed amounts
+assert(sum(rewardsDistributed) <= totalSlashed);
+```
+
+### Verification Marketplace Invariants
+
+```solidity
+// contracts/VerificationMarketplace.sol
+
+// INVARIANT 1: Task rewards are fully distributed or returned
+assert(task.feePool == 0 || task.status == REFUNDED);
+
+// INVARIANT 2: Evaluator count matches revealed evaluations
+assert(task.evaluators.length == task.revealedCount + task.unrevealed Count);
+
+// INVARIANT 3: Commit hash cannot change after reveal
+assert(task.revealed[evaluator] => task.commitHash[evaluator] == hash_prev);
+
+// INVARIANT 4: Task cannot finalize before deadline
+assert(task.finalized => block.timestamp >= task.deadline);
+```
+
+### Governance Invariants
+
+```solidity
+// contracts/governance/VerifyGovernor.sol
+
+// INVARIANT 1: Proposal threshold is fraction of total supply
+assert(proposalThreshold <= totalSupply);
+
+// INVARIANT 2: Quorum is achievable
+assert(quorumVotes <= totalSupply);
+
+// INVARIANT 3: Voting power equals delegated stakes
+assert(getVotes(account) <= stakedTokens[account] + sum(delegatedFrom));
+
+// INVARIANT 4: Timelock delay is non-zero
+assert(timelockDelay > 0);
+```
+
+### Staking Invariants
+
+```solidity
+// contracts/tokenomics/VerifyStaking.sol
+
+// INVARIANT 1: Reward debt tracks distributed rewards
+assert(rewardDebt[user] <= user.amount * accRewardPerShare / 1e12);
+
+// INVARIANT 2: Total staked equals sum of individual stakes
+assert(totalStaked == sum(stakedAmount[user] for all users));
+
+// INVARIANT 3: Rewards can't be claimed twice
+assert(claimedRewards <= distributedRewards);
+
+// INVARIANT 4: Acc reward per share is monotonic
+assert(accRewardPerShare >= accRewardPerShare_prev);
+```
+
+### Mining Invariants
+
+```solidity
+// contracts/tokenomics/VerifierMining.sol
+
+// INVARIANT 1: Epoch rewards are bounded
+assert(epochRewards <= maxEpochRewards);
+
+// INVARIANT 2: Total claimed rewards <= total emitted
+assert(sum(claimed) <= sum(epochRewards * completedEpochs));
+
+// INVARIANT 3: Points are proportional to evaluations
+assert(verifierPoints[epoch][user] >= evaluationCount[user]);
+
+// INVARIANT 4: Cannot claim same epoch twice
+assert(hasClaimed[epoch][user] == false || hasClaimed'[epoch][user] == false);
+```
+
+---
+
+## Event Completeness Checklist
+
+Every state transition MUST emit an event for off-chain indexers.
+
+### Required Events
+
+| Contract | State Change | Event | Indexed Parameters |
+|----------|--------------|-------|-------------------|
+| BondVaultWETH | Bond deposited | `BondDeposited` | verifier, amount |
+| BondVaultWETH | Bond slashed | `BondSlashed` | verifier, amount, reason |
+| BondVaultWETH | Bond withdrawn | `BondWithdrawn` | verifier, amount |
+| DisputeLadder | Dispute created | `DisputeCreated` | disputeId, taskId, disputer |
+| DisputeLadder | Jury selected | `JurySelected` | disputeId, jurors[] |
+| DisputeLadder | Vote cast | `VoteCast` | disputeId, juror, vote |
+| DisputeLadder | Dispute resolved | `DisputeResolved` | disputeId, outcome, winner |
+| VerificationMarketplace | Task created | `TaskCreated` | taskId, requester, reward |
+| VerificationMarketplace | Evaluation committed | `EvaluationCommitted` | taskId, evaluator, commitHash |
+| VerificationMarketplace | Evaluation revealed | `EvaluationRevealed` | taskId, evaluator, score |
+| VerificationMarketplace | Task finalized | `TaskFinalized` | taskId, finalScore, consensus |
+| VerifyGovernor | Proposal created | `ProposalCreated` | proposalId, proposer, targets[] |
+| VerifyGovernor | Vote cast | `VoteCast` | voter, proposalId, support, weight |
+| VerifyGovernor | Proposal queued | `ProposalQueued` | proposalId, eta |
+| VerifyGovernor | Proposal executed | `ProposalExecuted` | proposalId |
+
+### Event Indexing Best Practices
+
+1. **Index up to 3 parameters** for efficient filtering
+2. **Always index addresses** (verifier, user, proposer, etc.)
+3. **Index IDs** (taskId, disputeId, proposalId)
+4. **Don't index large arrays** (use separate events)
+5. **Include timestamps** for time-series analysis
+
+---
+
+## Formal Roles Documentation
+
+Explicit documentation of who can do what in the system.
+
+### Role: Owner (Governance Multisig)
+
+**Can**:
+- Pause/unpause contracts (emergency only)
+- Update fee parameters (within bounds)
+- Add/remove trusted attesters (for AI models)
+- Configure cross-chain bridges
+- Upgrade proxy implementations (if upgradeable)
+
+**Cannot**:
+- Withdraw user funds
+- Modify completed tasks/disputes
+- Change past events
+- Override VRF randomness
+- Skip timelock delays
+
+**Transition Path**: Owner → TimelockController → DAO Governance
+
+### Role: Verifier (Staked Participant)
+
+**Can**:
+- Submit evaluations for tasks
+- Claim rewards for honest work
+- Withdraw unbonded stake
+- Delegate voting power
+
+**Cannot**:
+- Modify other verifiers' evaluations
+- Skip commit-reveal process
+- Withdraw bonded stake (without cooldown)
+- Vote on disputes they're involved in
+
+### Role: Disputer (Challenge Initiator)
+
+**Can**:
+- Challenge evaluation results
+- Escalate disputes to higher tiers
+- Claim rewards if challenge succeeds
+
+**Cannot**:
+- Dispute without bond
+- Dispute already-resolved tasks
+- Manipulate jury selection
+
+### Role: Juror (VRF-Selected Auditor)
+
+**Can**:
+- Vote on assigned disputes
+- Earn jury fees
+- Build reputation
+
+**Cannot**:
+- Volunteer for specific disputes
+- Change vote after commitment
+- Vote multiple times
+
+### Role: AI Agent Operator
+
+**Can**:
+- Register AI agents with attestation
+- Earn verification rewards
+- Update agent metadata
+
+**Cannot**:
+- Bypass staking requirements
+- Claim false model attestations
+- Manipulate accuracy metrics
+
+---
+
+## Griefability Analysis
+
+What can attackers waste without direct gain?
+
+### Attack: Spam Disputes
+
+**Cost**: `minDisputeBond * N` (starts at 0.01 ETH)
+**Damage**: Wasted gas for jury, delayed task completion
+**Mitigation**:
+- Escalating bonds (doubles each tier)
+- Cooldown periods between disputes
+- Slashing for invalid disputes
+**Max Grief Ratio**: ~10x (spend 1 ETH to waste 10 ETH of others' gas)
+**Acceptable**: Yes (ratio <100x considered acceptable)
+
+### Attack: Front-Running Evaluations
+
+**Cost**: Gas + MEV fees
+**Damage**: Steal evaluation slots from honest verifiers
+**Mitigation**:
+- Commit-reveal prevents copying answers
+- Time windows prevent rushing
+- Reputation loss for copied work
+**Max Grief Ratio**: ~1x (attacker loses more than victims)
+**Acceptable**: Yes
+
+### Attack: IPFS Evidence Spam
+
+**Cost**: IPFS pinning fees
+**Damage**: Bloat evidence storage
+**Mitigation**:
+- Hash verification (can't fake evidence)
+- Slashing for invalid bundles
+- Prune old evidence after 1 year
+**Max Grief Ratio**: ~5x (cheap to upload, expensive to validate)
+**Mitigation Needed**: Rate limiting on evidence uploads
+
+---
+
+## Security Roadmap
+
+Prioritized security improvements for mainnet.
+
+### Phase 1: Pre-Audit (Before Testnet)
+- [ ] Implement all invariant tests
+- [ ] Add ReentrancyGuard to all fund-handling functions
+- [ ] Formalize role access control
+- [ ] Complete event emission checklist
+- [ ] Add natspec comments for all public functions
+
+### Phase 2: Audit Prep (Before Mainnet)
+- [ ] Trail of Bits security audit
+- [ ] Formal verification of critical paths (Certora)
+- [ ] Bug bounty program (Immunefi)
+- [ ] Multi-sig deployment scripts
+- [ ] Timelock configuration
+
+### Phase 3: Post-Launch
+- [ ] Real-time monitoring dashboard
+- [ ] Automated invariant checking (on-chain + off-chain)
+- [ ] Regular parameter tuning based on attack simulations
+- [ ] Quarterly security reviews
+- [ ] Gradual decentralization of ownership
+
+---
+
+**Last Updated**: 2026-01-10
+**Security Contact**: security@mmverifier.xyz (to be created)
+**Bug Bounty**: Up to $100,000 for critical vulnerabilities
