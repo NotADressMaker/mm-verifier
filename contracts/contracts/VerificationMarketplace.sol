@@ -62,11 +62,44 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     uint256 public nextTaskId = 1;
     mapping(uint256 => Task) private tasks;
 
+    // ========================================================================
+    // Reputation System
+    // ========================================================================
+
+    /// @notice Total evaluations completed by verifier
+    mapping(address => uint256) public totalEvaluations;
+
+    /// @notice Evaluations within 250bps of median (accurate)
+    mapping(address => uint256) public accurateEvaluations;
+
+    /// @notice Cumulative WETH rewards earned (excludes bond returns)
+    mapping(address => uint256) public totalRewardsEarned;
+
+    /// @notice Last activity timestamp for drift detection
+    mapping(address => uint256) public lastActivityTimestamp;
+
+    /// @notice Times this verifier's evaluation was disputed
+    mapping(address => uint256) public disputesAgainst;
+
+    /// @notice Times this verifier successfully defended against dispute
+    mapping(address => uint256) public disputesWon;
+
+    // ========================================================================
+    // Events
+    // ========================================================================
+
     event TaskCreated(uint256 indexed taskId, address indexed requester, uint256 feePool);
     event Committed(uint256 indexed taskId, address indexed evaluator, bytes32 commitHash);
     event Revealed(uint256 indexed taskId, address indexed evaluator, uint16 scoreBps, bytes32 bundleHash, string bundleURI);
     event Finalized(uint256 indexed taskId, uint16 finalScoreBps, uint256 feePool);
     event DisputeOpened(uint256 indexed taskId, address indexed challenger);
+    event ReputationUpdated(
+        address indexed verifier,
+        uint256 totalEvals,
+        uint256 accurateEvals,
+        uint256 totalRewards,
+        uint256 timestamp
+    );
 
     constructor(IWETH _weth, uint256 _evalBond, uint256 _disputeBond) Ownable(msg.sender) {
         WETH = _weth;
@@ -271,7 +304,32 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
             uint256 w = weights[i];
             if (w > 0) {
                 uint256 amt = (payoutPool * w) / totalWeight;
-                if (amt > 0) WETH.transfer(ev, amt);
+                if (amt > 0) {
+                    WETH.transfer(ev, amt);
+
+                    // Track reputation: rewards earned
+                    totalRewardsEarned[ev] += amt;
+                }
+
+                // Track reputation: evaluation completed
+                totalEvaluations[ev]++;
+
+                // Track reputation: accurate if within 250bps (bonusWeight = 120)
+                if (w == bonusWeight) {
+                    accurateEvaluations[ev]++;
+                }
+
+                // Update activity timestamp
+                lastActivityTimestamp[ev] = block.timestamp;
+
+                // Emit reputation update
+                emit ReputationUpdated(
+                    ev,
+                    totalEvaluations[ev],
+                    accurateEvaluations[ev],
+                    totalRewardsEarned[ev],
+                    block.timestamp
+                );
             }
         }
 
@@ -283,17 +341,91 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         Task storage t = tasks[taskId];
         require(t.state == TaskState.Finalized, "not finalized");
         t.state = TaskState.Disputed;
+
+        // Track disputes against all evaluators who revealed
+        for (uint256 i = 0; i < t.evaluators.length; i++) {
+            address ev = t.evaluators[i];
+            if (t.evals[ev].revealed) {
+                disputesAgainst[ev]++;
+            }
+        }
     }
 
     function markResolved(uint256 taskId, uint16 newFinalScoreBps) external onlyOwner {
         Task storage t = tasks[taskId];
         require(t.state == TaskState.Disputed, "not disputed");
+
+        uint16 originalScore = t.finalScoreBps;
         t.finalScoreBps = newFinalScoreBps;
         t.state = TaskState.Resolved;
+
+        // If score didn't change significantly, evaluators successfully defended
+        uint16 diff = originalScore > newFinalScoreBps
+            ? (originalScore - newFinalScoreBps)
+            : (newFinalScoreBps - originalScore);
+
+        // If change is < 500 bps (5%), consider it a successful defense
+        if (diff < 500) {
+            for (uint256 i = 0; i < t.evaluators.length; i++) {
+                address ev = t.evaluators[i];
+                if (t.evals[ev].revealed) {
+                    disputesWon[ev]++;
+                }
+            }
+        }
     }
 
     /// @dev Dispute bond escrowed in DisputeManager; emitted here for indexing convenience.
     function emitDisputeOpened(uint256 taskId, address challenger) external onlyOwner {
         emit DisputeOpened(taskId, challenger);
+    }
+
+    // ========================================================================
+    // Reputation View Functions
+    // ========================================================================
+
+    /**
+     * @notice Get comprehensive reputation metrics for verifier (dashboard helper)
+     * @param verifier Address to query
+     * @return totalEvals Total evaluations completed
+     * @return accurateEvals Evaluations within 250bps of median
+     * @return accuracyBps Accuracy percentage in basis points (0-10000)
+     * @return totalRewards Cumulative WETH rewards earned
+     * @return disputes Total disputes against this verifier
+     * @return disputeWins Disputes successfully defended
+     * @return disputeWinRate Win rate in basis points (0-10000)
+     * @return lastActivity Timestamp of last evaluation
+     * @return daysSinceActive Days since last activity (for drift detection)
+     */
+    function getVerifierReputation(address verifier) external view returns (
+        uint256 totalEvals,
+        uint256 accurateEvals,
+        uint256 accuracyBps,
+        uint256 totalRewards,
+        uint256 disputes,
+        uint256 disputeWins,
+        uint256 disputeWinRate,
+        uint256 lastActivity,
+        uint256 daysSinceActive
+    ) {
+        totalEvals = totalEvaluations[verifier];
+        accurateEvals = accurateEvaluations[verifier];
+        totalRewards = totalRewardsEarned[verifier];
+        disputes = disputesAgainst[verifier];
+        disputeWins = disputesWon[verifier];
+        lastActivity = lastActivityTimestamp[verifier];
+
+        // Calculate accuracy percentage
+        accuracyBps = totalEvals > 0 ? (accurateEvals * 10_000) / totalEvals : 0;
+
+        // Calculate dispute win rate
+        disputeWinRate = disputes > 0 ? (disputeWins * 10_000) / disputes : 0;
+
+        // Calculate days since last activity
+        if (lastActivity > 0) {
+            daysSinceActive = (block.timestamp - lastActivity) / 1 days;
+        } else {
+            daysSinceActive = type(uint256).max; // Never active
+        }
     }
 }
