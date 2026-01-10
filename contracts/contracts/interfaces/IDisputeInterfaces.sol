@@ -111,4 +111,18 @@ interface IStakeManager {
      * @return reputationBps Reputation in basis points (0-10000)
      */
     function auditorReputationBps(address who) external view returns (uint16 reputationBps);
+
+    /**
+     * @notice Check if auditor is a human expert
+     * @param who Auditor address
+     * @return expert True if auditor is registered as human expert
+     */
+    function isHumanExpert(address who) external view returns (bool expert);
+
+    /**
+     * @notice Get all active human experts
+     * @dev Used for weighted jury selection in high-stakes disputes
+     * @return experts Array of active human expert addresses
+     */
+    function getActiveHumanExperts() external view returns (address[] memory experts);
 }

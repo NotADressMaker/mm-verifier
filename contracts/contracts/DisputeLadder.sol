@@ -582,8 +582,8 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
     }
 
     /**
-     * @notice Prioritize human experts in jury selection (L2/L3 optimization)
-     * @dev Replaces up to 50% of AI jurors with human experts if available
+     * @notice Prioritize human experts in jury selection (weighted approach)
+     * @dev Ensures human experts are represented based on humanExpertWeightMultiplier
      * @param selected Initial selected jury (modified in-place)
      * @param challenger Challenger address (exclude)
      * @param verifier Verifier address (exclude)
@@ -593,14 +593,72 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         address challenger,
         address verifier
     ) internal view {
-        // Check if AuditorRegistry supports human expert queries
-        // Note: This requires AuditorRegistry to have isHumanExpert() or getActiveHumanExperts()
-        // For MVP, we skip this optimization to avoid interface changes
-        // Future: Implement weighted VRF sampling with AuditorRegistry.getActiveHumanExperts()
+        // Get all active human experts
+        address[] memory experts = stakeManager.getActiveHumanExperts();
+        if (experts.length == 0) return; // No experts available
 
-        // Implementation deferred: Requires adding isHumanExpert() to IStakeManager interface
-        // For now, human experts participate in standard VRF selection
-        // Weight multiplier is documented for future implementation
+        // Count how many experts are already in the jury
+        uint256 expertCount = 0;
+        bool[] memory isExpertInJury = new bool[](selected.length);
+
+        for (uint256 i = 0; i < selected.length; i++) {
+            if (stakeManager.isHumanExpert(selected[i])) {
+                expertCount++;
+                isExpertInJury[i] = true;
+            }
+        }
+
+        // Calculate target expert count based on weight multiplier
+        // If multiplier is 2, target is: jurySize * 2 / (totalAuditors + experts)
+        // Simplified: Aim for humanExpertWeightMultiplier * normalProbability
+        // For 2x weight with 10% experts: target ~18% of jury (simplified to min 20%)
+        uint256 targetExpertCount = (selected.length * uint256(humanExpertWeightMultiplier)) / 10;
+        if (targetExpertCount > selected.length / 2) {
+            targetExpertCount = selected.length / 2; // Cap at 50% of jury
+        }
+        if (targetExpertCount > experts.length) {
+            targetExpertCount = experts.length; // Can't exceed available experts
+        }
+
+        // If we already have enough experts, we're done
+        if (expertCount >= targetExpertCount) return;
+
+        // Replace non-expert jurors with experts
+        uint256 replacementsNeeded = targetExpertCount - expertCount;
+        uint256 replacementsMade = 0;
+        uint256 expertIdx = 0;
+
+        for (uint256 i = 0; i < selected.length && replacementsMade < replacementsNeeded; i++) {
+            // Skip if already an expert
+            if (isExpertInJury[i]) continue;
+
+            // Find next available expert not already in jury and not challenger/verifier
+            while (expertIdx < experts.length) {
+                address expert = experts[expertIdx];
+                expertIdx++;
+
+                // Check if expert is already in selected jury
+                bool alreadySelected = false;
+                for (uint256 j = 0; j < selected.length; j++) {
+                    if (selected[j] == expert) {
+                        alreadySelected = true;
+                        break;
+                    }
+                }
+
+                // Check if expert is challenger or verifier
+                if (!alreadySelected && expert != challenger && expert != verifier) {
+                    // Replace this AI juror with the expert
+                    selected[i] = expert;
+                    isExpertInJury[i] = true;
+                    replacementsMade++;
+                    break;
+                }
+            }
+
+            // If we've exhausted all experts, stop trying
+            if (expertIdx >= experts.length) break;
+        }
     }
 
     // ========================================================================
