@@ -52,6 +52,20 @@ jobs:
         ports:
           - 6379:6379
 
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: mmverifier_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v3
 
@@ -66,6 +80,16 @@ jobs:
         working-directory: api
         run: npm ci
 
+      - name: Generate Prisma Client
+        working-directory: api
+        run: npm run prisma:generate
+
+      - name: Run database migrations
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/mmverifier_test
+        run: npm run prisma:migrate:deploy
+
       - name: Build
         working-directory: api
         run: npm run build
@@ -76,7 +100,24 @@ jobs:
 
       - name: Run tests
         working-directory: api
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/mmverifier_test
+          REDIS_URL: redis://localhost:6379
         run: npm test
+
+      - name: Test coverage
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/mmverifier_test
+          REDIS_URL: redis://localhost:6379
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./api/coverage/lcov.info
+          flags: api
+          name: api-coverage
 
   verifier-node:
     name: Verifier Node
@@ -118,6 +159,62 @@ jobs:
       - name: Run tests
         working-directory: verifier-node
         run: npm test
+
+      - name: Test coverage
+        working-directory: verifier-node
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./verifier-node/coverage/lcov.info
+          flags: verifier-node
+          name: verifier-node-coverage
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Snyk Security Scan (Contracts)
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=contracts/package.json
+
+      - name: Run Snyk Security Scan (API)
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=api/package.json
+
+      - name: Run Snyk Security Scan (Verifier Node)
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=verifier-node/package.json
+
+      - name: Run Trivy vulnerability scanner (Docker)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
 
   docker:
     name: Docker Build

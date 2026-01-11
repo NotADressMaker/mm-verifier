@@ -1,0 +1,387 @@
+// Prisma Schema for MM Verifier API
+// Database schema for verification tasks, webhooks, and audit trail
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// VERIFICATION TASKS
+// ============================================================================
+
+model VerificationTask {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Task details
+  prompt        String   @db.Text
+  response      String   @db.Text
+  taskHash      String   @unique // SHA-256 hash for idempotency
+
+  // Blockchain reference
+  blockchainTaskId String? @unique
+  txHash        String?
+
+  // Status tracking
+  status        TaskStatus @default(PENDING)
+
+  // Results
+  score         Int?     // 0-10000 basis points
+  confidence    Float?   // 0-1
+  verdict       String?  // "RELIABLE", "UNRELIABLE", "UNCERTAIN"
+
+  // Metadata
+  requester     String   // Ethereum address or API key
+  verifier      String?  // Assigned verifier address
+
+  // IPFS references
+  evidenceCid   String?  // IPFS CID for evidence bundle
+  explainabilityCid String? // IPFS CID for explainability payload
+
+  // Relationships
+  evaluations   Evaluation[]
+  disputes      Dispute[]
+  webhookDeliveries WebhookDelivery[]
+
+  @@index([status])
+  @@index([requester])
+  @@index([createdAt])
+  @@index([taskHash])
+}
+
+enum TaskStatus {
+  PENDING       // Created, waiting for assignment
+  ASSIGNED      // Verifier assigned
+  EVALUATING    // In progress
+  COMMITTED     // Evaluation committed (hash only)
+  REVEALED      // Evaluation revealed
+  COMPLETED     // Finalized on-chain
+  DISPUTED      // Under dispute
+  RESOLVED      // Dispute resolved
+  FAILED        // Error occurred
+  REFUNDED      // Task refunded
+}
+
+// ============================================================================
+// EVALUATIONS
+// ============================================================================
+
+model Evaluation {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+
+  // Reference
+  taskId        String
+  task          VerificationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // Verifier details
+  verifier      String   // Ethereum address
+
+  // Commit-reveal
+  commitHash    String?
+  commitTx      String?
+  revealedAt    DateTime?
+  revealTx      String?
+
+  // Evaluation results
+  score         Int      // 0-10000 basis points
+  confidence    Float    // 0-1
+  verdict       String   // "RELIABLE", "UNRELIABLE", "UNCERTAIN"
+
+  // Evidence
+  evidenceCid   String?  // IPFS CID
+  explainabilityCid String? // IPFS CID
+
+  // Provider details
+  providersUsed String[] // ["openai:gpt-4", "anthropic:claude-3"]
+  tokensUsed    Int?
+  costUsd       Float?
+  latencyMs     Int?
+
+  @@index([taskId])
+  @@index([verifier])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// DISPUTES
+// ============================================================================
+
+model Dispute {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Reference
+  taskId        String
+  task          VerificationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // Blockchain reference
+  blockchainDisputeId String? @unique
+
+  // Disputer details
+  disputer      String   // Ethereum address
+  bondAmount    String   // Wei amount staked
+
+  // Dispute details
+  reason        String   @db.Text
+  claimsContested String[] // Array of claim IDs being disputed
+
+  // Status
+  status        DisputeStatus @default(PENDING)
+  currentRung   Int      @default(1) // Dispute ladder rung
+
+  // Resolution
+  winner        String?  // "VERIFIER" or "DISPUTER"
+  resolvedAt    DateTime?
+  resolutionTx  String?
+  slashedAmount String?  // Wei amount slashed
+
+  // Jury (if escalated)
+  jurors        String[] // Array of juror addresses
+  juryVotes     Json?    // { "0xabc...": "VERIFIER", "0xdef...": "DISPUTER" }
+
+  @@index([taskId])
+  @@index([disputer])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum DisputeStatus {
+  PENDING       // Just created
+  UNDER_REVIEW  // Jury reviewing
+  RESOLVED      // Decided
+  APPEALED      // Escalated to higher rung
+}
+
+// ============================================================================
+// WEBHOOKS
+// ============================================================================
+
+model WebhookSubscription {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Subscription details
+  url           String
+  secret        String   // For HMAC signature
+  events        WebhookEvent[]
+
+  // Status
+  enabled       Boolean  @default(true)
+
+  // Stats
+  deliveryCount Int      @default(0)
+  failureCount  Int      @default(0)
+  lastDeliveryAt DateTime?
+  lastFailureAt DateTime?
+
+  // Owner
+  owner         String   // Ethereum address or API key
+
+  // Relationships
+  deliveries    WebhookDelivery[]
+
+  @@index([owner])
+  @@index([enabled])
+}
+
+enum WebhookEvent {
+  JOB_CREATED
+  JOB_ASSIGNED
+  JOB_COMMITTED
+  JOB_REVEALED
+  JOB_COMPLETED
+  JOB_FAILED
+  JOB_DISPUTED
+  JOB_RESOLVED
+}
+
+model WebhookDelivery {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+
+  // Reference
+  subscriptionId String
+  subscription  WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  taskId        String?
+  task          VerificationTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  // Delivery details
+  event         WebhookEvent
+  payload       Json
+
+  // Status
+  success       Boolean
+  statusCode    Int?
+  errorMessage  String?
+
+  // Retry tracking
+  attempts      Int      @default(1)
+  nextRetryAt   DateTime?
+
+  @@index([subscriptionId])
+  @@index([taskId])
+  @@index([createdAt])
+  @@index([success])
+}
+
+// ============================================================================
+// VERIFIER PERFORMANCE
+// ============================================================================
+
+model VerifierStats {
+  id            String   @id @default(uuid())
+  updatedAt     DateTime @updatedAt
+
+  // Verifier identity
+  address       String   @unique
+
+  // Performance metrics
+  tasksCompleted Int     @default(0)
+  tasksDisputed Int      @default(0)
+  disputesWon   Int      @default(0)
+  disputesLost  Int      @default(0)
+
+  // Accuracy (from benchmark comparisons)
+  accuracyRate  Float?   // 0-1
+  avgCalibrationError Float? // ECE
+
+  // Speed
+  avgLatencyMs  Int?
+
+  // Economic
+  totalEarned   String   @default("0") // Wei
+  totalSlashed  String   @default("0") // Wei
+  currentBond   String   @default("0") // Wei
+
+  // Last activity
+  lastTaskAt    DateTime?
+
+  @@index([address])
+  @@index([accuracyRate])
+}
+
+// ============================================================================
+// API KEYS (for programmatic access)
+// ============================================================================
+
+model ApiKey {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+
+  // Key details
+  key           String   @unique // Hashed API key
+  name          String   // User-friendly name
+
+  // Owner
+  owner         String   // Ethereum address
+
+  // Status
+  enabled       Boolean  @default(true)
+  expiresAt     DateTime?
+
+  // Rate limiting
+  rateLimit     Int      @default(100) // Requests per 15 min
+
+  // Stats
+  requestCount  Int      @default(0)
+  lastUsedAt    DateTime?
+
+  @@index([key])
+  @@index([owner])
+  @@index([enabled])
+}
+
+// ============================================================================
+// AUDIT TRAIL
+// ============================================================================
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+
+  // Action details
+  action        String   // "TASK_CREATED", "EVALUATION_COMMITTED", etc.
+  actor         String   // Ethereum address or "SYSTEM"
+
+  // Context
+  taskId        String?
+  disputeId     String?
+  metadata      Json?    // Additional context
+
+  // Request details
+  ipAddress     String?
+  userAgent     String?
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actor])
+  @@index([taskId])
+}
+
+// ============================================================================
+// BENCHMARK RESULTS
+// ============================================================================
+
+model BenchmarkResult {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+
+  // Dataset reference
+  datasetName   String
+  datasetVersion String
+
+  // Metrics
+  accuracy      Float
+  precision     Float
+  recall        Float
+  f1Score       Float
+  calibrationError Float
+
+  // By category
+  byCategory    Json     // { "factual-qa": { accuracy: 0.95, ... }, ... }
+
+  // Configuration
+  config        Json     // Model weights, feature flags, etc.
+
+  // Ablation results
+  ablationResults Json?  // { "withoutCitations": { accuracy: 0.88, ... }, ... }
+
+  @@index([datasetName])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// CALIBRATION MODEL
+// ============================================================================
+
+model CalibrationModel {
+  id            String   @id @default(uuid())
+  updatedAt     DateTime @updatedAt
+
+  // Model version
+  version       Int      @default(1)
+
+  // Calibration bins (serialized)
+  bins          Json     // Array of { minScore, maxScore, count, correctCount, calibratedProbability }
+
+  // Statistics
+  sampleCount   Int      @default(0)
+  ece           Float?   // Expected Calibration Error
+  mce           Float?   // Max Calibration Error
+
+  // Active model
+  isActive      Boolean  @default(true)
+
+  @@index([isActive])
+  @@index([version])
+}
