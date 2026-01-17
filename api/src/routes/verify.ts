@@ -2,8 +2,10 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
-import { submitVerificationJob } from '../services/blockchain';
+import { submitVerificationJob, getJobDetails } from '../services/blockchain';
 import { queueVerificationJob } from '../services/jobQueue';
+import { checkDuplicateRequest, registerRequest, checkRateLimit } from '../services/deduplication';
+import { getCachedJobResult } from '../services/redis';
 
 const router = Router();
 
@@ -32,15 +34,76 @@ router.post(
 
       const { prompt, models, taskType, deadline, rewardPool } = req.body;
 
+      // Extract requester (from auth header or IP)
+      const requester = req.headers['x-requester-address'] as string || req.ip || 'unknown';
+
       logger.info('Received verification request', {
         models,
         taskType,
         promptLength: prompt.length,
+        requester,
       });
 
       // Hash the prompt
       const { ethers } = require('ethers');
       const promptHash = ethers.keccak256(ethers.toUtf8Bytes(prompt));
+
+      // Check rate limit (max 5 concurrent requests per requester)
+      const rateLimit = await checkRateLimit(requester, 5);
+      if (!rateLimit.allowed) {
+        logger.warn('Rate limit exceeded', {
+          requester,
+          current: rateLimit.current,
+          limit: rateLimit.limit,
+        });
+        return res.status(429).json({
+          error: 'Too Many Requests',
+          message: `You have ${rateLimit.current} pending requests. Maximum allowed is ${rateLimit.limit}.`,
+          current: rateLimit.current,
+          limit: rateLimit.limit,
+        });
+      }
+
+      // Check for duplicate request (using prompt + models as unique key)
+      const modelsKey = models.sort().join(',');
+      const dedup = await checkDuplicateRequest(prompt, modelsKey, requester);
+
+      if (dedup.isDuplicate && dedup.existingJobId) {
+        logger.info('Duplicate request detected, returning existing job', {
+          existingJobId: dedup.existingJobId,
+          taskHash: dedup.taskHash,
+        });
+
+        // Try to get cached result
+        const cachedResult = await getCachedJobResult(dedup.existingJobId);
+        if (cachedResult) {
+          return res.status(200).json({
+            ...cachedResult,
+            isDuplicate: true,
+            existingJobId: dedup.existingJobId,
+            message: 'This request is identical to an existing job. Returning cached result.',
+          });
+        }
+
+        // If not cached, return job info to poll
+        try {
+          const existingJob = await getJobDetails(dedup.existingJobId);
+          return res.status(200).json({
+            jobId: dedup.existingJobId,
+            status: 'pending',
+            promptHash: existingJob.promptHash,
+            models: existingJob.models,
+            taskType: existingJob.taskType,
+            isDuplicate: true,
+            message: 'This request is identical to an existing job.',
+          });
+        } catch (error) {
+          // If we can't get existing job details, proceed with new job
+          logger.warn('Failed to get existing job details, proceeding with new job', {
+            existingJobId: dedup.existingJobId,
+          });
+        }
+      }
 
       // Calculate deadline (default: 1 hour from now)
       const deadlineTimestamp = deadline || Math.floor(Date.now() / 1000) + 3600;
@@ -78,7 +141,10 @@ router.post(
         deadline: deadlineTimestamp,
       });
 
-      logger.info('Verification job submitted', { jobId });
+      // Register request for deduplication (TTL: 24 hours)
+      await registerRequest(dedup.taskHash, jobId, requester, 86400);
+
+      logger.info('Verification job submitted', { jobId, taskHash: dedup.taskHash });
 
       // Return job info
       res.status(201).json({

@@ -12,6 +12,7 @@ import { jobRoutes } from './routes/jobs';
 import { statsRoutes } from './routes/stats';
 import { initializeBlockchain } from './services/blockchain';
 import { initializeRedis } from './services/redis';
+import { initializeDatabase, disconnectDatabase } from './services/database';
 import { setupWebSocket } from './services/websocket';
 
 dotenv.config({ path: '../.env' });
@@ -73,6 +74,9 @@ async function initialize() {
   try {
     logger.info('Initializing LLM Verifier API...');
 
+    // Initialize Database with connection pooling
+    await initializeDatabase();
+
     // Initialize Redis
     await initializeRedis();
     logger.info('✅ Redis connected');
@@ -100,17 +104,19 @@ server.listen(PORT, async () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully...');
-  server.close(() => {
+  server.close(async () => {
+    await disconnectDatabase();
     logger.info('Server closed');
     process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully...');
-  server.close(() => {
+  server.close(async () => {
+    await disconnectDatabase();
     logger.info('Server closed');
     process.exit(0);
   });

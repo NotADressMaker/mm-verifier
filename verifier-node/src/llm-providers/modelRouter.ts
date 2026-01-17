@@ -2,6 +2,7 @@ import { queryOpenAI, isValidOpenAIModel } from './openai';
 import { queryAnthropic, isValidAnthropicModel } from './anthropic';
 import { queryGoogle, isValidGoogleModel } from './google';
 import { logger } from '../utils/logger';
+import { llmCache } from './cache';
 
 export interface ModelResponse {
   response: string;
@@ -9,31 +10,47 @@ export interface ModelResponse {
   provider: string;
   timestamp: number;
   metadata: any;
+  cached?: boolean;
 }
 
 /**
- * Route query to appropriate LLM provider
+ * Route query to appropriate LLM provider with caching
  */
 export async function queryModel(prompt: string, model: string): Promise<ModelResponse> {
   logger.info('Routing query to model', { model });
 
+  // Check cache first
+  const cached = llmCache.get(prompt, model);
+  if (cached) {
+    logger.info('LLM cache hit', { model, cacheStats: llmCache.getStats() });
+    return { ...cached, cached: true };
+  }
+
   try {
+    let result: Omit<ModelResponse, 'provider'>;
+
     // OpenAI models
     if (isValidOpenAIModel(model) || model.startsWith('gpt-')) {
-      const result = await queryOpenAI(prompt, model);
-      return { ...result, provider: 'openai' };
+      result = await queryOpenAI(prompt, model);
+      const response = { ...result, provider: 'openai', cached: false };
+      llmCache.set(prompt, model, response);
+      return response;
     }
 
     // Anthropic models
     if (isValidAnthropicModel(model) || model.startsWith('claude-')) {
-      const result = await queryAnthropic(prompt, model);
-      return { ...result, provider: 'anthropic' };
+      result = await queryAnthropic(prompt, model);
+      const response = { ...result, provider: 'anthropic', cached: false };
+      llmCache.set(prompt, model, response);
+      return response;
     }
 
     // Google models
     if (isValidGoogleModel(model) || model.startsWith('gemini-')) {
-      const result = await queryGoogle(prompt, model);
-      return { ...result, provider: 'google' };
+      result = await queryGoogle(prompt, model);
+      const response = { ...result, provider: 'google', cached: false };
+      llmCache.set(prompt, model, response);
+      return response;
     }
 
     throw new Error(`Unknown model: ${model}`);
