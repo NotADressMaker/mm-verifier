@@ -247,6 +247,11 @@ STAKE_AMOUNT=1000000000000000000 # 1 ETH in wei
 
 ## API Usage
 
+### LLM Client Guide
+
+For LLM tool/function integration, copy/paste-ready schemas and prompt templates are in
+[`docs/LLM_CLIENT_GUIDE.md`](docs/LLM_CLIENT_GUIDE.md).
+
 ### Submit Verification Request
 
 ```bash
