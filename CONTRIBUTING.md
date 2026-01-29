@@ -248,6 +248,7 @@ npm run format
 - Use environment variables for configuration
 - Follow security best practices
 - Report security issues privately to the maintainers
+- See [SECURITY.md](./SECURITY.md) for the vulnerability disclosure process
 
 ## Questions?
 
