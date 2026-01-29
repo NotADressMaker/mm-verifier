@@ -19,7 +19,7 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 ## Architecture
 
 ```
-llm-verifier/
+MM-Verifier/
 ├── contracts/          # Solidity smart contracts (Arbitrum)
 │   ├── VerificationMarketplace.sol
 │   ├── StakingManager.sol
