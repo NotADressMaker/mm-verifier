@@ -51,6 +51,19 @@ We are committed to providing a welcoming and inclusive environment. Please be r
    cd verifier-node && npm test
    ```
 
+   **Quality checks (API + verifier node)**:
+   ```bash
+   cd api
+   npm run lint
+   npm run format:check
+   npm run typecheck
+
+   cd ../verifier-node
+   npm run lint
+   npm run format:check
+   npm run typecheck
+   ```
+
 4. **Commit your changes**:
    - Use clear, descriptive commit messages
    - Follow conventional commits format:

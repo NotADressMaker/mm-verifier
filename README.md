@@ -315,7 +315,7 @@ For sensitive prompts:
 ```bash
 # Run contract tests
 cd contracts
-npx hardhat test
+npm test
 
 # Run API tests
 cd api
@@ -324,6 +324,20 @@ npm test
 # Run verifier node tests
 cd verifier-node
 npm test
+```
+
+Quality checks (API + verifier node):
+
+```bash
+cd api
+npm run lint
+npm run format:check
+npm run typecheck
+
+cd ../verifier-node
+npm run lint
+npm run format:check
+npm run typecheck
 ```
 
 ## Contributing
