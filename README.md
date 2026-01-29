@@ -169,15 +169,24 @@ Why Arbitrum:
 - **Researchers**: Benchmarking and model drift tracking
 - **End Users**: Simple "is this answer real?" verification
 
-## Product Surface & UX
+## Frontend Experience (MVP Dashboard)
 
-The primary entry points should feel cohesive and understandable to non-experts. For the upcoming dashboard, prioritize:
+The primary entry points should feel cohesive, trustworthy, and understandable to non-experts. For the upcoming dashboard, prioritize:
+
+### Core Screens
 
 - **Job Timeline**: Visual progression from submission → verification → dispute resolution.
 - **Confidence Breakdown**: Clear display of consensus score, variance across models, and any contradictions.
 - **Evidence Drill-Down**: Clickable citations and claim-level checks with provenance.
 - **Dispute Status**: Clear badges for challenge tiers and auditor outcomes.
 - **Verifier Trust Signals**: At-a-glance stakes, slashing history, and audit success rate.
+
+### UX Principles
+
+- **Clarity over cleverness**: Avoid jargon where possible; explain “verdict,” “confidence,” and “dispute” in plain language.
+- **Progressive disclosure**: Show the headline verdict first, then expand into evidence and audit trails.
+- **Actionability**: Provide “what this means” guidance (e.g., “safe to use,” “needs review,” “high risk”).
+- **Audit-readiness**: Every result should link to the evidence bundle hash and verification metadata.
 
 ## Quick Start
 
