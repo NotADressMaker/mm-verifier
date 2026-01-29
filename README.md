@@ -19,7 +19,7 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 ## Architecture
 
 ```
-llm-verifier/
+MM-Verifier/
 ├── contracts/          # Solidity smart contracts (Arbitrum)
 │   ├── VerificationMarketplace.sol
 │   ├── StakingManager.sol
@@ -73,6 +73,30 @@ If someone challenges a result:
 
 Each escalation costs more, making griefing expensive.
 
+### Auditor Committee Operations (Overview)
+
+Auditor committees should follow a repeatable process to keep dispute resolution consistent and auditable:
+
+1. **Selection & Assignment**: VRF selects auditors; assignments include job metadata and evidence bundle hash.
+2. **Evidence Retrieval**: Auditors pull the evidence bundle from IPFS/Arweave using the hash.
+3. **Claim Review**: Each claim is re-checked against cited sources and cross-model consistency results.
+4. **Vote & Justification**: Auditors submit a signed verdict plus a brief rationale for any disagreements.
+5. **Onchain Finalization**: Results are tallied; slashing/rewards applied per protocol rules.
+
+#### Local Audit Checklist
+
+```bash
+# 1) Fetch evidence bundle
+ipfs cat <evidenceHash> > evidence.json
+
+# 2) Review claims and sources
+jq '.claims[] | {id, text, label, confidence, checks}' evidence.json
+jq '.sources[] | {id, url, title}' evidence.json
+
+# 3) Verify claim coverage
+jq '.claims | length' evidence.json
+```
+
 ## Verification Bundle
 
 Verifiers submit structured evidence including:
@@ -84,6 +108,49 @@ Verifiers submit structured evidence including:
 - **Commitments**: Tamper-evident hashes
 
 Heavy data lives offchain (IPFS/Arweave); chain stores hashes + metadata.
+
+### Evidence Bundle Schema (Example)
+
+```json
+{
+  "jobId": "0x1234...",
+  "verifier": "0xabc...",
+  "model": "gpt-4",
+  "score": 92,
+  "verdict": "reliable",
+  "claims": [
+    {
+      "id": "claim-1",
+      "text": "Paris is the capital of France.",
+      "label": "supported",
+      "confidence": 0.97,
+      "checks": [
+        {
+          "type": "source",
+          "sourceId": "src-1",
+          "snippet": "Paris is the capital and most populous city of France.",
+          "result": "pass"
+        },
+        {
+          "type": "cross-model",
+          "models": ["gpt-4", "claude-3-opus", "gemini-pro"],
+          "result": "consistent"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "src-1",
+      "url": "https://example.org/france",
+      "title": "France - Overview",
+      "retrievedAt": "2026-01-10T12:00:00Z"
+    }
+  ],
+  "notes": "No contradictions detected.",
+  "evidenceHash": "ipfs://Qm..."
+}
+```
 
 ## Target Chain
 
@@ -101,6 +168,16 @@ Why Arbitrum:
 - **Enterprises**: Compliance, hallucination monitoring, audit trails
 - **Researchers**: Benchmarking and model drift tracking
 - **End Users**: Simple "is this answer real?" verification
+
+## Product Surface & UX
+
+The primary entry points should feel cohesive and understandable to non-experts. For the upcoming dashboard, prioritize:
+
+- **Job Timeline**: Visual progression from submission → verification → dispute resolution.
+- **Confidence Breakdown**: Clear display of consensus score, variance across models, and any contradictions.
+- **Evidence Drill-Down**: Clickable citations and claim-level checks with provenance.
+- **Dispute Status**: Clear badges for challenge tiers and auditor outcomes.
+- **Verifier Trust Signals**: At-a-glance stakes, slashing history, and audit success rate.
 
 ## Quick Start
 
@@ -289,15 +366,22 @@ For sensitive prompts:
 
 ## Development Roadmap
 
+### Near Term (0-3 months)
 - [x] Architecture design
 - [x] Smart contract implementation
 - [x] Multi-LLM integration
 - [x] API layer
 - [x] Verifier node
-- [ ] Frontend dashboard
-- [ ] TEE attestation support
-- [ ] ZK proof integration
-- [ ] Mainnet deployment
+- [ ] Frontend dashboard MVP (job status, evidence view, dispute status)
+- [ ] Evidence bundle schema v1 (formal JSON schema + validation)
+
+### Mid Term (3-6 months)
+- [ ] TEE attestation MVP (attested verifier runtime + proof attachment)
+- [ ] ZK proof prototype (score verification for simple claim types)
+- [ ] Auditor tooling (CLI for evidence fetch + dispute workflow)
+
+### Long Term (6+ months)
+- [ ] Mainnet deployment (Arbitrum One)
 - [ ] Governance token
 
 ## Testing
@@ -305,7 +389,7 @@ For sensitive prompts:
 ```bash
 # Run contract tests
 cd contracts
-npx hardhat test
+npm test
 
 # Run API tests
 cd api
@@ -314,6 +398,20 @@ npm test
 # Run verifier node tests
 cd verifier-node
 npm test
+```
+
+Quality checks (API + verifier node):
+
+```bash
+cd api
+npm run lint
+npm run format:check
+npm run typecheck
+
+cd ../verifier-node
+npm run lint
+npm run format:check
+npm run typecheck
 ```
 
 ## Contributing
