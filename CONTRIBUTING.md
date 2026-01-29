@@ -1,6 +1,6 @@
-# Contributing to LLM Verifier
+# Contributing to MM Verifier
 
-Thank you for your interest in contributing to LLM Verifier! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to MM Verifier! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -10,7 +10,7 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/michaelmannen3-oss/LLM-Verifier/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/michaelmannen3-oss/MM-Verifier/issues)
 2. If not, create a new issue with:
    - Clear, descriptive title
    - Steps to reproduce
@@ -20,7 +20,7 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 ### Suggesting Features
 
-1. Check [Issues](https://github.com/michaelmannen3-oss/LLM-Verifier/issues) for existing feature requests
+1. Check [Issues](https://github.com/michaelmannen3-oss/MM-Verifier/issues) for existing feature requests
 2. Create a new issue with:
    - Clear description of the feature
    - Use cases and benefits
@@ -49,6 +49,19 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
    # Run verifier node tests
    cd verifier-node && npm test
+   ```
+
+   **Quality checks (API + verifier node)**:
+   ```bash
+   cd api
+   npm run lint
+   npm run format:check
+   npm run typecheck
+
+   cd ../verifier-node
+   npm run lint
+   npm run format:check
+   npm run typecheck
    ```
 
 4. **Commit your changes**:
@@ -86,8 +99,8 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/michaelmannen3-oss/LLM-Verifier.git
-   cd LLM-Verifier
+   git clone https://github.com/michaelmannen3-oss/MM-Verifier.git
+   cd MM-Verifier
    ```
 
 2. Install dependencies:
@@ -127,7 +140,7 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 ## Project Structure
 
 ```
-llm-verifier/
+MM-Verifier/
 ├── contracts/          # Solidity smart contracts
 │   ├── contracts/     # Contract source files
 │   ├── scripts/       # Deployment scripts
@@ -240,7 +253,7 @@ npm run format
 
 If you have questions:
 - Check the [README](./README.md)
-- Search [existing issues](https://github.com/michaelmannen3-oss/LLM-Verifier/issues)
+- Search [existing issues](https://github.com/michaelmannen3-oss/MM-Verifier/issues)
 - Ask in a new issue or discussion
 
 ## License

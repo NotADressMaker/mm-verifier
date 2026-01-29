@@ -98,6 +98,14 @@ jobs:
         working-directory: api
         run: npm run lint
 
+      - name: Format check
+        working-directory: api
+        run: npm run format:check
+
+      - name: Typecheck
+        working-directory: api
+        run: npm run typecheck
+
       - name: Run tests
         working-directory: api
         env:
@@ -155,6 +163,14 @@ jobs:
       - name: Lint
         working-directory: verifier-node
         run: npm run lint
+
+      - name: Format check
+        working-directory: verifier-node
+        run: npm run format:check
+
+      - name: Typecheck
+        working-directory: verifier-node
+        run: npm run typecheck
 
       - name: Run tests
         working-directory: verifier-node

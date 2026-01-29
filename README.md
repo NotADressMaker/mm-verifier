@@ -19,7 +19,7 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 ## Architecture
 
 ```
-llm-verifier/
+MM-Verifier/
 ├── contracts/          # Solidity smart contracts (Arbitrum)
 │   ├── VerificationMarketplace.sol
 │   ├── StakingManager.sol
@@ -101,6 +101,16 @@ Why Arbitrum:
 - **Enterprises**: Compliance, hallucination monitoring, audit trails
 - **Researchers**: Benchmarking and model drift tracking
 - **End Users**: Simple "is this answer real?" verification
+
+## Product Surface & UX
+
+The primary entry points should feel cohesive and understandable to non-experts. For the upcoming dashboard, prioritize:
+
+- **Job Timeline**: Visual progression from submission → verification → dispute resolution.
+- **Confidence Breakdown**: Clear display of consensus score, variance across models, and any contradictions.
+- **Evidence Drill-Down**: Clickable citations and claim-level checks with provenance.
+- **Dispute Status**: Clear badges for challenge tiers and auditor outcomes.
+- **Verifier Trust Signals**: At-a-glance stakes, slashing history, and audit success rate.
 
 ## Quick Start
 
@@ -305,7 +315,7 @@ For sensitive prompts:
 ```bash
 # Run contract tests
 cd contracts
-npx hardhat test
+npm test
 
 # Run API tests
 cd api
@@ -314,6 +324,20 @@ npm test
 # Run verifier node tests
 cd verifier-node
 npm test
+```
+
+Quality checks (API + verifier node):
+
+```bash
+cd api
+npm run lint
+npm run format:check
+npm run typecheck
+
+cd ../verifier-node
+npm run lint
+npm run format:check
+npm run typecheck
 ```
 
 ## Contributing
