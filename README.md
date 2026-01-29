@@ -114,16 +114,16 @@ Heavy data lives offchain (IPFS/Arweave); chain stores hashes + metadata.
 ```json
 {
   "jobId": "0x1234...",
-  "verifier": "0xabc...",
-  "model": "gpt-4",
-  "score": 92,
-  "verdict": "reliable",
+  "verifier": "0x8ba1f109551bD432803012645Ac136ddd64DBA72",
+  "model": "gpt-4o",
+  "score": 88,
+  "verdict": "mostly-reliable",
   "claims": [
     {
       "id": "claim-1",
       "text": "Paris is the capital of France.",
       "label": "supported",
-      "confidence": 0.97,
+      "confidence": 0.93,
       "checks": [
         {
           "type": "source",
@@ -133,7 +133,7 @@ Heavy data lives offchain (IPFS/Arweave); chain stores hashes + metadata.
         },
         {
           "type": "cross-model",
-          "models": ["gpt-4", "claude-3-opus", "gemini-pro"],
+          "models": ["gpt-4o", "claude-3-5-sonnet", "gemini-1.5-pro"],
           "result": "consistent"
         }
       ]
@@ -142,13 +142,13 @@ Heavy data lives offchain (IPFS/Arweave); chain stores hashes + metadata.
   "sources": [
     {
       "id": "src-1",
-      "url": "https://example.org/france",
-      "title": "France - Overview",
-      "retrievedAt": "2026-01-10T12:00:00Z"
+      "url": "https://en.wikipedia.org/wiki/Paris",
+      "title": "Paris - Wikipedia",
+      "retrievedAt": "2024-10-12T09:43:22Z"
     }
   ],
-  "notes": "No contradictions detected.",
-  "evidenceHash": "ipfs://Qm..."
+  "notes": "No contradictions detected; minor phrasing differences across models.",
+  "evidenceHash": "ipfs://bafybeih4q5k7x3k5c5yy5o4y2qz3z3m3fjqdxq5lzn7y6m2b2x6a3ye3ai"
 }
 ```
 
@@ -279,7 +279,7 @@ Response:
 {
   "jobId": "0x123...",
   "status": "pending",
-  "estimatedCompletion": "2026-01-10T12:00:00Z"
+  "estimatedCompletion": "2024-10-12T10:15:00Z"
 }
 ```
 
@@ -297,16 +297,19 @@ Response:
   "result": {
     "score": 95,
     "verdict": "reliable",
-    "confidence": 0.98,
+    "confidence": 0.96,
     "modelResponses": {
-      "gpt-4": "Paris",
-      "claude-3-opus": "Paris",
-      "gemini-pro": "Paris"
+      "gpt-4o": "Paris",
+      "claude-3-5-sonnet": "Paris",
+      "gemini-1.5-pro": "Paris"
     },
     "consensus": true,
-    "evidenceHash": "ipfs://Qm...",
-    "verifiers": ["0xabc...", "0xdef..."],
-    "auditTrail": "0x789..."
+    "evidenceHash": "ipfs://bafybeih4q5k7x3k5c5yy5o4y2qz3z3m3fjqdxq5lzn7y6m2b2x6a3ye3ai",
+    "verifiers": [
+      "0x8ba1f109551bD432803012645Ac136ddd64DBA72",
+      "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+    ],
+    "auditTrail": "0x3c1b4f6d9f8a2b0c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4"
   }
 }
 ```
