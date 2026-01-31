@@ -58,7 +58,7 @@ export interface ModelRun {
   max_tokens?: number;             // Optional
   raw_output: string;              // Full LLM response
   output_hash: string;             // "0x..." - keccak256 of raw_output
-  timestamp?: number;              // Unix timestamp
+  timestamp?: number;              // Unix timestamp (seconds)
   latency_ms?: number;             // Request duration
   tokens_used?: number;            // Total tokens (prompt + completion)
 }
@@ -98,7 +98,7 @@ export interface Evidence {
   relevance?: number;              // 0-1 relevance to claim
   title?: string;                  // Page title
   domain?: string;                 // Domain name
-  retrieved_at?: number;           // Unix timestamp
+  retrieved_at?: number;           // Unix timestamp (seconds)
 }
 
 // ============================================================================
@@ -214,7 +214,7 @@ export interface VerificationJobRequest {
   prompt: string;
   models: string[];                // ["gpt-4", "claude-3-opus"]
   taskType: TaskType;
-  deadline?: number;               // Unix timestamp
+  deadline?: number;               // Unix timestamp (seconds)
   rewardPool?: string;             // WETH amount in wei
   rubric?: ScoringRubric;          // Optional custom rubric
 }
@@ -292,7 +292,7 @@ export interface AuditorVoteCommit {
   disputeId: string;
   auditor: string;
   commitHash: string;              // keccak256(disputeId, auditor, vote, salt)
-  committedAt: number;             // Unix timestamp
+  committedAt: number;             // Unix timestamp (seconds)
 }
 
 export interface AuditorVoteReveal {
@@ -312,7 +312,7 @@ export interface StakeInfo {
   amount: string;                  // WETH in wei
   lockedAmount: string;            // WETH in wei
   unbondingAmount: string;         // WETH in wei
-  unbondingTime: number;           // Unix timestamp
+  unbondingTime: number;           // Unix timestamp (seconds)
   active: boolean;
 
   // Reputation (auditors only)
@@ -341,9 +341,15 @@ export interface BundleEIP712Message {
 export const EIP712_DOMAIN = {
   name: 'LLMVerifier',
   version: '1',
-  chainId: 42161,                  // Arbitrum One
-  verifyingContract: '',           // Set at runtime
 };
+
+export function getEip712Domain(chainId: number, verifyingContract: string) {
+  return {
+    ...EIP712_DOMAIN,
+    chainId,
+    verifyingContract,
+  };
+}
 
 export const EIP712_TYPES = {
   EvidenceBundle: [
@@ -430,9 +436,15 @@ export interface MMVAttestation {
 export const MMV_EIP712_DOMAIN = {
   name: 'MMVVerifier',
   version: '1',
-  chainId: 42161,
-  verifyingContract: '',
 };
+
+export function getMmvEip712Domain(chainId: number, verifyingContract: string) {
+  return {
+    ...MMV_EIP712_DOMAIN,
+    chainId,
+    verifyingContract,
+  };
+}
 
 export const MMV_EIP712_TYPES = {
   Attestation: [

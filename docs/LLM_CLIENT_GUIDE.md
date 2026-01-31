@@ -38,7 +38,15 @@ Use this tool definition so an LLM can call the `/api/verify` endpoint with stru
         },
         "deadline": {
           "type": "integer",
-          "description": "Unix timestamp deadline (optional)."
+          "description": "Commit deadline as a Unix timestamp in seconds (optional)."
+        },
+        "commitDeadlineSeconds": {
+          "type": "integer",
+          "description": "Commit window in seconds from now (optional, alternative to deadline)."
+        },
+        "revealDeadlineSeconds": {
+          "type": "integer",
+          "description": "Reveal window in seconds after commit (optional)."
         },
         "rewardPool": {
           "type": "number",
@@ -107,14 +115,14 @@ Response (completed):
   "rewardPool": "10000000000000000",
   "deadline": "2026-01-10T12:00:00Z",
   "result": {
-    "score": 95,
+    "score": 9500,
     "verdict": "reliable",
     "confidence": 0.98,
     "verifiers": ["0xabc..."],
     "evaluations": [
       {
         "verifier": "0xabc...",
-        "score": 95,
+        "score": 9500,
         "verdict": "reliable",
         "evidenceHash": "ipfs://Qm..."
       }
@@ -142,7 +150,7 @@ Suggested template to keep responses concise and verifiable:
 
 ```
 Answer: <best-effort response>
-Verification: <reliable|mixed|unreliable> (score: <0-100>, confidence: <0-1>)
+Verification: <reliable|mixed|unreliable> (score: <0-10000 bps>, confidence: <0-1>)
 Evidence: <evidenceHash or "pending">
 Notes: <short explanation of any disagreements>
 ```

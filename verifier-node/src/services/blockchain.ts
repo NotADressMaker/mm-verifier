@@ -2,23 +2,12 @@ import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import { logger } from '../utils/logger';
 import { computeCommitHash } from '../../../shared/commitHash';
-
-// TODO: Uncomment after compiling contracts and exporting ABIs
-// import { VerifierMarketplace, DisputeLadder, BundleRegistry } from '../../../shared/abi';
+import { getRpcUrl } from '../../../shared/env';
+import { VerifierMarketplace } from '../../../shared/abi';
 
 dotenv.config({ path: '../../.env' });
 
-// TEMPORARY: Human-readable ABIs (replace with imports from shared/abi/ after compilation)
-// Once contracts are compiled, use: VerifierMarketplace.abi
-const MARKETPLACE_ABI = [
-  'function commitEvaluation(uint256 taskId, bytes32 commitHash) external',
-  'function revealEvaluation(uint256 taskId, uint16 scoreBps, bytes32 bundleHash, string bundleURI, bytes32 salt) external',
-  'function getTaskMeta(uint256 taskId) view returns (uint8 state, address requester, bytes32 promptHash, bytes32 rubricHash, uint40 commitDeadline, uint40 revealDeadline, uint40 disputeDeadline, uint8 minEvals, uint8 maxEvals, uint256 feePool, uint16 finalScoreBps, uint256 evalCount)',
-];
-
-// NOTE: After compiling contracts and running `npm run export-abis` in contracts/,
-// replace the hardcoded ABI above with:
-//   const MARKETPLACE_ABI = VerifierMarketplace.abi;
+const MARKETPLACE_ABI = VerifierMarketplace.abi;
 
 let provider: ethers.JsonRpcProvider;
 let wallet: ethers.Wallet;
@@ -29,8 +18,7 @@ let marketplaceContract: ethers.Contract;
  */
 export async function initializeBlockchain() {
   try {
-    const rpcUrl = process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc';
-    provider = new ethers.JsonRpcProvider(rpcUrl);
+    provider = new ethers.JsonRpcProvider(getRpcUrl());
 
     const privateKey = process.env.VERIFIER_PRIVATE_KEY;
     if (!privateKey) {

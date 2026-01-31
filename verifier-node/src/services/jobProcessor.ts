@@ -12,6 +12,7 @@ import {
   generateSalt,
   wallet,
 } from './blockchain';
+import { toScoreBps } from '../utils/score';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -116,7 +117,7 @@ export async function startJobProcessor() {
       // Step 5: Generate commitment
       const commitPrepStart = Date.now();
       const salt = generateSalt();
-      const scoreBps = Math.round(scoringResult.score * 100);
+      const scoreBps = toScoreBps(scoringResult.score);
       const commitHash = generateCommitHash(
         jobId,
         wallet.address,

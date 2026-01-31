@@ -827,7 +827,7 @@ interface FinalScore {
 const domain = {
   name: 'LLMVerifier',
   version: '1',
-  chainId: 42161, // Arbitrum One
+  chainId: NETWORK_CHAIN_ID, // Resolve at runtime (e.g., 42161 or 421614)
   verifyingContract: MARKETPLACE_ADDRESS
 };
 ```
@@ -913,8 +913,8 @@ function verifyBundleSignature(signed: SignedBundle): boolean {
 **Onchain Anchor**:
 ```solidity
 // Store bundle hash onchain (not full bundle)
-function commitEvaluation(uint256 taskId, bytes32 bundleHash) external {
-    commitments[taskId][msg.sender] = bundleHash;
+function commitEvaluation(uint256 taskId, bytes32 commitHash) external {
+    commitments[taskId][msg.sender] = commitHash;
 }
 ```
 

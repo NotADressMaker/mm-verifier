@@ -1,36 +1,14 @@
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import { logger } from '../utils/logger';
-
-// TODO: Uncomment after compiling contracts and exporting ABIs
-// import { VerifierMarketplace, BondVaultWETH, AuditorRegistry } from '../../../shared/abi';
+import { getRpcUrl } from '../../../shared/env';
+import { VerifierMarketplace, AuditorRegistry, StakingManager } from '../../../shared/abi';
 
 dotenv.config({ path: '../../.env' });
 
-// TEMPORARY: Human-readable ABIs (replace with imports from shared/abi/ after compilation)
-// Once contracts are compiled, use: VerifierMarketplace.abi, BondVaultWETH.abi, etc.
-export const MARKETPLACE_ABI = [
-  'function createTask(bytes32 promptHash, bytes32 rubricHash, uint40 commitDeadline, uint40 revealDeadline, uint40 disputeWindowSeconds, uint8 minEvals, uint8 maxEvals, uint256 feePool) external returns (uint256)',
-  'function getTaskMeta(uint256 taskId) view returns (uint8 state, address requester, bytes32 promptHash, bytes32 rubricHash, uint40 commitDeadline, uint40 revealDeadline, uint40 disputeDeadline, uint8 minEvals, uint8 maxEvals, uint256 feePool, uint16 finalScoreBps, uint256 evalCount)',
-  'event TaskCreated(uint256 indexed taskId, address indexed requester, uint256 feePool)',
-];
-
-const STAKING_ABI = [
-  'function stakeAsVerifier() payable',
-  'function stakeAsAuditor() payable',
-  'function getStake(address staker) view returns (tuple(uint256 amount, uint256 lockedAmount, uint256 unbondingAmount, uint256 unbondingTime, uint8 stakeType, bool active))',
-];
-
-const AUDITOR_REGISTRY_ABI = [
-  'function registerAuditor()',
-  'function getAuditor(address auditor) view returns (tuple(bool registered, uint256 reputation, uint256 totalVotes, uint256 correctVotes, uint256 totalEarnings, bool active))',
-];
-
-// NOTE: After compiling contracts and running `npm run export-abis` in contracts/,
-// replace the hardcoded ABIs above with:
-//   const MARKETPLACE_ABI = VerifierMarketplace.abi;
-//   const STAKING_ABI = StakingManager.abi;
-//   const AUDITOR_REGISTRY_ABI = AuditorRegistry.abi;
+export const MARKETPLACE_ABI = VerifierMarketplace.abi;
+const STAKING_ABI = StakingManager.abi;
+const AUDITOR_REGISTRY_ABI = AuditorRegistry.abi;
 
 let provider: ethers.JsonRpcProvider;
 let wallet: ethers.Wallet;
@@ -43,8 +21,7 @@ let auditorRegistryContract: ethers.Contract;
  */
 export async function initializeBlockchain() {
   try {
-    const rpcUrl = process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc';
-    provider = new ethers.JsonRpcProvider(rpcUrl);
+    provider = new ethers.JsonRpcProvider(getRpcUrl());
 
     // Test connection
     const network = await provider.getNetwork();
@@ -141,8 +118,8 @@ export async function submitVerificationJob(params: {
 
     if (event) {
       const parsed = marketplaceContract.interface.parseLog(event);
-      const taskId = parsed?.args.taskId;
-      logger.info('Task created successfully', { taskId });
+      const taskId = parsed?.args.taskId as bigint;
+      logger.info('Task created successfully', { taskId: taskId.toString() });
       return taskId.toString();
     }
 
@@ -212,7 +189,7 @@ export async function getStakeInfo(address: string) {
       throw new Error('Staking contract not initialized');
     }
 
-    const stake = await stakingContract.getStake(address);
+    const stake = await stakingContract.stakes(address);
     return {
       amount: stake.amount,
       lockedAmount: stake.lockedAmount,

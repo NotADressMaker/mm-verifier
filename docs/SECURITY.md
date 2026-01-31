@@ -826,9 +826,9 @@ Every state transition MUST emit an event for off-chain indexers.
 | DisputeLadder | Vote cast | `VoteCast` | disputeId, juror, vote |
 | DisputeLadder | Dispute resolved | `DisputeResolved` | disputeId, outcome, winner |
 | VerificationMarketplace | Task created | `TaskCreated` | taskId, requester, reward |
-| VerificationMarketplace | Evaluation committed | `EvaluationCommitted` | taskId, evaluator, commitHash |
-| VerificationMarketplace | Evaluation revealed | `EvaluationRevealed` | taskId, evaluator, score |
-| VerificationMarketplace | Task finalized | `TaskFinalized` | taskId, finalScore, consensus |
+| VerificationMarketplace | Evaluation committed | `Committed` | taskId, evaluator, commitHash |
+| VerificationMarketplace | Evaluation revealed | `Revealed` | taskId, evaluator, score |
+| VerificationMarketplace | Task finalized | `Finalized` | taskId, finalScore, feePool |
 | VerifyGovernor | Proposal created | `ProposalCreated` | proposalId, proposer, targets[] |
 | VerifyGovernor | Vote cast | `VoteCast` | voter, proposalId, support, weight |
 | VerifyGovernor | Proposal queued | `ProposalQueued` | proposalId, eta |

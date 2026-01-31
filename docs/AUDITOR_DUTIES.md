@@ -122,8 +122,15 @@ async function verifySignature(signedBundle: SignedBundle): Promise<boolean> {
   };
 
   // 2. Recover signer from signature
+  const domain = {
+    name: 'LLMVerifier',
+    version: '1',
+    chainId: NETWORK_CHAIN_ID,
+    verifyingContract: MARKETPLACE_ADDRESS
+  };
+
   const recoveredAddress = ethers.verifyTypedData(
-    EIP712_DOMAIN,
+    domain,
     EIP712_TYPES,
     message,
     signedBundle.signature

@@ -1,0 +1,269 @@
+{
+  "contractName": "VerifierMarketplace",
+  "sourceName": "contracts/VerificationMarketplace.sol",
+  "abi": [
+    {
+      "type": "function",
+      "name": "createTask",
+      "inputs": [
+        { "name": "promptHash", "type": "bytes32" },
+        { "name": "rubricHash", "type": "bytes32" },
+        { "name": "commitDeadline", "type": "uint40" },
+        { "name": "revealDeadline", "type": "uint40" },
+        { "name": "disputeWindowSeconds", "type": "uint40" },
+        { "name": "minEvals", "type": "uint8" },
+        { "name": "maxEvals", "type": "uint8" },
+        { "name": "feePool", "type": "uint256" }
+      ],
+      "outputs": [{ "name": "taskId", "type": "uint256" }],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "commitEvaluation",
+      "inputs": [
+        { "name": "taskId", "type": "uint256" },
+        { "name": "commitHash", "type": "bytes32" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "revealEvaluation",
+      "inputs": [
+        { "name": "taskId", "type": "uint256" },
+        { "name": "scoreBps", "type": "uint16" },
+        { "name": "bundleHash", "type": "bytes32" },
+        { "name": "bundleURI", "type": "string" },
+        { "name": "salt", "type": "bytes32" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "finalize",
+      "inputs": [{ "name": "taskId", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "getTaskMeta",
+      "inputs": [{ "name": "taskId", "type": "uint256" }],
+      "outputs": [
+        { "name": "state", "type": "uint8" },
+        { "name": "requester", "type": "address" },
+        { "name": "promptHash", "type": "bytes32" },
+        { "name": "rubricHash", "type": "bytes32" },
+        { "name": "commitDeadline", "type": "uint40" },
+        { "name": "revealDeadline", "type": "uint40" },
+        { "name": "disputeDeadline", "type": "uint40" },
+        { "name": "minEvals", "type": "uint8" },
+        { "name": "maxEvals", "type": "uint8" },
+        { "name": "feePool", "type": "uint256" },
+        { "name": "finalScoreBps", "type": "uint16" },
+        { "name": "evalCount", "type": "uint256" }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "openReveal",
+      "inputs": [{ "name": "taskId", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setBonds",
+      "inputs": [
+        { "name": "_evalBond", "type": "uint256" },
+        { "name": "_disputeBond", "type": "uint256" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setProtocolFeeBps",
+      "inputs": [{ "name": "bps", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "markDisputed",
+      "inputs": [{ "name": "taskId", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "markResolved",
+      "inputs": [
+        { "name": "taskId", "type": "uint256" },
+        { "name": "newFinalScoreBps", "type": "uint16" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "emitDisputeOpened",
+      "inputs": [
+        { "name": "taskId", "type": "uint256" },
+        { "name": "challenger", "type": "address" }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "getVerifierReputation",
+      "inputs": [{ "name": "verifier", "type": "address" }],
+      "outputs": [
+        { "name": "totalEvals", "type": "uint256" },
+        { "name": "accurateEvals", "type": "uint256" },
+        { "name": "accuracyBps", "type": "uint256" },
+        { "name": "totalRewards", "type": "uint256" },
+        { "name": "disputes", "type": "uint256" },
+        { "name": "disputeWins", "type": "uint256" },
+        { "name": "disputeWinRate", "type": "uint256" },
+        { "name": "lastActivity", "type": "uint256" },
+        { "name": "daysSinceActive", "type": "uint256" }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "WETH",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "address" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "evalBond",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "disputeBond",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "protocolFeeBps",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "nextTaskId",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "totalEvaluations",
+      "inputs": [{ "name": "", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "accurateEvaluations",
+      "inputs": [{ "name": "", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "totalRewardsEarned",
+      "inputs": [{ "name": "", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "lastActivityTimestamp",
+      "inputs": [{ "name": "", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "disputesAgainst",
+      "inputs": [{ "name": "", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "disputesWon",
+      "inputs": [{ "name": "", "type": "address" }],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "TaskCreated",
+      "inputs": [
+        { "name": "taskId", "type": "uint256", "indexed": true },
+        { "name": "requester", "type": "address", "indexed": true },
+        { "name": "feePool", "type": "uint256", "indexed": false }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "Committed",
+      "inputs": [
+        { "name": "taskId", "type": "uint256", "indexed": true },
+        { "name": "evaluator", "type": "address", "indexed": true },
+        { "name": "commitHash", "type": "bytes32", "indexed": false }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "Revealed",
+      "inputs": [
+        { "name": "taskId", "type": "uint256", "indexed": true },
+        { "name": "evaluator", "type": "address", "indexed": true },
+        { "name": "scoreBps", "type": "uint16", "indexed": false },
+        { "name": "bundleHash", "type": "bytes32", "indexed": false },
+        { "name": "bundleURI", "type": "string", "indexed": false }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "Finalized",
+      "inputs": [
+        { "name": "taskId", "type": "uint256", "indexed": true },
+        { "name": "finalScoreBps", "type": "uint16", "indexed": false },
+        { "name": "feePool", "type": "uint256", "indexed": false }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "DisputeOpened",
+      "inputs": [
+        { "name": "taskId", "type": "uint256", "indexed": true },
+        { "name": "challenger", "type": "address", "indexed": true }
+      ],
+      "anonymous": false
+    }
+  ],
+  "bytecode": "0x"
+}

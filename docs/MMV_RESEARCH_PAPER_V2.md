@@ -294,7 +294,8 @@ cp .env.example .env
 ```
 **Edit `.env` with required variables**:
 ```env
-ARBITRUM_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+ARBITRUM_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc # optional legacy alias
 PRIVATE_KEY=0xYOUR_TESTNET_PRIVATE_KEY
 IPFS_API_URL=https://ipfs.infura.io:5001
 ```
@@ -349,7 +350,7 @@ curl http://localhost:8080/jobs/job_456/evidence
 **What You Built**: A working verification pipeline that checks LLM accuracy using economic incentives.
 
 ### Common Troubleshooting
-- **RPC errors**: Verify `ARBITRUM_RPC_URL` and that the faucet sent funds.
+- **RPC errors**: Verify `ARBITRUM_SEPOLIA_RPC_URL` (or `ARBITRUM_RPC_URL`) and that the faucet sent funds.
 - **IPFS errors**: Ensure `IPFS_API_URL` is reachable and credentials are set if required.
 - **Commitment mismatch**: Check that evidence bundles are not modified after hashing.
 

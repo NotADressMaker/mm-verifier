@@ -4,6 +4,7 @@ import { verifyWithMMV } from './mmvVerifier';
 import { hashCanonical, normalizeBytes32 } from './mmvHasher';
 import { hashVerifierVersion, signMMVAttestation } from './mmvAttestation';
 import { loadMMVConfig } from './mmvConfig';
+import { getChainIdFromEnv } from '../../../shared/env';
 
 export type DecisionGateRequest = {
   taskId: string;
@@ -55,12 +56,15 @@ export async function runDecisionGate(
     throw new Error('MMV decision gate blocked action');
   }
 
-  const chainId = parseInt(process.env.MMV_CHAIN_ID || '42161', 10);
+  const chainId = getChainIdFromEnv();
   const verifyingContract = process.env.MMV_ATTESTATION_CONTRACT || '0x0000000000000000000000000000000000000000';
   const signerKey = process.env.MMV_SIGNER_PRIVATE_KEY;
 
   if (!signerKey) {
     throw new Error('MMV_SIGNER_PRIVATE_KEY not configured');
+  }
+  if (!chainId) {
+    throw new Error('MMV_CHAIN_ID or CHAIN_ID must be configured');
   }
 
   const attestation: MMVAttestation = {

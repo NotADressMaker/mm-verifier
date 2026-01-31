@@ -1,5 +1,9 @@
 import { Wallet, keccak256, toUtf8Bytes, verifyTypedData } from 'ethers';
-import { MMVAttestation, MMV_EIP712_DOMAIN, MMV_EIP712_TYPES } from '../../../shared/types';
+import {
+  MMVAttestation,
+  MMV_EIP712_TYPES,
+  getMmvEip712Domain,
+} from '../../../shared/types';
 
 export function hashVerifierVersion(version: string): string {
   return keccak256(toUtf8Bytes(version));
@@ -13,11 +17,7 @@ export async function signMMVAttestation(
 ): Promise<string> {
   const wallet = new Wallet(privateKey);
 
-  const domain = {
-    ...MMV_EIP712_DOMAIN,
-    chainId,
-    verifyingContract,
-  };
+  const domain = getMmvEip712Domain(chainId, verifyingContract);
 
   return wallet.signTypedData(domain, MMV_EIP712_TYPES, {
     taskId: attestation.taskId,
@@ -38,11 +38,7 @@ export function verifyMMVAttestationSignature(
   attestation: MMVAttestation,
   signature: string
 ): string {
-  const domain = {
-    ...MMV_EIP712_DOMAIN,
-    chainId,
-    verifyingContract,
-  };
+  const domain = getMmvEip712Domain(chainId, verifyingContract);
 
   return verifyTypedData(domain, MMV_EIP712_TYPES, attestation, signature);
 }
