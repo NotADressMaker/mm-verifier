@@ -37,7 +37,8 @@
     "contracts",
     "api",
     "verifier-node",
-    "shared"
+    "shared",
+    "packages/sdk-js"
   ],
   "devDependencies": {
     "@types/node": "^20.10.0",

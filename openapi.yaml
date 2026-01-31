@@ -1,0 +1,299 @@
+openapi: 3.0.3
+info:
+  title: MMV Verification API
+  version: 1.0.0
+  description: |
+    Stable, developer-friendly API for submitting and tracking LLM verification tasks.
+servers:
+  - url: http://localhost:3000
+paths:
+  /v1/verify:
+    post:
+      summary: Submit a verification task
+      operationId: verifyTask
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+          description: Reuse the same task when repeating a request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/programs:
+    post:
+      summary: Register a verification program
+      operationId: registerProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgramDefinition'
+      responses:
+        '201':
+          description: Program registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramRecord'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: List verification programs
+      operationId: listPrograms
+      responses:
+        '200':
+          description: Program list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  programs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProgramRecord'
+  /v1/tasks/{task_id}:
+    get:
+      summary: Fetch task status
+      operationId: getTask
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ProgramIO:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        required:
+          type: boolean
+    ProgramStep:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [prompt, retrieve, cross-check, score, evidence, consensus]
+        description:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+    ProgramDefinition:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - version
+        - steps
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgramIO'
+        outputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgramIO'
+        steps:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ProgramStep'
+    ProgramRecord:
+      type: object
+      properties:
+        program_id:
+          type: string
+        program:
+          $ref: '#/components/schemas/ProgramDefinition'
+        created_at:
+          type: string
+    VerifyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - prompt
+        - models
+        - task_type
+      properties:
+        prompt:
+          type: string
+        models:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        task_type:
+          type: string
+          enum: [factual-qa, math-proof, policy-compliance, citation-check, general]
+        deadline:
+          type: integer
+          minimum: 1
+        commit_deadline_seconds:
+          type: integer
+          minimum: 1
+        reveal_deadline_seconds:
+          type: integer
+          minimum: 1
+        reward_pool:
+          type: number
+        program_id:
+          type: string
+        program:
+          $ref: '#/components/schemas/ProgramDefinition'
+        idempotency_key:
+          type: string
+    VerifyResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - task_id
+        - status
+        - verdict
+        - score_bps
+        - evidence
+        - timings
+        - errors
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, finalized, failed]
+        verdict:
+          oneOf:
+            - type: boolean
+            - type: string
+              enum: [unknown]
+        score_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        evidence:
+          type: object
+          additionalProperties: false
+          required:
+            - bundle_hash
+            - bundle_uri
+          properties:
+            bundle_hash:
+              type: string
+              nullable: true
+            bundle_uri:
+              type: string
+              nullable: true
+        timings:
+          type: object
+          additionalProperties: false
+          required:
+            - queue_ms
+            - llm_ms
+            - bundle_ms
+            - chain_ms
+            - total_ms
+          properties:
+            queue_ms:
+              type: number
+              nullable: true
+            llm_ms:
+              type: number
+              nullable: true
+            bundle_ms:
+              type: number
+              nullable: true
+            chain_ms:
+              type: number
+              nullable: true
+            total_ms:
+              type: number
+              nullable: true
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifyError'
+        program_id:
+          type: string
+        program:
+          $ref: '#/components/schemas/ProgramDefinition'
+    VerifyError:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum: [INVALID_INPUT, PROVIDER_ERROR, CHAIN_REVERT, TIMEOUT, NOT_FOUND, INTERNAL_ERROR]
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifyError'

@@ -1,26 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
+import {
+  ProgramDefinition,
+  ProgramIO,
+  ProgramStep,
+  ProgramStepType,
+} from '../../../shared/httpSchemas';
 
-export type ProgramStepType =
-  | 'prompt'
-  | 'retrieve'
-  | 'cross-check'
-  | 'score'
-  | 'evidence'
-  | 'consensus';
-
-export interface ProgramStep {
-  id?: string;
-  type: ProgramStepType;
-  description?: string;
-  config?: Record<string, unknown>;
-}
-
-export interface VerificationProgram {
-  name: string;
-  version: string;
-  description?: string;
-  steps: ProgramStep[];
-}
+export type VerificationProgram = ProgramDefinition;
 
 export interface ProgramRecord {
   id: string;
@@ -41,6 +27,52 @@ export function validateVerificationProgram(program: any): { valid: boolean; mes
 
   if (typeof program.version !== 'string' || program.version.trim().length === 0) {
     return { valid: false, message: 'Program version is required.' };
+  }
+
+  const validateIo = (io: ProgramIO, label: string) => {
+    if (!io || typeof io !== 'object') {
+      return `${label} entries must be objects.`;
+    }
+
+    if (typeof io.name !== 'string' || io.name.trim().length === 0) {
+      return `${label} name is required.`;
+    }
+
+    if (typeof io.type !== 'string' || io.type.trim().length === 0) {
+      return `${label} type is required.`;
+    }
+
+    if (io.description && typeof io.description !== 'string') {
+      return `${label} description must be a string.`;
+    }
+
+    if (io.required !== undefined && typeof io.required !== 'boolean') {
+      return `${label} required flag must be boolean.`;
+    }
+
+    return null;
+  };
+
+  if (program.inputs && !Array.isArray(program.inputs)) {
+    return { valid: false, message: 'Program inputs must be an array.' };
+  }
+
+  if (program.outputs && !Array.isArray(program.outputs)) {
+    return { valid: false, message: 'Program outputs must be an array.' };
+  }
+
+  for (const input of program.inputs || []) {
+    const error = validateIo(input, 'Input');
+    if (error) {
+      return { valid: false, message: error };
+    }
+  }
+
+  for (const output of program.outputs || []) {
+    const error = validateIo(output, 'Output');
+    if (error) {
+      return { valid: false, message: error };
+    }
   }
 
   if (!Array.isArray(program.steps) || program.steps.length === 0) {
