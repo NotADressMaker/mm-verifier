@@ -78,7 +78,7 @@ jobs:
         working-directory: contracts
 
       - name: Run Solhint (Solidity linter)
-        run: npx solhint '**/*.sol'
+        run: npx solhint 'contracts/**/*.sol'
         working-directory: contracts
 
       - name: Compile contracts (Hardhat example)
