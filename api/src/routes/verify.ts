@@ -6,9 +6,7 @@ import { submitVerificationJob } from '../services/blockchain';
 import { queueVerificationJob } from '../services/jobQueue';
 import {
   getProgram,
-  getProgramByHash,
   registerProgram,
-  resolveProgramReference,
   validateVerificationProgram,
   VerificationProgram,
 } from '../services/programRegistry';
@@ -30,19 +28,6 @@ router.post(
     body('deadline').optional().isInt({ min: 1 }).withMessage('Deadline must be positive integer'),
     body('rewardPool').optional().isNumeric().withMessage('Reward pool must be numeric'),
     body('programId').optional().isString().withMessage('Program ID must be a string'),
-    body('programHash').optional().isString().withMessage('Program hash must be a string'),
-    body('programRef').optional().custom((value) => {
-      if (!value || typeof value !== 'object') {
-        throw new Error('Program reference must be an object');
-      }
-      if (typeof value.name !== 'string' || value.name.trim().length === 0) {
-        throw new Error('Program reference name is required');
-      }
-      if (value.version && typeof value.version !== 'string') {
-        throw new Error('Program reference version must be a string');
-      }
-      return true;
-    }),
     body('program').optional().custom((value) => {
       const validation = validateVerificationProgram(value);
       if (!validation.valid) {
@@ -66,8 +51,6 @@ router.post(
         deadline,
         rewardPool,
         programId,
-        programHash,
-        programRef,
         program,
       }: {
         prompt: string;
@@ -76,20 +59,16 @@ router.post(
         deadline?: number;
         rewardPool?: number;
         programId?: string;
-        programHash?: string;
-        programRef?: { name: string; version?: string };
         program?: VerificationProgram;
       } = req.body;
 
       let resolvedProgramId = programId;
       let resolvedProgram: VerificationProgram | undefined = undefined;
-      let resolvedProgramHash: string | undefined = undefined;
 
       if (program) {
         const record = registerProgram(program);
         resolvedProgramId = record.id;
         resolvedProgram = record.program;
-        resolvedProgramHash = record.hash;
       }
 
       if (resolvedProgramId) {
@@ -101,33 +80,6 @@ router.post(
           });
         }
         resolvedProgram = record.program;
-        resolvedProgramHash = record.hash;
-      }
-
-      if (!resolvedProgram && programHash) {
-        const record = getProgramByHash(programHash);
-        if (!record) {
-          return res.status(400).json({
-            error: 'Invalid program',
-            message: 'Program hash not found',
-          });
-        }
-        resolvedProgramId = record.id;
-        resolvedProgram = record.program;
-        resolvedProgramHash = record.hash;
-      }
-
-      if (!resolvedProgram && programRef) {
-        const record = resolveProgramReference(programRef);
-        if (!record) {
-          return res.status(400).json({
-            error: 'Invalid program',
-            message: 'Program reference not found',
-          });
-        }
-        resolvedProgramId = record.id;
-        resolvedProgram = record.program;
-        resolvedProgramHash = record.hash;
       }
 
       logger.info('Received verification request', {
@@ -177,7 +129,6 @@ router.post(
         deadline: deadlineTimestamp,
         programId: resolvedProgramId,
         program: resolvedProgram,
-        programHash: resolvedProgramHash,
       });
 
       logger.info('Verification job submitted', { jobId });
@@ -193,7 +144,6 @@ router.post(
         estimatedCompletion: new Date((deadlineTimestamp - 3600) * 1000).toISOString(),
         programId: resolvedProgramId,
         program: resolvedProgram,
-        programHash: resolvedProgramHash,
       });
     } catch (error: any) {
       logger.error('Error submitting verification request:', error);

@@ -17,7 +17,6 @@ export async function queueVerificationJob(jobData: {
   taskType: string;
   deadline: number;
   programId?: string;
-  programHash?: string;
   program?: {
     name: string;
     version: string;

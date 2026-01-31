@@ -40,12 +40,6 @@ curl -X POST http://localhost:3000/api/programs \
   }'
 ```
 
-The response includes a `programId` and deterministic `programHash`. You can resolve by name/version or hash:
-
-```bash
-curl "http://localhost:3000/api/programs/resolve?name=citations-v1&version=1.0.0"
-```
-
 ### Submit a Job with a Program
 
 ```bash
@@ -56,19 +50,6 @@ curl -X POST http://localhost:3000/api/verify \
     "models": ["gpt-4o", "claude-3-5-sonnet"],
     "taskType": "citation-check",
     "programId": "YOUR_PROGRAM_ID"
-  }'
-```
-
-You can also reference a program by hash or name/version:
-
-```bash
-curl -X POST http://localhost:3000/api/verify \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Summarize the latest CPI release with citations.",
-    "models": ["gpt-4o", "claude-3-5-sonnet"],
-    "taskType": "citation-check",
-    "programHash": "YOUR_PROGRAM_HASH"
   }'
 ```
 

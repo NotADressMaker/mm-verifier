@@ -3,10 +3,8 @@ import { body, validationResult } from 'express-validator';
 import { logger } from '../utils/logger';
 import {
   getProgram,
-  getProgramByHash,
   listPrograms,
   registerProgram,
-  resolveProgramReference,
   validateVerificationProgram,
   VerificationProgram,
 } from '../services/programRegistry';
@@ -47,7 +45,6 @@ router.post(
 
       res.status(201).json({
         programId: record.id,
-        programHash: record.hash,
         program: record.program,
         createdAt: record.createdAt,
       });
@@ -66,41 +63,11 @@ router.post(
  * List registered verification programs
  */
 router.get('/', (req: Request, res: Response) => {
-  const { name } = req.query as { name?: string };
-  let programs = listPrograms();
-  if (name) {
-    const nameKey = name.toLowerCase();
-    programs = programs.filter((record) => record.program.name.toLowerCase() === nameKey);
-  }
-
+  const programs = listPrograms();
   res.status(200).json({
     total: programs.length,
     programs,
   });
-});
-
-/**
- * GET /api/programs/resolve
- * Resolve program by name/version or hash
- */
-router.get('/resolve', (req: Request, res: Response) => {
-  const { name, version, hash } = req.query as { name?: string; version?: string; hash?: string };
-
-  let record;
-  if (hash) {
-    record = getProgramByHash(hash);
-  } else if (name) {
-    record = resolveProgramReference({ name, version });
-  }
-
-  if (!record) {
-    return res.status(404).json({
-      error: 'Not Found',
-      message: 'Program not found',
-    });
-  }
-
-  res.status(200).json(record);
 });
 
 /**
