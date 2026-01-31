@@ -18,6 +18,14 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 
 **Think of it as**: Ethereum-style infrastructure for AI outputs—an open network where verifiers, auditors, and applications coordinate to produce reliable, programmable trust.
 
+## What's Implemented Today
+
+- **Multi-LLM Cross-Check**: Routes prompts to OpenAI, Anthropic, and Google model providers.
+- **Verification Job Processor**: Scores responses and assembles evidence bundles.
+- **IPFS Evidence Uploads**: Stores evidence bundle URIs offchain.
+- **Smart Contract Marketplace**: Commit/reveal workflow with evidence hashes and URIs.
+- **API Endpoints**: `/api/verify` and `/api/programs` for job submission and program registration.
+
 ## Programmable Verification Programs
 
 MMV exposes **verification programs**: reusable, versioned workflows that define how AI outputs should be checked (retrieve sources, cross-check models, score, and assemble evidence). These programs make the network behave like a programmable "world computer" for verification logic.
@@ -55,25 +63,17 @@ curl -X POST http://localhost:3000/api/verify \
 
 ## Architecture
 
+## Repo Structure (Workspaces)
+
+This monorepo is organized into the following workspaces:
+
 ```
 MMV/
-├── contracts/          # Solidity smart contracts (Arbitrum)
-│   ├── VerificationMarketplace.sol
-│   ├── StakingManager.sol
-│   ├── DisputeResolver.sol
-│   └── AuditorRegistry.sol
-├── api/               # REST API & WebSocket server
-│   ├── src/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   └── server.ts
-├── verifier-node/     # Verification service
-│   ├── src/
-│   │   ├── llm-providers/
-│   │   ├── scoring/
-│   │   └── evidence/
-├── shared/            # Shared types and utilities
-└── docs/              # Documentation
+├── contracts/      # Solidity smart contracts (Arbitrum)
+├── api/            # REST API & WebSocket server
+├── verifier-node/  # Verification service
+├── shared/         # Shared types and utilities
+└── docs/           # Documentation
 ```
 
 ## Content Insurance Layer
@@ -213,11 +213,13 @@ Why Arbitrum:
 - **Researchers**: Benchmarking and model drift tracking
 - **End Users**: Simple "is this answer real?" verification
 
-## Frontend Experience (MVP Dashboard)
+## Roadmap: Frontend Dashboard (Planned)
 
-The primary entry points should feel cohesive, trustworthy, and understandable to non-experts. For the upcoming dashboard, prioritize:
+No frontend dashboard is included in this repository yet. The UI described below is a future goal and is not implemented today.
 
-### Core Screens
+When the dashboard work begins, the intended experience includes:
+
+### Core Screens (Planned)
 
 - **Job Timeline**: Visual progression from submission → verification → dispute resolution.
 - **Confidence Breakdown**: Clear display of consensus score, variance across models, and any contradictions.
@@ -225,7 +227,7 @@ The primary entry points should feel cohesive, trustworthy, and understandable t
 - **Dispute Status**: Clear badges for challenge tiers and auditor outcomes.
 - **Verifier Trust Signals**: At-a-glance stakes, slashing history, and audit success rate.
 
-### UX Principles
+### UX Principles (Planned)
 
 - **Clarity over cleverness**: Avoid jargon where possible; explain “verdict,” “confidence,” and “dispute” in plain language.
 - **Progressive disclosure**: Show the headline verdict first, then expand into evidence and audit trails.
@@ -240,6 +242,7 @@ The primary entry points should feel cohesive, trustworthy, and understandable t
 - Foundry or Hardhat
 - Arbitrum Sepolia testnet ETH
 - API keys for LLM providers (OpenAI, Anthropic, Google)
+- Redis (for the verification job queue)
 
 ### Installation
 
@@ -248,29 +251,29 @@ The primary entry points should feel cohesive, trustworthy, and understandable t
 git clone https://github.com/michaelmannen3-oss/MMV.git
 cd MMV
 
-# Install dependencies
+# Install dependencies (root + workspaces)
 npm install
+cd contracts && npm install
+cd ../api && npm install
+cd ../verifier-node && npm install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your API keys and RPC URLs
+# Edit .env with your API keys, RPC URLs, and Redis connection
 
 # Compile contracts
-cd contracts
-npm install
+cd ../contracts
 npx hardhat compile
 
-# Deploy to Arbitrum Sepolia
+# Deploy to Arbitrum Sepolia (requires funded deployer key)
 npx hardhat run scripts/deploy.ts --network arbitrum-sepolia
 
 # Start API server
 cd ../api
-npm install
 npm run dev
 
-# Start verifier node
+# Start verifier node (in another terminal)
 cd ../verifier-node
-npm install
 npm run start
 ```
 
@@ -314,10 +317,8 @@ curl -X POST http://localhost:3000/api/verify \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "What is the capital of France?",
-    "models": ["gpt-4", "claude-3-opus", "gemini-pro"],
-    "taskType": "factual-qa",
-    "commitDeadlineSeconds": 3600,
-    "revealDeadlineSeconds": 3600
+    "models": ["gpt-4o", "claude-3-5-sonnet", "gemini-1.5-pro"],
+    "taskType": "factual-qa"
   }'
 ```
 
