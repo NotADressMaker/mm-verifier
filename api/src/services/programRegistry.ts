@@ -1,0 +1,98 @@
+import { v4 as uuidv4 } from 'uuid';
+
+export type ProgramStepType =
+  | 'prompt'
+  | 'retrieve'
+  | 'cross-check'
+  | 'score'
+  | 'evidence'
+  | 'consensus';
+
+export interface ProgramStep {
+  id?: string;
+  type: ProgramStepType;
+  description?: string;
+  config?: Record<string, unknown>;
+}
+
+export interface VerificationProgram {
+  name: string;
+  version: string;
+  description?: string;
+  steps: ProgramStep[];
+}
+
+export interface ProgramRecord {
+  id: string;
+  program: VerificationProgram;
+  createdAt: string;
+}
+
+const programRegistry = new Map<string, ProgramRecord>();
+
+export function validateVerificationProgram(program: any): { valid: boolean; message?: string } {
+  if (!program || typeof program !== 'object') {
+    return { valid: false, message: 'Program must be an object.' };
+  }
+
+  if (typeof program.name !== 'string' || program.name.trim().length === 0) {
+    return { valid: false, message: 'Program name is required.' };
+  }
+
+  if (typeof program.version !== 'string' || program.version.trim().length === 0) {
+    return { valid: false, message: 'Program version is required.' };
+  }
+
+  if (!Array.isArray(program.steps) || program.steps.length === 0) {
+    return { valid: false, message: 'Program must include at least one step.' };
+  }
+
+  for (const step of program.steps) {
+    if (!step || typeof step !== 'object') {
+      return { valid: false, message: 'Each step must be an object.' };
+    }
+
+    const validTypes: ProgramStepType[] = [
+      'prompt',
+      'retrieve',
+      'cross-check',
+      'score',
+      'evidence',
+      'consensus',
+    ];
+
+    if (!validTypes.includes(step.type)) {
+      return { valid: false, message: `Invalid step type: ${step.type}` };
+    }
+
+    if (step.description && typeof step.description !== 'string') {
+      return { valid: false, message: 'Step description must be a string.' };
+    }
+
+    if (step.config && (typeof step.config !== 'object' || Array.isArray(step.config))) {
+      return { valid: false, message: 'Step config must be an object.' };
+    }
+  }
+
+  return { valid: true };
+}
+
+export function registerProgram(program: VerificationProgram): ProgramRecord {
+  const id = uuidv4();
+  const record: ProgramRecord = {
+    id,
+    program,
+    createdAt: new Date().toISOString(),
+  };
+
+  programRegistry.set(id, record);
+  return record;
+}
+
+export function listPrograms(): ProgramRecord[] {
+  return Array.from(programRegistry.values());
+}
+
+export function getProgram(programId: string): ProgramRecord | undefined {
+  return programRegistry.get(programId);
+}
