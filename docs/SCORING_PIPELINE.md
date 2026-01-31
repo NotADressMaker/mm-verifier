@@ -854,9 +854,7 @@ async function signBundle(
   verifierWallet: Wallet
 ): Promise<SignedBundle> {
   // 1. Hash the bundle content
-  const bundleHash = ethers.keccak256(
-    ethers.toUtf8Bytes(JSON.stringify(bundle))
-  );
+  const bundleHash = hashCanonical(bundle);
 
   // 2. Create EIP-712 message
   const message = {

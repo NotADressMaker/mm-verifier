@@ -14,6 +14,7 @@ import {
   CONSTANTS,
 } from '../../../shared/types';
 import { execSync } from 'child_process';
+import { hashCanonical } from '../../../shared/canonicalJson';
 
 /**
  * Evidence Bundler V2
@@ -84,11 +85,7 @@ export function createEvidenceBundle(
 export function hashEvidenceBundle(
   bundle: Omit<EvidenceBundle, 'signatures'>
 ): string {
-  // Create deterministic JSON representation
-  const bundleJson = JSON.stringify(bundle, Object.keys(bundle).sort());
-
-  // Keccak256 hash
-  return ethers.keccak256(ethers.toUtf8Bytes(bundleJson));
+  return hashCanonical(bundle);
 }
 
 /**
@@ -365,8 +362,7 @@ export function getVerdict(scoreBps: number): 'reliable' | 'mixed' | 'unreliable
  * Calculate rubric hash
  */
 export function hashRubric(rubric: ScoringRubric): string {
-  const rubricJson = JSON.stringify(rubric, Object.keys(rubric).sort());
-  return ethers.keccak256(ethers.toUtf8Bytes(rubricJson));
+  return hashCanonical(rubric);
 }
 
 /**

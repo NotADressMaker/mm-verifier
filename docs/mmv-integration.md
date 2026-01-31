@@ -66,5 +66,5 @@
 ## Notes on Safety
 
 - The verifier prompt explicitly ignores prompt injection inside candidates.
-- Hashing is deterministic (canonical JSON + keccak256).
+- Hashing is deterministic: `keccak256(canonical_json(payload))`, where `canonical_json` deep-sorts object keys, preserves array order, omits `undefined`, and emits compact JSON (no whitespace). Hashes are **0x-prefixed** hex.
 - Audit logs are persisted to `logs/mmv-audit.jsonl` for traceability.
