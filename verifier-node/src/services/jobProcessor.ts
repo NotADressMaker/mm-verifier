@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { queryMultipleModels } from '../llm-providers/modelRouter';
 import { scoreVerification } from '../scoring/scorer';
 import { createEvidenceBundle } from '../evidence/evidenceBundler';
+import { hashEvidenceBundle } from '../evidence/evidenceBundlerV2';
 import { uploadEvidenceToIPFS } from '../evidence/ipfsStorage';
 import {
   commitEvaluation,
@@ -66,21 +67,24 @@ export async function startJobProcessor() {
 
       // Step 3: Create evidence bundle
       logger.info('Creating evidence bundle', { jobId });
-      const evidenceBundle = createEvidenceBundle(
-        jobId,
-        wallet.address,
-        prompt,
+      const nodeId = process.env.VERIFIER_NODE_ID || 'default';
+      const marketplaceAddress = process.env.MARKETPLACE_ADDRESS || '';
+      const evidenceBundle = await createEvidenceBundle({
+        taskId: jobId,
+        nodeId,
+        ethAddress: wallet.address,
         promptHash,
-        models,
-        taskType,
         responses,
-        scoringResult
-      );
+        scoringResult,
+        wallet,
+        marketplaceAddress,
+      });
 
       // Step 4: Upload evidence to IPFS
       logger.info('Uploading evidence to IPFS', { jobId });
       const evidenceCid = await uploadEvidenceToIPFS(evidenceBundle);
-      const evidenceHash = `0x${evidenceBundle.bundleHash}`;
+      const { signatures, ...bundleWithoutSig } = evidenceBundle;
+      const evidenceHash = hashEvidenceBundle(bundleWithoutSig);
 
       logger.info('Evidence uploaded', {
         jobId,

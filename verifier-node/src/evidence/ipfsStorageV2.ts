@@ -1,6 +1,6 @@
 import { create, IPFSHTTPClient } from 'ipfs-http-client';
 import { logger } from '../utils/logger';
-import { EvidenceBundle } from './evidenceBundler';
+import { EvidenceBundle } from '../../../shared/types';
 import axios from 'axios';
 
 let ipfsClient: IPFSHTTPClient | null = null;
@@ -62,7 +62,7 @@ export async function uploadEvidenceToIPFS(
       cid = result.path;
 
       logger.info('Evidence uploaded to local IPFS', {
-        jobId: bundle.jobId,
+        taskId: bundle.task_id,
         cid,
         size,
       });
@@ -80,7 +80,7 @@ export async function uploadEvidenceToIPFS(
         pinned = true;
 
         logger.info('Evidence pinned to Pinata', {
-          jobId: bundle.jobId,
+          taskId: bundle.task_id,
           pinataHash,
         });
       } catch (error: any) {
@@ -104,7 +104,7 @@ export async function uploadEvidenceToIPFS(
     };
 
     logger.info('Evidence bundle uploaded with proof', {
-      jobId: bundle.jobId,
+      taskId: bundle.task_id,
       cid,
       pinned,
       gateways: gatewayUrls.length,
@@ -271,21 +271,20 @@ async function retrieveFromGateways(cid: string): Promise<string | null> {
  */
 function verifyBundleIntegrity(bundle: EvidenceBundle, expectedCid: string): boolean {
   try {
-    // Verify bundle hash
-    if (!bundle.bundleHash) {
-      logger.warn('Bundle missing hash field');
-      return false;
-    }
-
     // In production, would verify CID matches content hash
     // For now, just check bundle has required fields
     const requiredFields = [
-      'jobId',
-      'verifierAddress',
-      'promptHash',
-      'models',
-      'scoringResult',
-      'bundleHash',
+      'task_id',
+      'bundle_version',
+      'created_at',
+      'evaluator',
+      'prompt_hash',
+      'rubric_hash',
+      'model_runs',
+      'claims',
+      'metrics',
+      'final_score_bps',
+      'signatures',
     ];
 
     for (const field of requiredFields) {
@@ -393,13 +392,13 @@ async function storeLocally(bundle: EvidenceBundle): Promise<string> {
     fs.mkdirSync(storageDir, { recursive: true });
   }
 
-  const filename = `${bundle.bundleHash}.json`;
+  const filename = `bundle-${bundle.task_id}-${Date.now()}.json`;
   const filepath = path.join(storageDir, filename);
 
   fs.writeFileSync(filepath, JSON.stringify(bundle, null, 2));
 
   logger.warn('Evidence stored locally (IPFS unavailable)', {
-    jobId: bundle.jobId,
+    taskId: bundle.task_id,
     filepath,
   });
 
