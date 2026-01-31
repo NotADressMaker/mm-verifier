@@ -7,10 +7,10 @@
 // Evidence Bundle Structure (Specification v0.1)
 // ============================================================================
 
-export interface EvidenceBundle {
+export interface EvidenceBundleV01 {
   // Metadata
   task_id: number | string;
-  bundle_version: string;          // "0.1"
+  bundle_version: '0.1';
   created_at: string;              // ISO 8601 timestamp
 
   // Evaluator information
@@ -46,6 +46,76 @@ export interface EvidenceBundle {
     bundle_sig_eip712: string;     // "0x..." - EIP-712 signature
   };
 }
+
+// ============================================================================
+// Evidence Bundle Structure (Specification v0.2)
+// ============================================================================
+
+export type EvidenceBundleVersion = '0.1' | '0.2';
+
+export interface EvidenceBundleContent {
+  content_type: 'text' | 'json';
+  content_hash: `0x${string}`;
+  content_uri?: string;
+}
+
+export interface ProvenanceModelRun {
+  provider: string;
+  model: string;
+  prompt_hash: `0x${string}`;
+  response_hash: `0x${string}`;
+  started_at: number; // seconds
+  finished_at: number; // seconds
+  latency_ms?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+}
+
+export interface ProvenanceSource {
+  uri: string;
+  content_hash?: `0x${string}`;
+  content_type?: 'text' | 'json';
+  retrieved_at?: number;
+}
+
+export interface EvidenceProvenance {
+  model_runs: ProvenanceModelRun[];
+  sources?: ProvenanceSource[];
+  environment?: {
+    verifier_node?: string;
+    software_commit?: string;
+  };
+}
+
+export interface ScoringTrace {
+  rubric_hash: `0x${string}`;
+  score_bps: number;
+  verdict: Verdict;
+  breakdown: {
+    consistency?: number;
+    agreement?: number;
+    citation_quality?: number;
+    factual_accuracy?: number;
+  };
+  weights?: {
+    consistency?: number;
+    agreement?: number;
+    citation_quality?: number;
+    factual_accuracy?: number;
+  };
+  reasoning_hash?: `0x${string}`;
+  generated_at: number;
+}
+
+export interface EvidenceBundleV02 extends EvidenceBundleV01 {
+  bundle_version: '0.2';
+  input: EvidenceBundleContent;
+  output: EvidenceBundleContent;
+  provenance: EvidenceProvenance;
+  scoring_trace: ScoringTrace;
+}
+
+export type EvidenceBundle = EvidenceBundleV01 | EvidenceBundleV02;
 
 // ============================================================================
 // Model Run
@@ -408,7 +478,10 @@ export interface MMVVerificationResult {
     version: string;
     configHash: string;
   };
+  provenance: MMVModelRunProvenance;
 }
+
+export type MMVModelRunProvenance = ProvenanceModelRun;
 
 export interface MMVVerifierConfig {
   provider: 'openai';
@@ -431,6 +504,33 @@ export interface MMVAttestation {
   expiresAt: number;
   score: number;
   passed: boolean;
+}
+
+export interface MMVReceipt {
+  receipt_version: '0.1';
+  generated_at: string;
+  task_id: string;
+  input_hash: string;
+  selected_output_hash: string;
+  decision: {
+    pass: boolean;
+    overall_score: number;
+    selected_index: number;
+    candidate_scores: MMVCandidateScore[];
+  };
+  verifier: {
+    provider: 'openai';
+    model: string;
+    version: string;
+    config_hash: string;
+  };
+  provenance: MMVModelRunProvenance;
+  attestation?: {
+    chain_id: number;
+    verifying_contract: string;
+    signature: string;
+    attestation: MMVAttestation;
+  };
 }
 
 export const MMV_EIP712_DOMAIN = {
@@ -564,6 +664,9 @@ export const CONSTANTS = {
 
   // Bundle
   BUNDLE_VERSION: '0.1',
+  BUNDLE_VERSION_V01: '0.1',
+  BUNDLE_VERSION_V02: '0.2',
+  BUNDLE_VERSION_DEFAULT: '0.2',
   SOFTWARE_NAME: 'verifier-node',
 
   // BLS (Branch Legitimacy Scoring)
