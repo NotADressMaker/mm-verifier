@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 /**
- * Benchmark Harness for MM Verifier Scoring System
+ * Benchmark Harness for MMV Scoring System
  *
  * Evaluates scoring pipeline on labeled datasets to measure:
  * - Precision/Recall

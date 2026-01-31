@@ -1,6 +1,6 @@
 # Advanced Web3 Packages Integration Guide
 
-Complete deployment and integration guide for MM Verifier's advanced Web3 packages.
+Complete deployment and integration guide for MMV's advanced Web3 packages.
 
 ---
 
@@ -18,7 +18,7 @@ This guide covers three major expansion packages:
 
 ### Overview
 
-Enable MM Verifier to operate across multiple blockchains with unified liquidity and state.
+Enable MMV to operate across multiple blockchains with unified liquidity and state.
 
 **Contracts:**
 - `LayerZeroBridge.sol` - Cross-chain VERIFY token bridge
@@ -317,7 +317,7 @@ const deposited = await router.getUserTotalDeposited(myAddress);
 
 ```
 ┌──────────────────────────────────────────┐
-│          MM Verifier Protocol           │
+│          MMV Protocol           │
 │                                          │
 │  ┌────────────┐      ┌────────────┐     │
 │  │  Staking   │──────│   Mining   │     │
@@ -510,7 +510,7 @@ const medianScore = await evaluator.finalizeTask(taskId);
 
 ```
 ┌──────────────────────────────────────────────┐
-│         MM Verifier Protocol                │
+│         MMV Protocol                │
 │                                              │
 │  ┌─────────────────────────────────────┐    │
 │  │    AutomatedEvaluator               │    │
@@ -575,7 +575,7 @@ evaluator.on("TaskAssigned", async (taskId, agents) => {
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                  MM Verifier Ecosystem                  │
+│                  MMV Ecosystem                  │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
 │  │              Core Protocol (Base Layer)            │ │

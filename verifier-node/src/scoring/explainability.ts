@@ -1,5 +1,5 @@
 /**
- * Explainability Payload for MM Verifier
+ * Explainability Payload for MMV
  *
  * Structured output that makes verification results fully transparent:
  * - Atomic claim extraction

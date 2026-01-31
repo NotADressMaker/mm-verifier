@@ -1,5 +1,5 @@
 /**
- * Provider Reliability Infrastructure for MM Verifier
+ * Provider Reliability Infrastructure for MMV
  *
  * Handles unreliable LLM providers with:
  * - Circuit breakers (fast-fail when error rates spike)

@@ -1,8 +1,8 @@
-# MM Verifier Architecture
+# MMV Architecture
 
 ## Overview
 
-MM Verifier is a decentralized marketplace for verifying AI model outputs with economic accountability. The system consists of smart contracts, an API layer, and verifier nodes that work together to provide reliable AI verification.
+MMV is a decentralized marketplace for verifying AI model outputs with economic accountability. The system consists of smart contracts, an API layer, and verifier nodes that work together to provide reliable AI verification.
 
 ## System Components
 
@@ -410,4 +410,4 @@ npm run dev:verifier
 
 ## Conclusion
 
-MM Verifier combines blockchain economics, multi-model consensus, and cryptographic proofs to create a trustworthy AI verification marketplace. The modular architecture allows for easy extension and customization while maintaining security and decentralization.
+MMV combines blockchain economics, multi-model consensus, and cryptographic proofs to create a trustworthy AI verification marketplace. The modular architecture allows for easy extension and customization while maintaining security and decentralization.

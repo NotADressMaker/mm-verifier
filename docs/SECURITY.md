@@ -1,6 +1,6 @@
-# MM Verifier Security Features
+# MMV Security Features
 
-This document outlines the comprehensive security measures implemented in MM Verifier to ensure economic accountability, prevent gaming, and maintain system integrity.
+This document outlines the comprehensive security measures implemented in MMV to ensure economic accountability, prevent gaming, and maintain system integrity.
 
 ## Table of Contents
 
@@ -601,7 +601,7 @@ Before mainnet launch:
 
 ## Conclusion
 
-MM Verifier's security model combines:
+MMV's security model combines:
 1. **Economic incentives** (slashing, rewards)
 2. **Cryptographic proofs** (commit/reveal, VRF)
 3. **Decentralized verification** (multi-auditor, consensus)
@@ -623,7 +623,7 @@ The system becomes **more secure over time** as:
 
 ## Threat Model
 
-This section formalizes what MM Verifier protects against, what it doesn't, and the assumptions it makes.
+This section formalizes what MMV protects against, what it doesn't, and the assumptions it makes.
 
 ### In-Scope Threats
 

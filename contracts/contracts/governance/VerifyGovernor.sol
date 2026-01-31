@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 
 /**
  * @title VerifyGovernor
- * @notice On-chain governance for MM Verifier protocol
+ * @notice On-chain governance for MMV protocol
  * @dev Implements OpenZeppelin Governor pattern with timelock
  *
  * Parameters:
