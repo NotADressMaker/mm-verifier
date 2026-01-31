@@ -913,8 +913,8 @@ function verifyBundleSignature(signed: SignedBundle): boolean {
 **Onchain Anchor**:
 ```solidity
 // Store bundle hash onchain (not full bundle)
-function commitEvaluation(bytes32 jobId, bytes32 bundleHash) external {
-    commitments[jobId][msg.sender] = bundleHash;
+function commitEvaluation(uint256 taskId, bytes32 bundleHash) external {
+    commitments[taskId][msg.sender] = bundleHash;
 }
 ```
 

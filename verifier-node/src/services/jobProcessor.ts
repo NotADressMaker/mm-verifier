@@ -23,9 +23,9 @@ const commitStore = new Map<
   string,
   {
     salt: string;
-    score: number;
-    verdict: string;
-    evidenceHash: string;
+    scoreBps: number;
+    bundleHash: string;
+    bundleURI: string;
   }
 >();
 
@@ -89,26 +89,26 @@ export async function startJobProcessor() {
       logger.info('Evidence uploaded', {
         jobId,
         cid: evidenceCid,
-        hash: evidenceHash,
+        hash: bundleHash,
       });
 
       // Step 5: Generate commitment
       const salt = generateSalt();
+      const scoreBps = Math.round(scoringResult.score * 100);
       const commitHash = generateCommitHash(
         jobId,
         wallet.address,
-        salt,
-        scoringResult.score,
-        scoringResult.verdict,
-        evidenceHash
+        scoreBps,
+        bundleHash,
+        salt
       );
 
       // Store commit data for reveal
       commitStore.set(jobId, {
         salt,
-        score: scoringResult.score,
-        verdict: scoringResult.verdict,
-        evidenceHash,
+        scoreBps,
+        bundleHash,
+        bundleURI: evidenceCid,
       });
 
       logger.info('Generated commitment', { jobId, commitHash });
@@ -133,9 +133,9 @@ export async function startJobProcessor() {
       return {
         success: true,
         jobId,
-        score: scoringResult.score,
-        verdict: scoringResult.verdict,
-        evidenceHash,
+        scoreBps,
+        bundleHash,
+        bundleURI: evidenceCid,
         commitHash,
       };
     } catch (error: any) {
@@ -170,15 +170,14 @@ async function revealEvaluationForJob(jobId: string) {
 
     logger.info('Revealing evaluation', {
       jobId,
-      score: commitData.score,
-      verdict: commitData.verdict,
+      scoreBps: commitData.scoreBps,
     });
 
     await revealEvaluation(
       jobId,
-      commitData.score,
-      commitData.verdict,
-      commitData.evidenceHash,
+      commitData.scoreBps,
+      commitData.bundleHash,
+      commitData.bundleURI,
       commitData.salt
     );
 

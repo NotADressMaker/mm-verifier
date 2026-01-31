@@ -94,54 +94,56 @@ router.post(
       const promptHash = ethers.keccak256(ethers.toUtf8Bytes(prompt));
 
       // Calculate deadline (default: 1 hour from now)
-      const deadlineTimestamp = deadline || Math.floor(Date.now() / 1000) + 3600;
+      const commitDeadline = deadline || Math.floor(Date.now() / 1000) + 3600;
+      const revealDeadline = commitDeadline + 3600;
+      const disputeWindowSeconds = parseInt(process.env.DISPUTE_WINDOW_SECONDS || '3600', 10);
+      const minEvals = parseInt(process.env.MIN_EVALS || '1', 10);
+      const maxEvals = parseInt(process.env.MAX_EVALS || '3', 10);
 
       // Default reward pool (0.01 ETH)
-      const rewardPoolWei = rewardPool
+      const feePoolWei = rewardPool
         ? ethers.parseEther(rewardPool.toString())
         : ethers.parseEther('0.01');
 
-      // Map task type to enum
-      const taskTypeMap: { [key: string]: number } = {
-        'factual-qa': 0,
-        'math-proof': 1,
-        'policy-compliance': 2,
-        'citation-check': 3,
-        'general': 4,
-      };
-
-      // Submit job to blockchain
-      const jobId = await submitVerificationJob(
-        promptHash,
-        models,
-        taskTypeMap[taskType],
-        deadlineTimestamp,
-        rewardPoolWei
+      const rubricHash = ethers.keccak256(
+        ethers.toUtf8Bytes(JSON.stringify({ taskType, models }))
       );
+
+      // Submit task to blockchain
+      const taskId = await submitVerificationJob({
+        promptHash,
+        rubricHash,
+        commitDeadline,
+        revealDeadline,
+        disputeWindowSeconds,
+        minEvals,
+        maxEvals,
+        feePoolWei,
+      });
 
       // Queue job for verifier nodes
       await queueVerificationJob({
-        jobId,
+        jobId: taskId,
         prompt,
         promptHash,
         models,
         taskType,
-        deadline: deadlineTimestamp,
+        deadline: commitDeadline,
         programId: resolvedProgramId,
         program: resolvedProgram,
       });
 
-      logger.info('Verification job submitted', { jobId });
+      logger.info('Verification task submitted', { taskId });
 
       // Return job info
       res.status(201).json({
-        jobId,
+        jobId: taskId,
         status: 'pending',
         promptHash,
         models,
         taskType,
-        deadline: new Date(deadlineTimestamp * 1000).toISOString(),
-        estimatedCompletion: new Date((deadlineTimestamp - 3600) * 1000).toISOString(),
+        deadline: new Date(commitDeadline * 1000).toISOString(),
+        estimatedCompletion: new Date((revealDeadline) * 1000).toISOString(),
         programId: resolvedProgramId,
         program: resolvedProgram,
       });
@@ -166,38 +168,30 @@ router.get('/:jobId', async (req: Request, res: Response) => {
     logger.info('Fetching verification result', { jobId });
 
     // Get job from blockchain
-    const { getJobDetails, getJobEvaluations } = require('../services/blockchain');
-    const jobDetails = await getJobDetails(jobId);
-    const evaluations = await getJobEvaluations(jobId);
+    const { getTaskDetails } = require('../services/blockchain');
+    const taskDetails = await getTaskDetails(jobId);
 
     // Map status
-    const statusMap = ['open', 'commit-phase', 'reveal-phase', 'completed', 'disputed', 'cancelled'];
-    const status = statusMap[jobDetails.status];
+    const statusMap = ['open', 'reveal-phase', 'completed', 'disputed', 'resolved'];
+    const status = statusMap[taskDetails.state];
 
     // Build response
     const response: any = {
       jobId,
       status,
-      promptHash: jobDetails.promptHash,
-      models: jobDetails.models,
-      taskType: jobDetails.taskType,
-      rewardPool: jobDetails.rewardPool.toString(),
-      deadline: new Date(Number(jobDetails.deadline) * 1000).toISOString(),
+      promptHash: taskDetails.promptHash,
+      rubricHash: taskDetails.rubricHash,
+      rewardPool: taskDetails.feePool.toString(),
+      deadline: new Date(Number(taskDetails.commitDeadline) * 1000).toISOString(),
     };
 
     // Add result if completed
     if (status === 'completed') {
       response.result = {
-        score: Number(jobDetails.consensusScore),
-        verdict: getVerdict(Number(jobDetails.consensusScore)),
-        confidence: calculateConfidence(evaluations),
-        verifiers: evaluations.map((e: any) => e.verifier),
-        evaluations: evaluations.map((e: any) => ({
-          verifier: e.verifier,
-          score: Number(e.score),
-          verdict: e.verdict,
-          evidenceHash: e.evidenceHash,
-        })),
+        score: Number(taskDetails.finalScoreBps),
+        verdict: getVerdict(Number(taskDetails.finalScoreBps)),
+        confidence: 0,
+        evaluations: [],
       };
     }
 

@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import { logger } from '../utils/logger';
+import { computeCommitHash } from '../../../shared/commitHash';
 
 // TODO: Uncomment after compiling contracts and exporting ABIs
 // import { VerifierMarketplace, DisputeLadder, BundleRegistry } from '../../../shared/abi';
@@ -10,9 +11,9 @@ dotenv.config({ path: '../../.env' });
 // TEMPORARY: Human-readable ABIs (replace with imports from shared/abi/ after compilation)
 // Once contracts are compiled, use: VerifierMarketplace.abi
 const MARKETPLACE_ABI = [
-  'function commitEvaluation(bytes32 jobId, bytes32 commitHash) external',
-  'function revealEvaluation(bytes32 jobId, uint256 score, string verdict, bytes32 evidenceHash, bytes32 salt) external',
-  'function getJob(bytes32 jobId) view returns (address, bytes32, string[], uint8, uint256, uint8, uint256)',
+  'function commitEvaluation(uint256 taskId, bytes32 commitHash) external',
+  'function revealEvaluation(uint256 taskId, uint16 scoreBps, bytes32 bundleHash, string bundleURI, bytes32 salt) external',
+  'function getTaskMeta(uint256 taskId) view returns (uint8 state, address requester, bytes32 promptHash, bytes32 rubricHash, uint40 commitDeadline, uint40 revealDeadline, uint40 disputeDeadline, uint8 minEvals, uint8 maxEvals, uint256 feePool, uint16 finalScoreBps, uint256 evalCount)',
 ];
 
 // NOTE: After compiling contracts and running `npm run export-abis` in contracts/,
@@ -63,7 +64,7 @@ export async function initializeBlockchain() {
  * Commit evaluation hash (commit phase)
  */
 export async function commitEvaluation(
-  jobId: string,
+  taskId: bigint | string,
   commitHash: string
 ): Promise<void> {
   try {
@@ -71,12 +72,12 @@ export async function commitEvaluation(
       throw new Error('Marketplace contract not initialized');
     }
 
-    logger.info('Committing evaluation', { jobId, commitHash });
+    logger.info('Committing evaluation', { taskId: taskId.toString(), commitHash });
 
-    const tx = await marketplaceContract.commitEvaluation(jobId, commitHash);
+    const tx = await marketplaceContract.commitEvaluation(taskId, commitHash);
     const receipt = await tx.wait();
 
-    logger.info('Evaluation committed', { jobId, txHash: receipt.hash });
+    logger.info('Evaluation committed', { taskId: taskId.toString(), txHash: receipt.hash });
   } catch (error: any) {
     logger.error('Failed to commit evaluation:', error);
     throw error;
@@ -87,10 +88,10 @@ export async function commitEvaluation(
  * Reveal evaluation (reveal phase)
  */
 export async function revealEvaluation(
-  jobId: string,
-  score: number,
-  verdict: string,
-  evidenceHash: string,
+  taskId: bigint | string,
+  scoreBps: number,
+  bundleHash: string,
+  bundleURI: string,
   salt: string
 ): Promise<void> {
   try {
@@ -98,18 +99,18 @@ export async function revealEvaluation(
       throw new Error('Marketplace contract not initialized');
     }
 
-    logger.info('Revealing evaluation', { jobId, score, verdict });
+    logger.info('Revealing evaluation', { taskId: taskId.toString(), scoreBps });
 
     const tx = await marketplaceContract.revealEvaluation(
-      jobId,
-      score,
-      verdict,
-      evidenceHash,
+      taskId,
+      scoreBps,
+      bundleHash,
+      bundleURI,
       salt
     );
     const receipt = await tx.wait();
 
-    logger.info('Evaluation revealed', { jobId, txHash: receipt.hash });
+    logger.info('Evaluation revealed', { taskId: taskId.toString(), txHash: receipt.hash });
   } catch (error: any) {
     logger.error('Failed to reveal evaluation:', error);
     throw error;
@@ -119,22 +120,27 @@ export async function revealEvaluation(
 /**
  * Get job details
  */
-export async function getJobDetails(jobId: string) {
+export async function getTaskDetails(taskId: bigint | string) {
   try {
     if (!marketplaceContract) {
       throw new Error('Marketplace contract not initialized');
     }
 
-    const job = await marketplaceContract.getJob(jobId);
+    const task = await marketplaceContract.getTaskMeta(taskId);
 
     return {
-      requester: job[0],
-      promptHash: job[1],
-      models: job[2],
-      taskType: job[3],
-      rewardPool: job[4],
-      status: job[5],
-      consensusScore: job[6],
+      state: task[0],
+      requester: task[1],
+      promptHash: task[2],
+      rubricHash: task[3],
+      commitDeadline: task[4],
+      revealDeadline: task[5],
+      disputeDeadline: task[6],
+      minEvals: task[7],
+      maxEvals: task[8],
+      feePool: task[9],
+      finalScoreBps: task[10],
+      evalCount: task[11],
     };
   } catch (error: any) {
     logger.error('Failed to get job details:', error);
@@ -146,19 +152,19 @@ export async function getJobDetails(jobId: string) {
  * Generate commit hash
  */
 export function generateCommitHash(
-  jobId: string,
+  taskId: bigint | string,
   verifierAddress: string,
-  salt: string,
-  score: number,
-  verdict: string,
-  evidenceHash: string
+  scoreBps: number,
+  bundleHash: string,
+  salt: string
 ): string {
-  return ethers.keccak256(
-    ethers.AbiCoder.defaultAbiCoder().encode(
-      ['bytes32', 'address', 'bytes32', 'uint256', 'string', 'bytes32'],
-      [jobId, verifierAddress, salt, score, verdict, evidenceHash]
-    )
-  );
+  return computeCommitHash({
+    taskId,
+    verifier: verifierAddress,
+    scoreBps,
+    bundleHash,
+    salt,
+  });
 }
 
 /**

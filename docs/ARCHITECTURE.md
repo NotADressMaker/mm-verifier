@@ -98,9 +98,9 @@ API Server
    ```
    Client → POST /api/verify
    → Hash prompt
-   → Submit to blockchain
+   → Submit to blockchain (createTask)
    → Queue for verifier nodes
-   → Return jobId
+   → Return taskId (uint256)
    ```
 
 2. **Result Retrieval**:
@@ -108,7 +108,7 @@ API Server
    Client → GET /api/verify/:jobId
    → Check cache (Redis)
    → Query blockchain
-   → Aggregate evaluations
+   → Read task metadata
    → Return consensus result
    ```
 
@@ -180,11 +180,11 @@ Verifier Node
 
 5. **Commit**:
    - Generate random salt
-   - Create commitment: `hash(jobId, verifier, salt, score, verdict, evidenceHash)`
+   - Create commitment: `keccak256(abi.encodePacked(taskId, verifier, scoreBps, bundleHash, salt))`
    - Submit to blockchain
 
 6. **Reveal** (after commit phase):
-   - Submit score, verdict, evidenceHash, salt
+   - Submit scoreBps, bundleHash, bundleURI, salt
    - Blockchain verifies commitment
    - Stake unlocked upon successful reveal
 
@@ -293,7 +293,7 @@ The canonical evidence bundle contract is defined in `shared/types.ts` (v0.1).
    ↓
 2. API hashes prompt, submits to blockchain
    ↓
-3. Smart contract emits JobSubmitted event
+3. Smart contract emits TaskCreated event
    ↓
 4. API queues job in Redis
    ↓
