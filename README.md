@@ -1,6 +1,6 @@
 # MMV
 
-**The Ethereum for AI Outputs**
+** Accountability for AI Outputs**
 
 MMV is an open-source blockchain platform for AI output verification—a global, programmable **world computer** for trust in model responses. Instead of trusting a single AI model, get consensus-based verification with stake-backed accountability.
 
