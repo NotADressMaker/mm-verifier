@@ -11,6 +11,7 @@ import { verifyRoutes } from './routes/verify';
 import { jobRoutes } from './routes/jobs';
 import { statsRoutes } from './routes/stats';
 import { programRoutes } from './routes/programs';
+import { mmvRoutes } from './routes/mmv';
 import { initializeBlockchain } from './services/blockchain';
 import { initializeRedis } from './services/redis';
 import { setupWebSocket } from './services/websocket';
@@ -58,6 +59,7 @@ app.use('/api/verify', verifyRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/programs', programRoutes);
+app.use('/api/mmv', mmvRoutes);
 
 // Error handling
 app.use(errorHandler);
