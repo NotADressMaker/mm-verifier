@@ -1,0 +1,19 @@
+{
+  "name": "@mmv/sdk",
+  "version": "0.1.0",
+  "description": "JavaScript/TypeScript SDK for the MMV verification API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "author": "LLM Verifier Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

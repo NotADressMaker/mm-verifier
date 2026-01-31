@@ -1,0 +1,211 @@
+export type VerifyStatus = 'queued' | 'running' | 'finalized' | 'failed';
+
+export type VerifyVerdict = true | false | 'unknown';
+
+export type VerifyErrorCode =
+  | 'INVALID_INPUT'
+  | 'PROVIDER_ERROR'
+  | 'CHAIN_REVERT'
+  | 'TIMEOUT'
+  | 'NOT_FOUND'
+  | 'INTERNAL_ERROR';
+
+export interface VerifyError {
+  code: VerifyErrorCode;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface EvidenceReference {
+  bundle_hash: string | null;
+  bundle_uri: string | null;
+}
+
+export interface TimingInfo {
+  queue_ms: number | null;
+  llm_ms: number | null;
+  bundle_ms: number | null;
+  chain_ms: number | null;
+  total_ms: number | null;
+}
+
+export type ProgramStepType =
+  | 'prompt'
+  | 'retrieve'
+  | 'cross-check'
+  | 'score'
+  | 'evidence'
+  | 'consensus';
+
+export interface ProgramStep {
+  id?: string;
+  type: ProgramStepType;
+  description?: string;
+  config?: Record<string, unknown>;
+}
+
+export interface ProgramIO {
+  name: string;
+  type: string;
+  description?: string;
+  required?: boolean;
+}
+
+export interface ProgramDefinition {
+  name: string;
+  version: string;
+  description?: string;
+  inputs?: ProgramIO[];
+  outputs?: ProgramIO[];
+  steps: ProgramStep[];
+}
+
+export interface VerifyRequest {
+  prompt: string;
+  models: string[];
+  task_type: string;
+  deadline?: number;
+  commit_deadline_seconds?: number;
+  reveal_deadline_seconds?: number;
+  reward_pool?: number;
+  program_id?: string;
+  program?: ProgramDefinition;
+  idempotency_key?: string;
+}
+
+export interface VerifyResponse {
+  task_id: string;
+  status: VerifyStatus;
+  verdict: VerifyVerdict;
+  score_bps: number;
+  evidence: EvidenceReference;
+  timings: TimingInfo;
+  errors: VerifyError[];
+  program_id?: string;
+  program?: ProgramDefinition;
+}
+
+export const ProgramIOSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name', 'type'],
+  properties: {
+    name: { type: 'string' },
+    type: { type: 'string' },
+    description: { type: 'string' },
+    required: { type: 'boolean' },
+  },
+} as const;
+
+export const ProgramStepSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['type'],
+  properties: {
+    id: { type: 'string' },
+    type: {
+      type: 'string',
+      enum: ['prompt', 'retrieve', 'cross-check', 'score', 'evidence', 'consensus'],
+    },
+    description: { type: 'string' },
+    config: { type: 'object', additionalProperties: true },
+  },
+} as const;
+
+export const ProgramDefinitionSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name', 'version', 'steps'],
+  properties: {
+    name: { type: 'string' },
+    version: { type: 'string' },
+    description: { type: 'string' },
+    inputs: {
+      type: 'array',
+      items: ProgramIOSchema,
+    },
+    outputs: {
+      type: 'array',
+      items: ProgramIOSchema,
+    },
+    steps: {
+      type: 'array',
+      minItems: 1,
+      items: ProgramStepSchema,
+    },
+  },
+} as const;
+
+export const VerifyRequestSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['prompt', 'models', 'task_type'],
+  properties: {
+    prompt: { type: 'string' },
+    models: { type: 'array', items: { type: 'string' }, minItems: 1 },
+    task_type: {
+      type: 'string',
+      enum: ['factual-qa', 'math-proof', 'policy-compliance', 'citation-check', 'general'],
+    },
+    deadline: { type: 'integer', minimum: 1 },
+    commit_deadline_seconds: { type: 'integer', minimum: 1 },
+    reveal_deadline_seconds: { type: 'integer', minimum: 1 },
+    reward_pool: { type: 'number' },
+    program_id: { type: 'string' },
+    program: ProgramDefinitionSchema,
+    idempotency_key: { type: 'string' },
+  },
+} as const;
+
+export const VerifyErrorSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['code', 'message'],
+  properties: {
+    code: {
+      type: 'string',
+      enum: ['INVALID_INPUT', 'PROVIDER_ERROR', 'CHAIN_REVERT', 'TIMEOUT', 'NOT_FOUND', 'INTERNAL_ERROR'],
+    },
+    message: { type: 'string' },
+    details: { type: 'object', additionalProperties: true },
+  },
+} as const;
+
+export const VerifyResponseSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['task_id', 'status', 'verdict', 'score_bps', 'evidence', 'timings', 'errors'],
+  properties: {
+    task_id: { type: 'string' },
+    status: { type: 'string', enum: ['queued', 'running', 'finalized', 'failed'] },
+    verdict: { oneOf: [{ type: 'boolean' }, { type: 'string', enum: ['unknown'] }] },
+    score_bps: { type: 'integer', minimum: 0, maximum: 10000 },
+    evidence: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['bundle_hash', 'bundle_uri'],
+      properties: {
+        bundle_hash: { type: ['string', 'null'] },
+        bundle_uri: { type: ['string', 'null'] },
+      },
+    },
+    timings: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['queue_ms', 'llm_ms', 'bundle_ms', 'chain_ms', 'total_ms'],
+      properties: {
+        queue_ms: { type: ['number', 'null'], minimum: 0 },
+        llm_ms: { type: ['number', 'null'], minimum: 0 },
+        bundle_ms: { type: ['number', 'null'], minimum: 0 },
+        chain_ms: { type: ['number', 'null'], minimum: 0 },
+        total_ms: { type: ['number', 'null'], minimum: 0 },
+      },
+    },
+    errors: {
+      type: 'array',
+      items: VerifyErrorSchema,
+    },
+    program_id: { type: 'string' },
+    program: ProgramDefinitionSchema,
+  },
+} as const;
