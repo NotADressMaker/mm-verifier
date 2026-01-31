@@ -1,5 +1,5 @@
 /**
- * Calibration Layer for MM Verifier
+ * Calibration Layer for MMV
  *
  * Converts raw scoring signals into calibrated probabilities of correctness.
  * Tracks calibration error and adjusts confidence scores over time.

@@ -1,12 +1,12 @@
-# MM Verifier
+# MMV
 
 **The Ethereum for AI Outputs**
 
-MM Verifier is an open-source blockchain platform for AI output verification—a global, programmable **world computer** for trust in model responses. Instead of trusting a single AI model, get consensus-based verification with stake-backed accountability.
+MMV is an open-source blockchain platform for AI output verification—a global, programmable **world computer** for trust in model responses. Instead of trusting a single AI model, get consensus-based verification with stake-backed accountability.
 
 ## What It Does
 
-When you ask an AI a question, the answer can sound confident and still be wrong. MM Verifier gives you a structured second opinion, delivered by a shared, decentralized verification layer that any app can program against:
+When you ask an AI a question, the answer can sound confident and still be wrong. MMV gives you a structured second opinion, delivered by a shared, decentralized verification layer that any app can program against:
 
 - **Multi-LLM Cross-Check**: Runs prompts across multiple LLMs (OpenAI, Anthropic, Google, open-source models)
 - **Consensus Scoring**: Compares responses for agreement and contradictions
@@ -20,7 +20,7 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 
 ## Programmable Verification Programs
 
-MM Verifier exposes **verification programs**: reusable, versioned workflows that define how AI outputs should be checked (retrieve sources, cross-check models, score, and assemble evidence). These programs make the network behave like a programmable "world computer" for verification logic.
+MMV exposes **verification programs**: reusable, versioned workflows that define how AI outputs should be checked (retrieve sources, cross-check models, score, and assemble evidence). These programs make the network behave like a programmable "world computer" for verification logic.
 
 ### Register a Program (API)
 
@@ -56,7 +56,7 @@ curl -X POST http://localhost:3000/api/verify \
 ## Architecture
 
 ```
-MM-Verifier/
+MMV/
 ├── contracts/          # Solidity smart contracts (Arbitrum)
 │   ├── VerificationMarketplace.sol
 │   ├── StakingManager.sol
@@ -80,7 +80,7 @@ MM-Verifier/
 
 ### The Marketplace Model
 
-MM Verifier operates as an **open verification marketplace** where independent verifiers compete:
+MMV operates as an **open verification marketplace** where independent verifiers compete:
 
 1. **Verifiers stake ETH** to participate
 2. They submit evaluations with **structured evidence**
@@ -238,8 +238,8 @@ The primary entry points should feel cohesive, trustworthy, and understandable t
 
 ```bash
 # Clone the repository
-git clone https://github.com/michaelmannen3-oss/MM-Verifier.git
-cd MM-Verifier
+git clone https://github.com/michaelmannen3-oss/MMV.git
+cd MMV
 
 # Install dependencies
 npm install
@@ -479,7 +479,7 @@ MIT License - see [LICENSE](./LICENSE)
 ## Support
 
 - Documentation: [docs/](./docs/)
-- Issues: [GitHub Issues](https://github.com/michaelmannen3-oss/MM-Verifier/issues)
+- Issues: [GitHub Issues](https://github.com/michaelmannen3-oss/MMV/issues)
 - Discord: [Join our community](#)
 
 ## Acknowledgments

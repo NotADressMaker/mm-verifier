@@ -1,4 +1,4 @@
-# MM Verifier Benchmarking System
+# MMV Benchmarking System
 
 Comprehensive benchmarking infrastructure to measure and validate scoring pipeline accuracy.
 

@@ -1,6 +1,6 @@
 # Web3 Transformation Guide
 
-Complete guide to the Web3 features added to MM Verifier protocol.
+Complete guide to the Web3 features added to MMV protocol.
 
 ---
 
