@@ -1,0 +1,28 @@
+{
+  "contractName": "AuditorRegistry",
+  "sourceName": "contracts/AuditorRegistry.sol",
+  "abi": [
+    {
+      "type": "function",
+      "name": "stake",
+      "inputs": [{ "name": "amount", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "auditorsCount",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getAuditor",
+      "inputs": [{ "name": "i", "type": "uint256" }],
+      "outputs": [{ "name": "", "type": "address" }],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": "0x"
+}

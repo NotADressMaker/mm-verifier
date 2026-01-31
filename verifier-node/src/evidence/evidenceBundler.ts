@@ -19,6 +19,8 @@ import {
   signEvidenceBundle,
   DEFAULT_RUBRIC,
 } from './evidenceBundlerV2';
+import { getChainIdFromEnv } from '../../../shared/env';
+import { toScoreBps } from '../utils/score';
 
 type BundleInputs = {
   taskId: string;
@@ -118,7 +120,7 @@ export async function createEvidenceBundle({
   const claims = toClaims(responses);
   const metrics = toMetrics(responses, scoringResult);
   const rubricHash = hashRubric(rubric);
-  const finalScoreBps = Math.round(scoringResult.score * 100);
+  const finalScoreBps = toScoreBps(scoringResult.score);
 
   const bundle = createBundle(
     taskId,
@@ -133,7 +135,15 @@ export async function createEvidenceBundle({
     scoringResult.reasoning
   );
 
-  return signEvidenceBundle(bundle, wallet, marketplaceAddress);
+  const envChainId = getChainIdFromEnv();
+  const network = wallet.provider ? await wallet.provider.getNetwork() : undefined;
+  const chainId = envChainId ?? (network ? Number(network.chainId) : undefined);
+
+  if (!chainId) {
+    throw new Error('Chain ID not available for EIP-712 signing');
+  }
+
+  return signEvidenceBundle(bundle, wallet, marketplaceAddress, chainId);
 }
 
 export type { EvidenceBundle };

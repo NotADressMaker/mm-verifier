@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "./interfaces/IWETH.sol";
 import "./libraries/VerifierTypes.sol";
 import "./libraries/VerifierHash.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**

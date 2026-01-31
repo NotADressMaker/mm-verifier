@@ -9,7 +9,7 @@ import {
   Metrics,
   ScoringRubric,
   BundleEIP712Message,
-  EIP712_DOMAIN,
+  getEip712Domain,
   EIP712_TYPES,
   CONSTANTS,
 } from '../../../shared/types';
@@ -20,6 +20,17 @@ import { hashCanonical } from '../../../shared/canonicalJson';
  * Evidence Bundler V2
  * Implements specification v0.1 with exact JSON structure
  */
+
+export function normalizeTaskIdBytes32(taskId: number | string): string {
+  if (typeof taskId === 'string') {
+    if (taskId.startsWith('0x')) {
+      return ethers.zeroPadValue(taskId, 32);
+    }
+    return ethers.zeroPadValue(ethers.toBeHex(BigInt(taskId)), 32);
+  }
+
+  return ethers.zeroPadValue(ethers.toBeHex(taskId), 32);
+}
 
 // Get software version info
 function getSoftwareInfo() {
@@ -94,7 +105,8 @@ export function hashEvidenceBundle(
 export async function signEvidenceBundle(
   bundle: Omit<EvidenceBundle, 'signatures'>,
   wallet: Wallet,
-  marketplaceAddress: string
+  marketplaceAddress: string,
+  chainId: number
 ): Promise<EvidenceBundle> {
   logger.info('Signing evidence bundle', {
     taskId: bundle.task_id,
@@ -106,13 +118,7 @@ export async function signEvidenceBundle(
 
   // 2. Create EIP-712 message
   const message: BundleEIP712Message = {
-    jobId: ethers.zeroPadValue(
-      ethers.toBeHex(typeof bundle.task_id === 'string'
-        ? parseInt(bundle.task_id)
-        : bundle.task_id
-      ),
-      32
-    ),
+    jobId: normalizeTaskIdBytes32(bundle.task_id),
     verifier: wallet.address,
     promptHash: bundle.prompt_hash,
     score: bundle.final_score_bps,
@@ -122,10 +128,7 @@ export async function signEvidenceBundle(
   };
 
   // 3. Set domain with correct contract address
-  const domain = {
-    ...EIP712_DOMAIN,
-    verifyingContract: marketplaceAddress,
-  };
+  const domain = getEip712Domain(chainId, marketplaceAddress);
 
   // 4. Sign with EIP-712
   const signature = await wallet.signTypedData(domain, EIP712_TYPES, message);
@@ -152,7 +155,8 @@ export async function signEvidenceBundle(
  */
 export function verifyBundleSignature(
   bundle: EvidenceBundle,
-  marketplaceAddress: string
+  marketplaceAddress: string,
+  chainId: number
 ): { valid: boolean; recoveredAddress: string } {
   try {
     // 1. Reconstruct the message
@@ -160,13 +164,7 @@ export function verifyBundleSignature(
     const bundleHash = hashEvidenceBundle(bundleWithoutSig);
 
     const message: BundleEIP712Message = {
-      jobId: ethers.zeroPadValue(
-        ethers.toBeHex(typeof bundle.task_id === 'string'
-          ? parseInt(bundle.task_id)
-          : bundle.task_id
-        ),
-        32
-      ),
+      jobId: normalizeTaskIdBytes32(bundle.task_id),
       verifier: bundle.evaluator.eth_address,
       promptHash: bundle.prompt_hash,
       score: bundle.final_score_bps,
@@ -176,10 +174,7 @@ export function verifyBundleSignature(
     };
 
     // 2. Set domain
-    const domain = {
-      ...EIP712_DOMAIN,
-      verifyingContract: marketplaceAddress,
-    };
+    const domain = getEip712Domain(chainId, marketplaceAddress);
 
     // 3. Recover signer
     const recoveredAddress = ethers.verifyTypedData(
@@ -223,7 +218,7 @@ export function createModelRun(
     raw_output: rawOutput,
     output_hash: outputHash,
     max_tokens: metadata?.maxTokens,
-    timestamp: metadata?.timestamp || Date.now(),
+    timestamp: metadata?.timestamp ?? Math.floor(Date.now() / 1000),
     latency_ms: metadata?.latencyMs,
     tokens_used: metadata?.tokensUsed,
   };
@@ -280,7 +275,7 @@ export function createEvidence(
     relevance: metadata?.relevance,
     title: metadata?.title,
     domain: metadata?.domain || new URL(url).hostname,
-    retrieved_at: metadata?.retrievedAt || Date.now(),
+    retrieved_at: metadata?.retrievedAt ?? Math.floor(Date.now() / 1000),
   };
 }
 

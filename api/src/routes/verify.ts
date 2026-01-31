@@ -10,6 +10,8 @@ import {
   validateVerificationProgram,
   VerificationProgram,
 } from '../services/programRegistry';
+import { CONSTANTS } from '../../../shared/types';
+import { normalizeUnixSeconds, resolveCommitDeadline, resolveRevealDeadline } from '../utils/time';
 
 const router = Router();
 
@@ -26,6 +28,14 @@ router.post(
     body('taskType').isIn(['factual-qa', 'math-proof', 'policy-compliance', 'citation-check', 'general'])
       .withMessage('Invalid task type'),
     body('deadline').optional().isInt({ min: 1 }).withMessage('Deadline must be positive integer'),
+    body('commitDeadlineSeconds')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Commit deadline seconds must be positive integer'),
+    body('revealDeadlineSeconds')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Reveal deadline seconds must be positive integer'),
     body('rewardPool').optional().isNumeric().withMessage('Reward pool must be numeric'),
     body('programId').optional().isString().withMessage('Program ID must be a string'),
     body('program').optional().custom((value) => {
@@ -50,6 +60,8 @@ router.post(
         models,
         taskType,
         deadline,
+        commitDeadlineSeconds,
+        revealDeadlineSeconds,
         rewardPool,
         programId,
         program,
@@ -58,6 +70,8 @@ router.post(
         models: string[];
         taskType: string;
         deadline?: number;
+        commitDeadlineSeconds?: number;
+        revealDeadlineSeconds?: number;
         rewardPool?: number;
         programId?: string;
         program?: VerificationProgram;
@@ -95,8 +109,17 @@ router.post(
       const promptHash = ethers.keccak256(ethers.toUtf8Bytes(prompt));
 
       // Calculate deadline (default: 1 hour from now)
-      const commitDeadline = deadline || Math.floor(Date.now() / 1000) + 3600;
-      const revealDeadline = commitDeadline + 3600;
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const normalizedDeadline = deadline ? normalizeUnixSeconds(deadline, 'deadline') : undefined;
+      const commitDeadline = resolveCommitDeadline({
+        nowSeconds,
+        deadline: normalizedDeadline,
+        commitDeadlineSeconds,
+      });
+      const revealDeadline = resolveRevealDeadline({
+        commitDeadline,
+        revealDeadlineSeconds,
+      });
       const disputeWindowSeconds = parseInt(process.env.DISPUTE_WINDOW_SECONDS || '3600', 10);
       const minEvals = parseInt(process.env.MIN_EVALS || '1', 10);
       const maxEvals = parseInt(process.env.MAX_EVALS || '3', 10);
@@ -223,9 +246,9 @@ router.get('/:jobId', async (req: Request, res: Response) => {
 /**
  * Helper: Get verdict from score
  */
-function getVerdict(score: number): string {
-  if (score >= 80) return 'reliable';
-  if (score >= 50) return 'mixed';
+function getVerdict(scoreBps: number): string {
+  if (scoreBps >= CONSTANTS.RELIABLE_THRESHOLD) return 'reliable';
+  if (scoreBps >= CONSTANTS.MIXED_THRESHOLD) return 'mixed';
   return 'unreliable';
 }
 

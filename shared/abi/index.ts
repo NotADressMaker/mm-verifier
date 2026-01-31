@@ -10,12 +10,13 @@
  */
 
 // TODO: Uncomment after compiling contracts and copying artifacts
-// import VerifierMarketplaceArtifact from './VerifierMarketplace.json';
-// import BondVaultWETHArtifact from './BondVaultWETH.json';
-// import DisputeLadderArtifact from './DisputeLadder.json';
-// import AuditorRegistryArtifact from './AuditorRegistry.json';
-// import BundleRegistryArtifact from './BundleRegistry.json';
-// import BLSSlashingManagerArtifact from './BLSSlashingManager.json';
+import VerifierMarketplaceArtifact from './VerifierMarketplace.json';
+import BondVaultWETHArtifact from './BondVaultWETH.json';
+import DisputeLadderArtifact from './DisputeLadder.json';
+import AuditorRegistryArtifact from './AuditorRegistry.json';
+import BundleRegistryArtifact from './BundleRegistry.json';
+import BLSSlashingManagerArtifact from './BLSSlashingManager.json';
+import StakingManagerArtifact from './StakingManager.json';
 
 /**
  * Contract ABI exports
@@ -28,48 +29,48 @@
 
 // Core marketplace contracts
 export const VerifierMarketplace = {
-  // TODO: Uncomment after compilation
-  // abi: VerifierMarketplaceArtifact.abi,
-  // bytecode: VerifierMarketplaceArtifact.bytecode,
+  abi: VerifierMarketplaceArtifact.abi,
+  bytecode: VerifierMarketplaceArtifact.bytecode,
   contractName: 'VerifierMarketplace',
 };
 
 export const BondVaultWETH = {
-  // TODO: Uncomment after compilation
-  // abi: BondVaultWETHArtifact.abi,
-  // bytecode: BondVaultWETHArtifact.bytecode,
+  abi: BondVaultWETHArtifact.abi,
+  bytecode: BondVaultWETHArtifact.bytecode,
   contractName: 'BondVaultWETH',
 };
 
 // Dispute resolution contracts
 export const DisputeLadder = {
-  // TODO: Uncomment after compilation
-  // abi: DisputeLadderArtifact.abi,
-  // bytecode: DisputeLadderArtifact.bytecode,
+  abi: DisputeLadderArtifact.abi,
+  bytecode: DisputeLadderArtifact.bytecode,
   contractName: 'DisputeLadder',
 };
 
 // Registry contracts
 export const AuditorRegistry = {
-  // TODO: Uncomment after compilation
-  // abi: AuditorRegistryArtifact.abi,
-  // bytecode: AuditorRegistryArtifact.bytecode,
+  abi: AuditorRegistryArtifact.abi,
+  bytecode: AuditorRegistryArtifact.bytecode,
   contractName: 'AuditorRegistry',
 };
 
 export const BundleRegistry = {
-  // TODO: Uncomment after compilation
-  // abi: BundleRegistryArtifact.abi,
-  // bytecode: BundleRegistryArtifact.bytecode,
+  abi: BundleRegistryArtifact.abi,
+  bytecode: BundleRegistryArtifact.bytecode,
   contractName: 'BundleRegistry',
 };
 
 // Slashing contract
 export const BLSSlashingManager = {
-  // TODO: Uncomment after compilation
-  // abi: BLSSlashingManagerArtifact.abi,
-  // bytecode: BLSSlashingManagerArtifact.bytecode,
+  abi: BLSSlashingManagerArtifact.abi,
+  bytecode: BLSSlashingManagerArtifact.bytecode,
   contractName: 'BLSSlashingManager',
+};
+
+export const StakingManager = {
+  abi: StakingManagerArtifact.abi,
+  bytecode: StakingManagerArtifact.bytecode,
+  contractName: 'StakingManager',
 };
 
 /**
@@ -85,6 +86,7 @@ export function getContractABI(contractName: string) {
     AuditorRegistry,
     BundleRegistry,
     BLSSlashingManager,
+    StakingManager,
   };
 
   const contract = contracts[contractName];
@@ -112,5 +114,6 @@ export default {
   AuditorRegistry,
   BundleRegistry,
   BLSSlashingManager,
+  StakingManager,
   getContractABI,
 };

@@ -1,0 +1,35 @@
+{
+  "contractName": "StakingManager",
+  "sourceName": "contracts/StakingManager.sol",
+  "abi": [
+    {
+      "type": "function",
+      "name": "stakeAsVerifier",
+      "inputs": [],
+      "outputs": [],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "stakeAsAuditor",
+      "inputs": [],
+      "outputs": [],
+      "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "stakes",
+      "inputs": [{ "name": "", "type": "address" }],
+      "outputs": [
+        { "name": "amount", "type": "uint256" },
+        { "name": "lockedAmount", "type": "uint256" },
+        { "name": "unbondingAmount", "type": "uint256" },
+        { "name": "unbondingTime", "type": "uint256" },
+        { "name": "stakeType", "type": "uint8" },
+        { "name": "active", "type": "bool" }
+      ],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": "0x"
+}

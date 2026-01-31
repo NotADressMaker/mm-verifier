@@ -8,7 +8,10 @@ const fixturePath = path.join(__dirname, 'fixtures', 'evidence-bundle-v0.1.json'
 
 describe('Evidence bundler v0.1', () => {
   it('emits a v0.1 EvidenceBundle with required fields', async () => {
-    const wallet = Wallet.createRandom();
+    process.env.MMV_CHAIN_ID = '421614';
+    const wallet = new Wallet(
+      '0x59c6995e998f97a5a0044986f3d5d7f2d9d2f5a7a4f8c99e8c7c7f9f29c9f7f7'
+    );
     const marketplaceAddress = '0x0000000000000000000000000000000000000002';
 
     const responses = [

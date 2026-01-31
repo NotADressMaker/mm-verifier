@@ -198,10 +198,10 @@ finalScore =
   factualAccuracy * 0.2       // Task-specific check
 ```
 
-**Verdict Thresholds**:
-- ≥80: Reliable
-- 50-79: Mixed
-- <50: Unreliable
+**Verdict Thresholds (bps)**:
+- ≥8000: Reliable
+- 5000-7999: Mixed
+- <5000: Unreliable
 
 **Confidence**:
 - Based on score variance (low variance = high confidence)

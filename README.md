@@ -280,9 +280,11 @@ npm run start
 
 ```bash
 # Blockchain
-ARBITRUM_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+ARBITRUM_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc # optional legacy alias
 PRIVATE_KEY=your_deployer_private_key
 CHAINLINK_VRF_COORDINATOR=0x... # Arbitrum Sepolia VRF Coordinator
+MMV_CHAIN_ID=421614 # Chain ID used for EIP-712 signing
 
 # LLM Providers
 OPENAI_API_KEY=sk-...
@@ -314,7 +316,8 @@ curl -X POST http://localhost:3000/api/verify \
     "prompt": "What is the capital of France?",
     "models": ["gpt-4", "claude-3-opus", "gemini-pro"],
     "taskType": "factual-qa",
-    "deadline": 3600
+    "commitDeadlineSeconds": 3600,
+    "revealDeadlineSeconds": 3600
   }'
 ```
 
