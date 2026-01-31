@@ -38,6 +38,7 @@ export async function startJobProcessor() {
   // Process verification jobs
   jobQueue.process('verify', async (job) => {
     const { jobId, prompt, promptHash, models, taskType } = job.data;
+    const jobStart = Date.now();
 
     logger.info('Processing verification job', {
       jobId,
@@ -48,7 +49,12 @@ export async function startJobProcessor() {
     try {
       // Step 1: Query all models
       logger.info('Querying models', { jobId, models });
+      const queryStart = Date.now();
       const responses = await queryMultipleModels(prompt, models);
+      logger.info('Timing: model queries', {
+        jobId,
+        durationMs: Date.now() - queryStart,
+      });
 
       logger.info('Model queries completed', {
         jobId,
@@ -57,7 +63,12 @@ export async function startJobProcessor() {
 
       // Step 2: Score the verification
       logger.info('Scoring verification', { jobId });
+      const scoringStart = Date.now();
       const scoringResult = await scoreVerification(prompt, responses, taskType);
+      logger.info('Timing: scoring', {
+        jobId,
+        durationMs: Date.now() - scoringStart,
+      });
 
       logger.info('Scoring completed', {
         jobId,
@@ -67,6 +78,7 @@ export async function startJobProcessor() {
 
       // Step 3: Create evidence bundle
       logger.info('Creating evidence bundle', { jobId });
+      const bundleStart = Date.now();
       const nodeId = process.env.VERIFIER_NODE_ID || 'default';
       const marketplaceAddress = process.env.MARKETPLACE_ADDRESS || '';
       const evidenceBundle = await createEvidenceBundle({
@@ -79,12 +91,21 @@ export async function startJobProcessor() {
         wallet,
         marketplaceAddress,
       });
+      logger.info('Timing: evidence bundle', {
+        jobId,
+        durationMs: Date.now() - bundleStart,
+      });
 
       // Step 4: Upload evidence to IPFS
       logger.info('Uploading evidence to IPFS', { jobId });
+      const uploadStart = Date.now();
       const evidenceCid = await uploadEvidenceToIPFS(evidenceBundle);
       const { signatures, ...bundleWithoutSig } = evidenceBundle;
-      const evidenceHash = hashEvidenceBundle(bundleWithoutSig);
+      const bundleHash = hashEvidenceBundle(bundleWithoutSig);
+      logger.info('Timing: ipfs upload', {
+        jobId,
+        durationMs: Date.now() - uploadStart,
+      });
 
       logger.info('Evidence uploaded', {
         jobId,
@@ -93,6 +114,7 @@ export async function startJobProcessor() {
       });
 
       // Step 5: Generate commitment
+      const commitPrepStart = Date.now();
       const salt = generateSalt();
       const scoreBps = Math.round(scoringResult.score * 100);
       const commitHash = generateCommitHash(
@@ -102,6 +124,10 @@ export async function startJobProcessor() {
         bundleHash,
         salt
       );
+      logger.info('Timing: commitment prep', {
+        jobId,
+        durationMs: Date.now() - commitPrepStart,
+      });
 
       // Store commit data for reveal
       commitStore.set(jobId, {
@@ -115,7 +141,12 @@ export async function startJobProcessor() {
 
       // Step 6: Submit commitment to blockchain
       logger.info('Submitting commitment', { jobId });
+      const commitTxStart = Date.now();
       await commitEvaluation(jobId, commitHash);
+      logger.info('Timing: commit tx', {
+        jobId,
+        durationMs: Date.now() - commitTxStart,
+      });
 
       logger.info('Commitment submitted successfully', { jobId });
 
@@ -129,6 +160,11 @@ export async function startJobProcessor() {
       setTimeout(async () => {
         await revealEvaluationForJob(jobId);
       }, revealDelay);
+
+      logger.info('Timing: job total', {
+        jobId,
+        durationMs: Date.now() - jobStart,
+      });
 
       return {
         success: true,
@@ -161,6 +197,7 @@ export async function startJobProcessor() {
  */
 async function revealEvaluationForJob(jobId: string) {
   try {
+    const revealStart = Date.now();
     const commitData = commitStore.get(jobId);
 
     if (!commitData) {
@@ -180,6 +217,11 @@ async function revealEvaluationForJob(jobId: string) {
       commitData.bundleURI,
       commitData.salt
     );
+
+    logger.info('Timing: reveal tx', {
+      jobId,
+      durationMs: Date.now() - revealStart,
+    });
 
     logger.info('Evaluation revealed successfully', { jobId });
 

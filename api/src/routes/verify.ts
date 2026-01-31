@@ -37,6 +37,7 @@ router.post(
     }),
   ],
   async (req: Request, res: Response) => {
+    const requestStart = Date.now();
     try {
       // Validate request
       const errors = validationResult(req);
@@ -110,6 +111,7 @@ router.post(
       );
 
       // Submit task to blockchain
+      const submitStart = Date.now();
       const taskId = await submitVerificationJob({
         promptHash,
         rubricHash,
@@ -120,8 +122,13 @@ router.post(
         maxEvals,
         feePoolWei,
       });
+      logger.info('Timing: blockchain submit', {
+        jobId: taskId,
+        durationMs: Date.now() - submitStart,
+      });
 
       // Queue job for verifier nodes
+      const queueStart = Date.now();
       await queueVerificationJob({
         jobId: taskId,
         prompt,
@@ -132,8 +139,16 @@ router.post(
         programId: resolvedProgramId,
         program: resolvedProgram,
       });
+      logger.info('Timing: job enqueue', {
+        jobId: taskId,
+        durationMs: Date.now() - queueStart,
+      });
 
       logger.info('Verification task submitted', { taskId });
+      logger.info('Timing: api verify total', {
+        jobId: taskId,
+        durationMs: Date.now() - requestStart,
+      });
 
       // Return job info
       res.status(201).json({
