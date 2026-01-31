@@ -294,6 +294,16 @@ function verifyBundleIntegrity(bundle: EvidenceBundle, expectedCid: string): boo
       }
     }
 
+    if (bundle.bundle_version === '0.2') {
+      const v02Fields = ['input', 'output', 'provenance', 'scoring_trace'];
+      for (const field of v02Fields) {
+        if (!(field in bundle)) {
+          logger.warn('Bundle missing required v0.2 field', { field });
+          return false;
+        }
+      }
+    }
+
     return true;
   } catch (error: any) {
     logger.error('Bundle integrity check failed:', error);

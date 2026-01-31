@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { verifyWithMMV } from '../services/mmvVerifier';
 import { hashUtf8 } from '../services/mmvHasher';
 import { runDecisionGate } from '../services/decisionGate';
+import { buildMMVReceipt } from '../services/mmvReceipt';
 
 const router = Router();
 
@@ -44,9 +45,12 @@ router.post('/verify', mmvValidators, async (req: Request, res: Response) => {
       requesterId
     );
 
+    const receipt = buildMMVReceipt(mmvResult);
+
     res.status(200).json({
       taskId,
       result: mmvResult,
+      receipt,
     });
   } catch (error: any) {
     logger.error('MMV verification failed', { error: error.message });
@@ -85,6 +89,7 @@ router.post('/guard', mmvValidators, async (req: Request, res: Response) => {
       attestation: gateResult.attestation,
       signature: gateResult.signature,
       selectedOutput: gateResult.selectedOutput,
+      receipt: gateResult.receipt,
     });
   } catch (error: any) {
     logger.warn('MMV decision gate blocked request', { error: error.message });

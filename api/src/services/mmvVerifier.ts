@@ -1,9 +1,10 @@
-import { MMVVerificationInput, MMVVerificationResult } from '../../../shared/types';
+import { MMVModelRunProvenance, MMVVerificationInput, MMVVerificationResult } from '../../../shared/types';
 import { logger } from '../utils/logger';
 import { loadMMVConfig } from './mmvConfig';
 import { assertWithinRateLimit } from './mmvRateLimiter';
 import { hashCanonical, hashUtf8, normalizeBytes32 } from './mmvHasher';
 import { writeMMVAuditRecord } from './mmvAudit';
+import { buildMMVReceipt } from './mmvReceipt';
 
 type OpenAIResponse = {
   choices?: Array<{
@@ -11,6 +12,11 @@ type OpenAIResponse = {
       content?: string | null;
     };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 };
 
 type LLMScore = {
@@ -90,7 +96,18 @@ function validateDecision(decision: LLMDecision, candidateCount: number): void {
   });
 }
 
-async function callOpenAI(model: string, prompt: string, timeoutMs: number): Promise<string> {
+async function callOpenAI(
+  model: string,
+  prompt: string,
+  timeoutMs: number
+): Promise<{
+  content: string;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
+}> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured');
@@ -128,7 +145,16 @@ async function callOpenAI(model: string, prompt: string, timeoutMs: number): Pro
     if (!content) {
       throw new Error('OpenAI response missing content');
     }
-    return content;
+    return {
+      content,
+      usage: data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens,
+            completionTokens: data.usage.completion_tokens,
+            totalTokens: data.usage.total_tokens,
+          }
+        : undefined,
+    };
   } finally {
     clearTimeout(timeout);
   }
@@ -162,6 +188,11 @@ export async function verifyWithMMV(
   };
 
   const prompt = buildUserPrompt(payload);
+  const requestMessages = [
+    { role: 'system', content: buildSystemPrompt() },
+    { role: 'user', content: prompt },
+  ];
+  const promptHash = hashCanonical(requestMessages);
 
   logger.info('MMV verifier request', {
     taskId: input.taskId,
@@ -169,8 +200,12 @@ export async function verifyWithMMV(
     model: config.model,
   });
 
+  const startedAtMs = Date.now();
   const response = await callOpenAI(config.model, prompt, config.timeoutMs);
-  const decision = extractJson(response);
+  const finishedAtMs = Date.now();
+  const startedAt = Math.floor(startedAtMs / 1000);
+  const finishedAt = Math.floor(finishedAtMs / 1000);
+  const decision = extractJson(response.content);
   validateDecision(decision, input.candidates.length);
 
   const inputHash = hashCanonical({ input: input.input });
@@ -185,6 +220,18 @@ export async function verifyWithMMV(
     riskFlags: score.risk_flags || [],
     rationale: score.rationale,
   }));
+
+  const provenance: MMVModelRunProvenance = {
+    provider: 'openai',
+    model: config.model,
+    prompt_hash: promptHash as `0x${string}`,
+    response_hash: hashUtf8(response.content) as `0x${string}`,
+    started_at: startedAt,
+    finished_at: finishedAt,
+    latency_ms: Math.max(0, finishedAtMs - startedAtMs),
+    tokens_in: response.usage?.promptTokens,
+    tokens_out: response.usage?.completionTokens,
+  };
 
   const result: MMVVerificationResult = {
     taskId,
@@ -201,15 +248,26 @@ export async function verifyWithMMV(
       version: config.version,
       configHash,
     },
+    provenance,
   };
 
+  const receipt = buildMMVReceipt(result);
+
   await writeMMVAuditRecord({
+    type: 'mmv_verification',
     taskId: input.taskId,
     inputHash,
     selectedOutputHash,
     pass: result.pass,
     overallScore: result.overallScore,
     configHash,
+    promptHash,
+    responseHash: provenance.response_hash,
+    startedAt: provenance.started_at,
+    finishedAt: provenance.finished_at,
+    model: config.model,
+    provider: config.provider,
+    receipt,
     timestamp: new Date().toISOString(),
   });
 

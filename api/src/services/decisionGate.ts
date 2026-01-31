@@ -1,10 +1,12 @@
 import { logger } from '../utils/logger';
-import { MMVAttestation, MMVVerificationInput } from '../../../shared/types';
+import { MMVAttestation, MMVReceipt, MMVVerificationInput } from '../../../shared/types';
 import { verifyWithMMV } from './mmvVerifier';
 import { hashCanonical, normalizeBytes32 } from './mmvHasher';
 import { hashVerifierVersion, signMMVAttestation } from './mmvAttestation';
 import { loadMMVConfig } from './mmvConfig';
 import { getChainIdFromEnv } from '../../../shared/env';
+import { buildMMVReceipt } from './mmvReceipt';
+import { writeMMVAuditRecord } from './mmvAudit';
 
 export type DecisionGateRequest = {
   taskId: string;
@@ -18,6 +20,7 @@ export type DecisionGateResult = {
   attestation: MMVAttestation;
   signature: string;
   selectedOutput: string;
+  receipt: MMVReceipt;
 };
 
 export async function runDecisionGate(
@@ -86,9 +89,30 @@ export async function runDecisionGate(
     selectedOutputHash: attestation.selectedOutputHash,
   });
 
+  const receipt = buildMMVReceipt(verification, {
+    attestation,
+    signature,
+    chainId,
+    verifyingContract,
+  });
+
+  await writeMMVAuditRecord({
+    type: 'mmv_attestation',
+    taskId: request.taskId,
+    inputHash: verification.inputHash,
+    selectedOutputHash: attestation.selectedOutputHash,
+    pass: attestation.passed,
+    overallScore: attestation.score,
+    configHash: verification.verifier.configHash,
+    verifierVersionHash: attestation.verifierVersionHash,
+    receipt,
+    timestamp: new Date().toISOString(),
+  });
+
   return {
     attestation,
     signature,
     selectedOutput,
+    receipt,
   };
 }

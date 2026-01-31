@@ -114,13 +114,16 @@ export async function createEvidenceBundle({
     throw new Error('MARKETPLACE_ADDRESS is required to sign evidence bundles');
   }
 
-  logger.info('Creating v0.1 evidence bundle', { taskId, ethAddress });
+  logger.info('Creating evidence bundle', { taskId, ethAddress });
 
   const modelRuns = toModelRuns(responses);
   const claims = toClaims(responses);
   const metrics = toMetrics(responses, scoringResult);
   const rubricHash = hashRubric(rubric);
   const finalScoreBps = toScoreBps(scoringResult.score);
+  const bundleVersion = process.env.EVIDENCE_BUNDLE_VERSION;
+  const resolvedBundleVersion =
+    bundleVersion === '0.1' || bundleVersion === '0.2' ? bundleVersion : undefined;
 
   const bundle = createBundle(
     taskId,
@@ -132,7 +135,22 @@ export async function createEvidenceBundle({
     claims,
     metrics,
     finalScoreBps,
-    scoringResult.reasoning
+    scoringResult.reasoning,
+    {
+      bundleVersion: resolvedBundleVersion,
+      scoringBreakdown: {
+        consistency: scoringResult.breakdown.consistency,
+        agreement: scoringResult.breakdown.agreement,
+        citationQuality: scoringResult.breakdown.citationQuality,
+        factualAccuracy: scoringResult.breakdown.factualAccuracy,
+      },
+      scoringWeights: {
+        consistency: 0.3,
+        agreement: 0.3,
+        citation_quality: 0.2,
+        factual_accuracy: 0.2,
+      },
+    }
   );
 
   const envChainId = getChainIdFromEnv();

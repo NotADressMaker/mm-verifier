@@ -3,22 +3,29 @@ import { ethers, Wallet } from 'ethers';
 import { logger } from '../utils/logger';
 import {
   EvidenceBundle,
+  EvidenceBundleContent,
+  EvidenceBundleVersion,
+  EvidenceProvenance,
+  EvidenceBundleV02,
   ModelRun,
   Claim,
   Evidence,
   Metrics,
   ScoringRubric,
+  ScoringTrace,
+  ProvenanceModelRun,
+  ProvenanceSource,
   BundleEIP712Message,
   getEip712Domain,
   EIP712_TYPES,
   CONSTANTS,
 } from '../../../shared/types';
 import { execSync } from 'child_process';
-import { hashCanonical } from '../../../shared/canonicalJson';
+import { hashCanonical, hashUtf8 } from '../../../shared/canonicalJson';
 
 /**
  * Evidence Bundler V2
- * Implements specification v0.1 with exact JSON structure
+ * Implements specification v0.2 (superset of v0.1)
  */
 
 export function normalizeTaskIdBytes32(taskId: number | string): string {
@@ -43,13 +50,103 @@ function getSoftwareInfo() {
 
   return {
     name: CONSTANTS.SOFTWARE_NAME,
-    ver: CONSTANTS.BUNDLE_VERSION,
+    ver: CONSTANTS.BUNDLE_VERSION_DEFAULT,
     commit,
   };
 }
 
+type EvidenceBundleBuildOptions = {
+  bundleVersion?: EvidenceBundleVersion;
+  inputContentType?: EvidenceBundleContent['content_type'];
+  inputContentHash?: EvidenceBundleContent['content_hash'];
+  outputContentHash?: EvidenceBundleContent['content_hash'];
+  scoringTrace?: ScoringTrace;
+  scoringBreakdown?: {
+    consistency: number;
+    agreement: number;
+    citationQuality: number;
+    factualAccuracy: number;
+  };
+  scoringWeights?: ScoringTrace['weights'];
+  provenanceOverrides?: Partial<EvidenceProvenance>;
+};
+
+function buildProvenanceModelRuns(
+  modelRuns: ModelRun[],
+  promptHash: string
+): ProvenanceModelRun[] {
+  const now = Math.floor(Date.now() / 1000);
+  return modelRuns.map((run) => {
+    const finishedAt = run.timestamp ?? now;
+    const latencySeconds = run.latency_ms ? Math.round(run.latency_ms / 1000) : 0;
+    const startedAt = latencySeconds ? Math.max(0, finishedAt - latencySeconds) : finishedAt;
+
+    return {
+      provider: run.provider,
+      model: run.model,
+      prompt_hash: promptHash as `0x${string}`,
+      response_hash: run.output_hash as `0x${string}`,
+      started_at: startedAt,
+      finished_at: finishedAt,
+      latency_ms: run.latency_ms,
+      tokens_in: undefined,
+      tokens_out: undefined,
+    };
+  });
+}
+
+function buildProvenanceSources(claims: Claim[]): ProvenanceSource[] {
+  const sources = new Map<string, ProvenanceSource>();
+
+  const evidenceItems = claims.flatMap((claim) => [
+    ...claim.support,
+    ...claim.contradictions,
+  ]);
+
+  for (const evidence of evidenceItems) {
+    const key = `${evidence.url}:${evidence.quote_hash}`;
+    if (sources.has(key)) {
+      continue;
+    }
+
+    sources.set(key, {
+      uri: evidence.url,
+      content_hash: evidence.quote_hash as `0x${string}`,
+      content_type: 'text',
+      retrieved_at: evidence.retrieved_at,
+    });
+  }
+
+  return Array.from(sources.values());
+}
+
+function buildScoringTrace(params: {
+  rubricHash: string;
+  finalScoreBps: number;
+  explanation: string;
+  breakdown?: EvidenceBundleBuildOptions['scoringBreakdown'];
+  weights?: EvidenceBundleBuildOptions['scoringWeights'];
+}): ScoringTrace {
+  return {
+    rubric_hash: params.rubricHash as `0x${string}`,
+    score_bps: params.finalScoreBps,
+    verdict: getVerdict(params.finalScoreBps),
+    breakdown: params.breakdown
+      ? {
+          consistency: params.breakdown.consistency,
+          agreement: params.breakdown.agreement,
+          citation_quality: params.breakdown.citationQuality,
+          factual_accuracy: params.breakdown.factualAccuracy,
+        }
+      : {},
+    weights: params.weights,
+    reasoning_hash: hashUtf8(params.explanation) as `0x${string}`,
+    generated_at: Math.floor(Date.now() / 1000),
+  };
+}
+
 /**
- * Create evidence bundle following specification v0.1
+ * Create evidence bundle following specification v0.1 or v0.2
  */
 export function createEvidenceBundle(
   taskId: number | string,
@@ -61,19 +158,23 @@ export function createEvidenceBundle(
   claims: Claim[],
   metrics: Metrics,
   finalScoreBps: number,
-  explanation: string
+  explanation: string,
+  options: EvidenceBundleBuildOptions = {}
 ): Omit<EvidenceBundle, 'signatures'> {
-  logger.info('Creating evidence bundle v0.1', { taskId, ethAddress });
+  const bundleVersion = (options.bundleVersion ?? CONSTANTS.BUNDLE_VERSION_DEFAULT) as EvidenceBundleVersion;
+  logger.info(`Creating evidence bundle v${bundleVersion}`, { taskId, ethAddress });
+
+  const softwareInfo = getSoftwareInfo();
 
   const bundle: Omit<EvidenceBundle, 'signatures'> = {
     task_id: taskId,
-    bundle_version: CONSTANTS.BUNDLE_VERSION,
+    bundle_version: bundleVersion,
     created_at: new Date().toISOString(),
 
     evaluator: {
       node_id: nodeId,
       eth_address: ethAddress,
-      software: getSoftwareInfo(),
+      software: softwareInfo,
     },
 
     prompt_hash: promptHash,
@@ -86,6 +187,54 @@ export function createEvidenceBundle(
     final_score_bps: finalScoreBps,
     explanation: explanation,
   };
+
+  if (bundleVersion === '0.2') {
+    const inputContentHash = options.inputContentHash ?? (promptHash as `0x${string}`);
+    const outputContentHash =
+      options.outputContentHash ??
+      (hashCanonical({
+        score_bps: finalScoreBps,
+        verdict: getVerdict(finalScoreBps),
+        explanation,
+      }) as `0x${string}`);
+
+    const provenance: EvidenceProvenance = {
+      model_runs: buildProvenanceModelRuns(modelRuns, promptHash),
+      sources: buildProvenanceSources(claims),
+      environment: {
+        verifier_node: nodeId,
+        software_commit: softwareInfo.commit,
+      },
+      ...options.provenanceOverrides,
+    };
+
+    const scoringTrace =
+      options.scoringTrace ??
+      buildScoringTrace({
+        rubricHash,
+        finalScoreBps,
+        explanation,
+        breakdown: options.scoringBreakdown,
+        weights: options.scoringWeights,
+      });
+
+    const bundleV02: EvidenceBundleV02 = {
+      ...(bundle as EvidenceBundleV02),
+      bundle_version: '0.2',
+      input: {
+        content_type: options.inputContentType ?? 'text',
+        content_hash: inputContentHash,
+      },
+      output: {
+        content_hash: outputContentHash,
+        content_type: 'json',
+      },
+      provenance,
+      scoring_trace: scoringTrace,
+    };
+
+    return bundleV02;
+  }
 
   return bundle;
 }
@@ -396,6 +545,15 @@ export function deserializeBundle(json: string): EvidenceBundle {
       }
     }
 
+    if (bundle.bundle_version === '0.2') {
+      const v02Fields = ['input', 'output', 'provenance', 'scoring_trace'];
+      for (const field of v02Fields) {
+        if (!(field in bundle)) {
+          throw new Error(`Missing required field for v0.2: ${field}`);
+        }
+      }
+    }
+
     return bundle;
   } catch (error: any) {
     logger.error('Failed to deserialize bundle:', error);
@@ -410,8 +568,10 @@ export function validateBundleStructure(bundle: any): { valid: boolean; errors: 
   const errors: string[] = [];
 
   // Check bundle version
-  if (bundle.bundle_version !== CONSTANTS.BUNDLE_VERSION) {
-    errors.push(`Invalid bundle version: ${bundle.bundle_version}, expected ${CONSTANTS.BUNDLE_VERSION}`);
+  if (![CONSTANTS.BUNDLE_VERSION_V01, CONSTANTS.BUNDLE_VERSION_V02].includes(bundle.bundle_version)) {
+    errors.push(
+      `Invalid bundle version: ${bundle.bundle_version}, expected ${CONSTANTS.BUNDLE_VERSION_V01} or ${CONSTANTS.BUNDLE_VERSION_V02}`
+    );
   }
 
   // Check evaluator
@@ -455,6 +615,21 @@ export function validateBundleStructure(bundle: any): { valid: boolean; errors: 
   // Check signature
   if (!bundle.signatures?.bundle_sig_eip712?.startsWith('0x')) {
     errors.push('Missing or invalid EIP-712 signature');
+  }
+
+  if (bundle.bundle_version === '0.2') {
+    if (!bundle.input?.content_hash?.startsWith('0x')) {
+      errors.push('Missing or invalid input.content_hash');
+    }
+    if (!bundle.output?.content_hash?.startsWith('0x')) {
+      errors.push('Missing or invalid output.content_hash');
+    }
+    if (!Array.isArray(bundle.provenance?.model_runs)) {
+      errors.push('Missing provenance.model_runs');
+    }
+    if (!bundle.scoring_trace?.rubric_hash?.startsWith('0x')) {
+      errors.push('Missing scoring_trace.rubric_hash');
+    }
   }
 
   return {

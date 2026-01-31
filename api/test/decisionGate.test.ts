@@ -45,6 +45,17 @@ describe('Decision gate integration', () => {
         version: 'mmv-verifier@1.0.0',
         configHash: '0x' + '44'.repeat(32),
       },
+      provenance: {
+        provider: 'openai',
+        model: 'gpt-4-turbo',
+        prompt_hash: '0x' + '55'.repeat(32),
+        response_hash: '0x' + '66'.repeat(32),
+        started_at: 1700000000,
+        finished_at: 1700000010,
+        latency_ms: 10000,
+        tokens_in: 120,
+        tokens_out: 280,
+      },
     };
 
     verifyWithMMV.mockResolvedValue(mockResult);
