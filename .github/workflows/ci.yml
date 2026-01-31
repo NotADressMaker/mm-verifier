@@ -7,8 +7,8 @@ on:
     branches: [ "main", "master", "claude/multi-llm-verifier-IDKkb" ]
 
 jobs:
-  node-build-and-test:
-    name: Node: lint, build, test
+  api:
+    name: API: lint, build, test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,28 +21,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
 
-      - name: Cache node modules
+      - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json', 'package.json') }}
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-api-${{ hashFiles('api/package.json') }}
           restore-keys: |
-            ${{ runner.os }}-node-${{ matrix.node-version }}-
+            ${{ runner.os }}-node-${{ matrix.node-version }}-api-
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
+        working-directory: api
 
       - name: Lint (TypeScript / JS)
-        run: npm run lint       # remove '|| true' so lint failures fail the job
+        run: npm run lint
+        working-directory: api
 
       - name: Build (if applicable)
-        run: npm run build      # keep this, will be a no-op if not used
+        run: npm run build
+        working-directory: api
 
       - name: Run tests
-        # produce test-junit files if your test runner supports it; adjust as needed
         run: npm test
+        working-directory: api
 
       - name: Upload test results (artifact)
         if: always()
@@ -51,36 +53,43 @@ jobs:
           name: test-logs
           path: test-results/**       # adjust to where your tests emit results
 
-  solidity-analysis:
+  contracts:
     name: Solidity: compile, solhint & slither
     runs-on: ubuntu-latest
-    needs: node-build-and-test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-18.x-contracts-${{ hashFiles('contracts/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-18.x-contracts-
+
       - name: Install node deps (for solhint etc.)
-        run: npm ci
+        run: npm install
+        working-directory: contracts
 
       - name: Run Solhint (Solidity linter)
         run: npx solhint 'contracts/**/*.sol'
+        working-directory: contracts
 
       - name: Compile contracts (Hardhat example)
-        # Change this to 'forge build' if you use Foundry, or to your project's compile command.
-        run: |
-          if [ -f hardhat.config.* ] || [ -f hardhat.config.js ]; then
-            npx hardhat compile
-          elif command -v forge >/dev/null 2>&1; then
-            forge build
-          else
-            echo "No recognized Solidity build tool found; skipping compile step"
-          fi
+        run: npm run compile
+        working-directory: contracts
 
       - name: Run Slither (Docker container)
         # Slither needs the built artifacts; the compile step above should create them.
         run: |
-          mkdir -p slither-results || true
-          docker run --rm -v "${{ github.workspace }}":/src -w /src crytic/slither:latest slither . --json slither-results/slither.json || true
+          mkdir -p slither-results
+          docker run --rm -v "${{ github.workspace }}":/src -w /src/contracts crytic/slither:latest slither . --json /src/slither-results/slither.json
 
       - name: Upload slither results
         if: always()
