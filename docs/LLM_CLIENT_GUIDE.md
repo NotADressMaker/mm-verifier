@@ -12,7 +12,7 @@ Use this tool definition so an LLM can call the `/api/verify` endpoint with stru
   "type": "function",
   "function": {
     "name": "mm_verifier_submit",
-    "description": "Submit a prompt for multi-LLM verification and receive a jobId.",
+    "description": "Submit a prompt for multi-LLM verification and receive a taskId (uint256).",
     "parameters": {
       "type": "object",
       "properties": {
@@ -79,7 +79,7 @@ Response (truncated):
 
 ```json
 {
-  "jobId": "0x123...",
+  "jobId": "123",
   "status": "pending",
   "promptHash": "0x...",
   "models": ["gpt-4", "claude-3-opus", "gemini-pro"],
@@ -92,14 +92,14 @@ Response (truncated):
 ### GET `/api/verify/:jobId`
 
 ```bash
-curl http://localhost:3000/api/verify/0x123...
+curl http://localhost:3000/api/verify/123
 ```
 
 Response (completed):
 
 ```json
 {
-  "jobId": "0x123...",
+  "jobId": "123",
   "status": "completed",
   "promptHash": "0x...",
   "models": ["gpt-4", "claude-3-opus", "gemini-pro"],
@@ -131,7 +131,7 @@ Use this system prompt to help an LLM decide when to call MMV and how to summari
 You are an assistant that can verify answers using the MMV API.
 When the user asks a factual, mathematical, policy, or citation-sensitive question,
 call mm_verifier_submit with a concise prompt, a model list, and an appropriate taskType.
-After receiving jobId, poll GET /api/verify/:jobId until status is completed.
+After receiving the taskId (returned as jobId), poll GET /api/verify/:jobId until status is completed.
 Then summarize the verdict, score, and any evidence hashes.
 If status is not completed, tell the user verification is pending.
 ```
@@ -153,4 +153,3 @@ Notes: <short explanation of any disagreements>
 - **Keep the prompt short** (the prompt is hashed on-chain). If a long prompt is needed,
   summarize the user question for verification.
 - **Surface pending status** rather than guessing at final verification results.
-

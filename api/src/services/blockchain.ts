@@ -9,12 +9,10 @@ dotenv.config({ path: '../../.env' });
 
 // TEMPORARY: Human-readable ABIs (replace with imports from shared/abi/ after compilation)
 // Once contracts are compiled, use: VerifierMarketplace.abi, BondVaultWETH.abi, etc.
-const MARKETPLACE_ABI = [
-  'function submitJob(bytes32 promptHash, string[] models, uint8 taskType, uint256 deadline) payable returns (bytes32)',
-  'function getJob(bytes32 jobId) view returns (address requester, bytes32 promptHash, string[] models, uint8 taskType, uint256 rewardPool, uint8 status, uint256 consensusScore)',
-  'function getJobVerifiers(bytes32 jobId) view returns (address[])',
-  'function getEvaluation(bytes32 jobId, address verifier) view returns (uint256 score, string verdict, bytes32 evidenceHash, bool revealed)',
-  'function getAllJobs() view returns (bytes32[])',
+export const MARKETPLACE_ABI = [
+  'function createTask(bytes32 promptHash, bytes32 rubricHash, uint40 commitDeadline, uint40 revealDeadline, uint40 disputeWindowSeconds, uint8 minEvals, uint8 maxEvals, uint256 feePool) external returns (uint256)',
+  'function getTaskMeta(uint256 taskId) view returns (uint8 state, address requester, bytes32 promptHash, bytes32 rubricHash, uint40 commitDeadline, uint40 revealDeadline, uint40 disputeDeadline, uint8 minEvals, uint8 maxEvals, uint256 feePool, uint16 finalScoreBps, uint256 evalCount)',
+  'event TaskCreated(uint256 indexed taskId, address indexed requester, uint256 feePool)',
 ];
 
 const STAKING_ABI = [
@@ -89,32 +87,41 @@ export async function initializeBlockchain() {
 /**
  * Submit verification job to blockchain
  */
-export async function submitVerificationJob(
-  promptHash: string,
-  models: string[],
-  taskType: number,
-  deadline: number,
-  rewardPoolWei: bigint
-): Promise<string> {
+export async function submitVerificationJob(params: {
+  promptHash: string;
+  rubricHash: string;
+  commitDeadline: number;
+  revealDeadline: number;
+  disputeWindowSeconds: number;
+  minEvals: number;
+  maxEvals: number;
+  feePoolWei: bigint;
+}): Promise<string> {
   try {
     if (!marketplaceContract) {
       throw new Error('Marketplace contract not initialized');
     }
 
     logger.info('Submitting job to blockchain', {
-      promptHash,
-      models,
-      taskType,
-      deadline,
-      rewardPool: rewardPoolWei.toString(),
+      promptHash: params.promptHash,
+      rubricHash: params.rubricHash,
+      commitDeadline: params.commitDeadline,
+      revealDeadline: params.revealDeadline,
+      disputeWindowSeconds: params.disputeWindowSeconds,
+      minEvals: params.minEvals,
+      maxEvals: params.maxEvals,
+      feePool: params.feePoolWei.toString(),
     });
 
-    const tx = await marketplaceContract.submitJob(
-      promptHash,
-      models,
-      taskType,
-      deadline,
-      { value: rewardPoolWei }
+    const tx = await marketplaceContract.createTask(
+      params.promptHash,
+      params.rubricHash,
+      params.commitDeadline,
+      params.revealDeadline,
+      params.disputeWindowSeconds,
+      params.minEvals,
+      params.maxEvals,
+      params.feePoolWei
     );
 
     logger.info('Transaction sent', { hash: tx.hash });
@@ -122,11 +129,11 @@ export async function submitVerificationJob(
     const receipt = await tx.wait();
     logger.info('Transaction confirmed', { hash: receipt.hash });
 
-    // Extract jobId from event logs
+    // Extract taskId from event logs
     const event = receipt.logs.find((log: any) => {
       try {
         const parsed = marketplaceContract.interface.parseLog(log);
-        return parsed?.name === 'JobSubmitted';
+        return parsed?.name === 'TaskCreated';
       } catch {
         return false;
       }
@@ -134,12 +141,12 @@ export async function submitVerificationJob(
 
     if (event) {
       const parsed = marketplaceContract.interface.parseLog(event);
-      const jobId = parsed?.args.jobId;
-      logger.info('Job submitted successfully', { jobId });
-      return jobId;
+      const taskId = parsed?.args.taskId;
+      logger.info('Task created successfully', { taskId });
+      return taskId.toString();
     }
 
-    throw new Error('Failed to extract jobId from transaction');
+    throw new Error('Failed to extract taskId from transaction');
   } catch (error) {
     logger.error('Failed to submit job to blockchain:', error);
     throw error;
@@ -149,81 +156,29 @@ export async function submitVerificationJob(
 /**
  * Get job details from blockchain
  */
-export async function getJobDetails(jobId: string) {
+export async function getTaskDetails(taskId: bigint | string) {
   try {
     if (!marketplaceContract) {
       throw new Error('Marketplace contract not initialized');
     }
 
-    const job = await marketplaceContract.getJob(jobId);
+    const task = await marketplaceContract.getTaskMeta(taskId);
     return {
-      requester: job[0],
-      promptHash: job[1],
-      models: job[2],
-      taskType: job[3],
-      rewardPool: job[4],
-      status: job[5],
-      consensusScore: job[6],
+      state: task[0],
+      requester: task[1],
+      promptHash: task[2],
+      rubricHash: task[3],
+      commitDeadline: task[4],
+      revealDeadline: task[5],
+      disputeDeadline: task[6],
+      minEvals: task[7],
+      maxEvals: task[8],
+      feePool: task[9],
+      finalScoreBps: task[10],
+      evalCount: task[11],
     };
   } catch (error) {
     logger.error('Failed to get job details:', error);
-    throw error;
-  }
-}
-
-/**
- * Get job evaluations from blockchain
- */
-export async function getJobEvaluations(jobId: string) {
-  try {
-    if (!marketplaceContract) {
-      throw new Error('Marketplace contract not initialized');
-    }
-
-    const verifiers = await marketplaceContract.getJobVerifiers(jobId);
-    const evaluations = [];
-
-    for (const verifier of verifiers) {
-      const evaluation = await marketplaceContract.getEvaluation(jobId, verifier);
-      evaluations.push({
-        verifier,
-        score: evaluation[0],
-        verdict: evaluation[1],
-        evidenceHash: evaluation[2],
-        revealed: evaluation[3],
-      });
-    }
-
-    return evaluations;
-  } catch (error) {
-    logger.error('Failed to get job evaluations:', error);
-    throw error;
-  }
-}
-
-/**
- * Get all jobs from blockchain
- */
-export async function getAllJobs() {
-  try {
-    if (!marketplaceContract) {
-      throw new Error('Marketplace contract not initialized');
-    }
-
-    const jobIds = await marketplaceContract.getAllJobs();
-    const jobs = [];
-
-    for (const jobId of jobIds) {
-      const jobDetails = await getJobDetails(jobId);
-      jobs.push({
-        jobId,
-        ...jobDetails,
-      });
-    }
-
-    return jobs;
-  } catch (error) {
-    logger.error('Failed to get all jobs:', error);
     throw error;
   }
 }

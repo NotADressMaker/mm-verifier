@@ -1,182 +1,139 @@
-import { createHash } from 'crypto';
+import { Wallet } from 'ethers';
+import { logger } from '../utils/logger';
 import { ModelResponse } from '../llm-providers/modelRouter';
 import { ScoringResult } from '../scoring/scorer';
-import { extractCitations } from '../scoring/citationAnalyzer';
 import { extractClaims } from '../scoring/claimExtractor';
-import { detectContradictions } from '../scoring/consistencyChecker';
-import { logger } from '../utils/logger';
+import {
+  Claim,
+  EvidenceBundle,
+  Metrics,
+  ModelRun,
+  ScoringRubric,
+} from '../../../shared/types';
+import {
+  createEvidenceBundle as createBundle,
+  createModelRun,
+  createClaim,
+  createMetrics,
+  hashRubric,
+  signEvidenceBundle,
+  DEFAULT_RUBRIC,
+} from './evidenceBundlerV2';
 
-export interface EvidenceBundle {
-  jobId: string;
-  verifierAddress: string;
-  timestamp: number;
-  prompt: string;
+type BundleInputs = {
+  taskId: string;
+  nodeId: string;
+  ethAddress: string;
   promptHash: string;
-  models: string[];
-  taskType: string;
-  modelResponses: {
-    model: string;
-    provider: string;
-    response: string;
-    metadata: any;
-  }[];
+  responses: ModelResponse[];
   scoringResult: ScoringResult;
-  analysis: {
-    claims: string[][];
-    citations: any[];
-    contradictions: string[];
-  };
-  checksPerformed: string[];
-  bundleHash: string;
+  wallet: Wallet;
+  marketplaceAddress: string;
+  rubric?: ScoringRubric;
+};
+
+function toModelRuns(responses: ModelResponse[]): ModelRun[] {
+  return responses.map((response) =>
+    createModelRun(
+      response.provider,
+      response.model,
+      response.metadata?.temperature ?? 0,
+      response.response,
+      {
+        timestamp: response.timestamp ? Math.floor(response.timestamp / 1000) : undefined,
+        latencyMs: response.metadata?.duration,
+        tokensUsed: response.metadata?.tokensUsed,
+        maxTokens: response.metadata?.maxTokens,
+      }
+    )
+  );
 }
 
-/**
- * Create evidence bundle for verification
- */
-export function createEvidenceBundle(
-  jobId: string,
-  verifierAddress: string,
-  prompt: string,
-  promptHash: string,
-  models: string[],
-  taskType: string,
-  responses: ModelResponse[],
-  scoringResult: ScoringResult
-): EvidenceBundle {
-  logger.info('Creating evidence bundle', { jobId, verifierAddress });
+function toClaims(responses: ModelResponse[]): Claim[] {
+  const claims = responses.flatMap((response) => extractClaims(response.response));
+  return claims.map((text, index) =>
+    createClaim(`c${index + 1}`, text, 'factual', [], [])
+  );
+}
 
-  // Extract claims from each response
-  const claims = responses.map((r) => extractClaims(r.response));
+function toMetrics(responses: ModelResponse[], scoringResult: ScoringResult): Metrics {
+  const claimCount = responses.reduce(
+    (total, response) => total + extractClaims(response.response).length,
+    0
+  );
+  const normalized = (value: number) => Math.max(0, Math.min(1, value / 100));
+  const supportedRatio = normalized(scoringResult.breakdown.factualAccuracy);
+  const verifiedClaims = claimCount > 0 ? Math.round(claimCount * supportedRatio) : 0;
 
-  // Extract citations
-  const citations = responses.map((r) => extractCitations(r.response));
-
-  // Detect contradictions
-  const contradictions = detectContradictions(responses);
-
-  // List of checks performed
-  const checksPerformed = [
-    'multi-model-query',
-    'consistency-analysis',
-    'agreement-calculation',
-    'claim-extraction',
-    'citation-analysis',
-    'contradiction-detection',
-    `task-specific-scoring:${taskType}`,
-  ];
-
-  // Create bundle
-  const bundle: Omit<EvidenceBundle, 'bundleHash'> = {
-    jobId,
-    verifierAddress,
-    timestamp: Date.now(),
-    prompt,
-    promptHash,
-    models,
-    taskType,
-    modelResponses: responses.map((r) => ({
-      model: r.model,
-      provider: r.provider,
-      response: r.response,
-      metadata: r.metadata,
-    })),
-    scoringResult,
-    analysis: {
-      claims,
-      citations,
-      contradictions,
+  return createMetrics(
+    {
+      agreement: normalized(scoringResult.breakdown.consistency),
+      clusters: responses.length ? 1 : 0,
+      clusterSizes: responses.length ? [responses.length] : [],
+      outliers: 0,
     },
-    checksPerformed,
-  };
-
-  // Calculate bundle hash
-  const bundleHash = hashEvidenceBundle(bundle);
-
-  const finalBundle: EvidenceBundle = {
-    ...bundle,
-    bundleHash,
-  };
-
-  logger.info('Evidence bundle created', {
-    jobId,
-    bundleHash,
-    modelCount: responses.length,
-    claimCount: claims.flat().length,
-    citationCount: citations.flat().length,
-  });
-
-  return finalBundle;
+    {
+      supportedClaimRatio: supportedRatio,
+      totalClaims: claimCount,
+      verifiedClaims,
+      contradictedClaims: claimCount - verifiedClaims,
+    },
+    {
+      authorityScore: normalized(scoringResult.breakdown.citationQuality),
+      sourceCount: undefined,
+      highAuthorityRatio: undefined,
+      citationDensity: undefined,
+    },
+    {
+      sensitiveVariance: 0,
+      politicalLean: undefined,
+      sentimentVariance: undefined,
+    },
+    {
+      reaskDelta: normalized(scoringResult.breakdown.agreement),
+      lengthVariance: undefined,
+      tokenVariance: undefined,
+    }
+  );
 }
 
-/**
- * Hash evidence bundle for tamper detection
- */
-export function hashEvidenceBundle(
-  bundle: Omit<EvidenceBundle, 'bundleHash'>
-): string {
-  // Create deterministic hash of bundle contents
-  const hashContent = JSON.stringify({
-    jobId: bundle.jobId,
-    verifierAddress: bundle.verifierAddress,
-    promptHash: bundle.promptHash,
-    models: bundle.models.sort(),
-    modelResponses: bundle.modelResponses.map((r) => ({
-      model: r.model,
-      provider: r.provider,
-      responseHash: createHash('sha256').update(r.response).digest('hex'),
-    })),
-    score: bundle.scoringResult.score,
-    verdict: bundle.scoringResult.verdict,
-  });
-
-  return createHash('sha256').update(hashContent).digest('hex');
-}
-
-/**
- * Verify evidence bundle integrity
- */
-export function verifyEvidenceBundleIntegrity(bundle: EvidenceBundle): boolean {
-  const { bundleHash, ...bundleWithoutHash } = bundle;
-  const computedHash = hashEvidenceBundle(bundleWithoutHash);
-  return computedHash === bundleHash;
-}
-
-/**
- * Create compact evidence summary for onchain storage
- */
-export function createCompactSummary(bundle: EvidenceBundle): {
-  bundleHash: string;
-  score: number;
-  verdict: string;
-  modelCount: number;
-  checksPerformed: number;
-} {
-  return {
-    bundleHash: bundle.bundleHash,
-    score: bundle.scoringResult.score,
-    verdict: bundle.scoringResult.verdict,
-    modelCount: bundle.modelResponses.length,
-    checksPerformed: bundle.checksPerformed.length,
-  };
-}
-
-/**
- * Serialize bundle for IPFS storage
- */
-export function serializeBundleForStorage(bundle: EvidenceBundle): string {
-  return JSON.stringify(bundle, null, 2);
-}
-
-/**
- * Deserialize bundle from storage
- */
-export function deserializeBundleFromStorage(data: string): EvidenceBundle {
-  const bundle = JSON.parse(data);
-
-  // Verify integrity
-  if (!verifyEvidenceBundleIntegrity(bundle)) {
-    throw new Error('Evidence bundle integrity check failed');
+export async function createEvidenceBundle({
+  taskId,
+  nodeId,
+  ethAddress,
+  promptHash,
+  responses,
+  scoringResult,
+  wallet,
+  marketplaceAddress,
+  rubric = DEFAULT_RUBRIC,
+}: BundleInputs): Promise<EvidenceBundle> {
+  if (!marketplaceAddress) {
+    throw new Error('MARKETPLACE_ADDRESS is required to sign evidence bundles');
   }
 
-  return bundle;
+  logger.info('Creating v0.1 evidence bundle', { taskId, ethAddress });
+
+  const modelRuns = toModelRuns(responses);
+  const claims = toClaims(responses);
+  const metrics = toMetrics(responses, scoringResult);
+  const rubricHash = hashRubric(rubric);
+  const finalScoreBps = Math.round(scoringResult.score * 100);
+
+  const bundle = createBundle(
+    taskId,
+    nodeId,
+    ethAddress,
+    promptHash,
+    rubricHash,
+    modelRuns,
+    claims,
+    metrics,
+    finalScoreBps,
+    scoringResult.reasoning
+  );
+
+  return signEvidenceBundle(bundle, wallet, marketplaceAddress);
 }
+
+export type { EvidenceBundle };

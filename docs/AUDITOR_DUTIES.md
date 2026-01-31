@@ -47,18 +47,19 @@ Ensure evidence bundle is well-formed and cryptographically signed
 async function validateBundleSchema(bundle: EvidenceBundle): Promise<ValidationResult> {
   const errors: string[] = [];
 
-  // 1. Check required fields exist
+  // 1. Check required fields exist (v0.1 shared schema)
   const requiredFields = [
-    'jobId',
-    'verifierAddress',
-    'timestamp',
-    'promptHash',
-    'models',
-    'modelResponses',
-    'scoringResult',
-    'analysis',
-    'checksPerformed',
-    'bundleHash'
+    'task_id',
+    'bundle_version',
+    'created_at',
+    'evaluator',
+    'prompt_hash',
+    'rubric_hash',
+    'model_runs',
+    'claims',
+    'metrics',
+    'final_score_bps',
+    'signatures'
   ];
 
   for (const field of requiredFields) {
@@ -68,46 +69,34 @@ async function validateBundleSchema(bundle: EvidenceBundle): Promise<ValidationR
   }
 
   // 2. Validate field types
-  if (typeof bundle.jobId !== 'string' || !bundle.jobId.startsWith('0x')) {
-    errors.push('Invalid jobId format');
+  if (typeof bundle.task_id !== 'string' || !bundle.task_id.startsWith('0x')) {
+    errors.push('Invalid task_id format');
   }
 
-  if (!ethers.isAddress(bundle.verifierAddress)) {
-    errors.push('Invalid verifier address');
+  if (!ethers.isAddress(bundle.evaluator?.eth_address)) {
+    errors.push('Invalid evaluator.eth_address');
   }
 
-  if (!Array.isArray(bundle.models) || bundle.models.length === 0) {
-    errors.push('Invalid models array');
+  if (!Array.isArray(bundle.model_runs) || bundle.model_runs.length === 0) {
+    errors.push('Invalid model_runs array');
   }
 
-  if (!Array.isArray(bundle.modelResponses) || bundle.modelResponses.length === 0) {
-    errors.push('Invalid modelResponses array');
+  if (!Array.isArray(bundle.claims)) {
+    errors.push('Invalid claims array');
   }
 
-  // 3. Verify model count matches responses
-  if (bundle.models.length !== bundle.modelResponses.length) {
-    errors.push('Model count mismatch with responses');
+  // 3. Validate final score
+  if (typeof bundle.final_score_bps !== 'number') {
+    errors.push('Invalid final_score_bps');
   }
 
-  // 4. Validate scoring result structure
-  const scoringResult = bundle.scoringResult;
-  if (!scoringResult || typeof scoringResult.score !== 'number') {
-    errors.push('Invalid scoring result');
+  if (bundle.final_score_bps < 0 || bundle.final_score_bps > 10000) {
+    errors.push('Score out of range (0-10000 bps)');
   }
 
-  if (scoringResult.score < 0 || scoringResult.score > 10000) {
-    errors.push('Score out of range (0-10000)');
-  }
-
-  const validVerdicts = ['reliable', 'mixed', 'unreliable'];
-  if (!validVerdicts.includes(scoringResult.verdict)) {
-    errors.push('Invalid verdict value');
-  }
-
-  // 5. Validate bundle hash
-  const computedHash = hashEvidenceBundle(bundle);
-  if (computedHash !== bundle.bundleHash) {
-    errors.push('Bundle hash mismatch - potential tampering');
+  // 4. Validate signature presence
+  if (!bundle.signatures?.bundle_sig_eip712) {
+    errors.push('Missing EIP-712 signature');
   }
 
   return {
@@ -123,13 +112,13 @@ async function validateBundleSchema(bundle: EvidenceBundle): Promise<ValidationR
 async function verifySignature(signedBundle: SignedBundle): Promise<boolean> {
   // 1. Reconstruct EIP-712 message
   const message = {
-    jobId: signedBundle.bundle.jobId,
+    jobId: signedBundle.bundle.task_id,
     verifier: signedBundle.signer,
-    promptHash: signedBundle.bundle.promptHash,
-    score: signedBundle.bundle.scoringResult.score,
-    verdict: signedBundle.bundle.scoringResult.verdict,
+    promptHash: signedBundle.bundle.prompt_hash,
+    score: signedBundle.bundle.final_score_bps,
+    verdict: getVerdict(signedBundle.bundle.final_score_bps),
     bundleHash: signedBundle.bundleHash,
-    timestamp: signedBundle.bundle.timestamp
+    timestamp: Math.floor(new Date(signedBundle.bundle.created_at).getTime() / 1000)
   };
 
   // 2. Recover signer from signature
@@ -173,50 +162,46 @@ async function validateEvidenceLinks(bundle: EvidenceBundle): Promise<Validation
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const { analysis, modelResponses } = bundle;
+  const { claims, model_runs } = bundle;
 
-  // 1. Extract all citations from analysis
-  const citations = analysis.citations.flat();
+  // 1. Gather evidence entries attached to claims
+  const evidenceItems = claims.flatMap(claim => [
+    ...(claim.support || []),
+    ...(claim.contradictions || [])
+  ]);
 
-  // 2. For each claim, check cited evidence exists
-  for (let i = 0; i < analysis.claims.length; i++) {
-    const claimSet = analysis.claims[i];
+  // 2. For each claim, ensure at least one supporting evidence entry
+  for (const claim of claims) {
+    if (!claim.support || claim.support.length === 0) {
+      warnings.push(`Claim "${claim.text}" has no supporting evidence`);
+    }
+  }
 
-    for (const claim of claimSet) {
-      // Find evidence for this claim
-      const relevantEvidence = citations.filter(c =>
-        calculateSimilarity(c.text, claim) > 0.5
-      );
-
-      if (relevantEvidence.length === 0) {
-        warnings.push(`Claim "${claim}" has no supporting evidence`);
-      }
-
-      // Check evidence URLs are accessible
-      for (const evidence of relevantEvidence) {
-        if (evidence.type === 'url' && evidence.url) {
-          const accessible = await checkURLAccessible(evidence.url);
-          if (!accessible) {
-            errors.push(`Evidence URL not accessible: ${evidence.url}`);
-          }
-        }
+  // 3. Check evidence URLs are accessible
+  for (const evidence of evidenceItems) {
+    if (evidence.url) {
+      const accessible = await checkURLAccessible(evidence.url);
+      if (!accessible) {
+        errors.push(`Evidence URL not accessible: ${evidence.url}`);
       }
     }
   }
 
-  // 3. Verify evidence snippets are not fabricated
-  for (const citation of citations) {
-    if (citation.type === 'url' && citation.url) {
-      // Fetch actual content from URL
-      const actualContent = await fetchURLContent(citation.url);
-
-      // Check if cited snippet appears in content
-      const snippetFound = actualContent.includes(citation.text);
+  // 4. Verify evidence snippets are not fabricated
+  for (const evidence of evidenceItems) {
+    if (evidence.url && evidence.snippet) {
+      const actualContent = await fetchURLContent(evidence.url);
+      const snippetFound = actualContent.includes(evidence.snippet);
 
       if (!snippetFound) {
-        errors.push(`Citation snippet not found in source: ${citation.url}`);
+        errors.push(`Evidence snippet not found in source: ${evidence.url}`);
       }
     }
+  }
+
+  // 5. Ensure model_runs are present for auditor spot checks
+  if (!Array.isArray(model_runs) || model_runs.length === 0) {
+    errors.push('Missing model_runs for evidence verification');
   }
 
   return {
@@ -285,28 +270,28 @@ Recompute a subset of metrics to verify correctness
 ```typescript
 async function spotCheckMetrics(bundle: EvidenceBundle): Promise<boolean> {
   // 1. Recompute consensus score
-  const recomputedConsensus = computeConsensusScore(bundle.modelResponses);
+  const recomputedConsensus = computeConsensusScore(bundle.model_runs);
 
   const consensusMatch = Math.abs(
-    recomputedConsensus - bundle.scoringResult.breakdown.consensus
-  ) < 5; // Allow 5% tolerance
+    recomputedConsensus - bundle.metrics.consensus.agreement
+  ) < 0.05; // Allow 5% tolerance
 
   // 2. Recompute factuality ratio (simplified)
-  const verifiedClaims = bundle.analysis.claims.flat().filter(c =>
-    c.confidence > 0.8
+  const verifiedClaims = bundle.claims.filter(c =>
+    c.support && c.support.length > 0
   ).length;
-  const totalClaims = bundle.analysis.claims.flat().length;
-  const recomputedFactuality = (verifiedClaims / totalClaims) * 100;
+  const totalClaims = bundle.claims.length;
+  const recomputedFactuality = totalClaims === 0 ? 0 : (verifiedClaims / totalClaims);
 
   const factualityMatch = Math.abs(
-    recomputedFactuality - bundle.scoringResult.breakdown.factualAccuracy
-  ) < 10; // Allow 10% tolerance
+    recomputedFactuality - bundle.metrics.factuality.supported_claim_ratio
+  ) < 0.1; // Allow 10% tolerance
 
   // 3. Verify final score calculation
-  const recomputedFinalScore = computeFinalScore(bundle.scoringResult.breakdown);
+  const recomputedFinalScore = computeFinalScore(bundle.metrics);
 
   const finalScoreMatch = Math.abs(
-    recomputedFinalScore - bundle.scoringResult.score
+    recomputedFinalScore - bundle.final_score_bps
   ) < 500; // Allow 5% tolerance (500 bps)
 
   return consensusMatch && factualityMatch && finalScoreMatch;
@@ -318,20 +303,20 @@ async function spotCheckMetrics(bundle: EvidenceBundle): Promise<boolean> {
 ```typescript
 async function fullMetricsRecompute(bundle: EvidenceBundle): Promise<RecomputeResult> {
   // 1. Re-normalize outputs
-  const normalized = bundle.modelResponses.map(r => normalizeOutput(r.response));
+  const normalized = bundle.model_runs.map(r => normalizeOutput(r.raw_output));
 
   // 2. Re-extract claims
   const claims = normalized.map(n => extractClaims(n.mainAnswer));
 
   // 3. Re-compute consensus
-  const consensus = computeConsensus(bundle.modelResponses);
+  const consensus = computeConsensus(bundle.model_runs);
 
   // 4. Re-compute all metrics
   const metrics = {
     consensusScore: computeConsensusScore(consensus),
-    factualityRatio: computeFactualityRatio(claims, bundle.analysis.citations),
-    citationAuthority: computeCitationScore(bundle.analysis.citations.flat()),
-    stability: computeStabilityScore(bundle.modelResponses)
+    factualityRatio: computeFactualityRatio(claims, bundle.claims),
+    citationAuthority: computeCitationScore(bundle.claims),
+    stability: computeStabilityScore(bundle.model_runs)
   };
 
   // 5. Re-compute final score
@@ -339,11 +324,11 @@ async function fullMetricsRecompute(bundle: EvidenceBundle): Promise<RecomputeRe
 
   // 6. Compare with bundle's claimed scores
   const deviations = {
-    consensus: Math.abs(metrics.consensusScore - bundle.scoringResult.breakdown.consistency),
-    factuality: Math.abs(metrics.factualityRatio - bundle.scoringResult.breakdown.factualAccuracy),
-    citation: Math.abs(metrics.citationAuthority - bundle.scoringResult.breakdown.citationQuality),
-    stability: Math.abs(metrics.stability - bundle.scoringResult.breakdown.agreement),
-    final: Math.abs(finalScore - bundle.scoringResult.score)
+    consensus: Math.abs(metrics.consensusScore - bundle.metrics.consensus.agreement),
+    factuality: Math.abs(metrics.factualityRatio - bundle.metrics.factuality.supported_claim_ratio),
+    citation: Math.abs(metrics.citationAuthority - bundle.metrics.citation_quality.authority_score),
+    stability: Math.abs(metrics.stability - bundle.metrics.stability.reask_delta),
+    final: Math.abs(finalScore - bundle.final_score_bps)
   };
 
   // Allow small tolerance for floating point errors
