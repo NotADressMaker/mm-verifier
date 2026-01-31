@@ -854,19 +854,17 @@ async function signBundle(
   verifierWallet: Wallet
 ): Promise<SignedBundle> {
   // 1. Hash the bundle content
-  const bundleHash = ethers.keccak256(
-    ethers.toUtf8Bytes(JSON.stringify(bundle))
-  );
+  const bundleHash = hashCanonical(bundle);
 
   // 2. Create EIP-712 message
   const message = {
-    jobId: bundle.jobId,
+    jobId: bundle.task_id,
     verifier: verifierWallet.address,
-    promptHash: bundle.promptHash,
-    score: bundle.scoringResult.score,
-    verdict: bundle.scoringResult.verdict,
+    promptHash: bundle.prompt_hash,
+    score: bundle.final_score_bps,
+    verdict: getVerdict(bundle.final_score_bps),
     bundleHash: bundleHash,
-    timestamp: bundle.timestamp
+    timestamp: Math.floor(new Date(bundle.created_at).getTime() / 1000)
   };
 
   // 3. Sign with EIP-712
@@ -892,13 +890,13 @@ async function signBundle(
 ```typescript
 function verifyBundleSignature(signed: SignedBundle): boolean {
   const message = {
-    jobId: signed.bundle.jobId,
+    jobId: signed.bundle.task_id,
     verifier: signed.signer,
-    promptHash: signed.bundle.promptHash,
-    score: signed.bundle.scoringResult.score,
-    verdict: signed.bundle.scoringResult.verdict,
+    promptHash: signed.bundle.prompt_hash,
+    score: signed.bundle.final_score_bps,
+    verdict: getVerdict(signed.bundle.final_score_bps),
     bundleHash: signed.bundleHash,
-    timestamp: signed.bundle.timestamp
+    timestamp: Math.floor(new Date(signed.bundle.created_at).getTime() / 1000)
   };
 
   const recoveredAddress = ethers.verifyTypedData(
@@ -1043,13 +1041,9 @@ Model Responses:
 **Stage 8: Signed Bundle**
 ```json
 {
-  "bundleHash": "0xabc123...",
-  "signature": {
-    "r": "0x...",
-    "s": "0x...",
-    "v": 27
-  },
-  "signer": "0xverifier..."
+  "signatures": {
+    "bundle_sig_eip712": "0x..."
+  }
 }
 ```
 

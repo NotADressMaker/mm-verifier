@@ -207,49 +207,80 @@ finalScore =
 - Based on score variance (low variance = high confidence)
 - Normalized to 0-1 scale
 
-### 4. Evidence Bundle Format
+### 4. Evidence Bundle Format (v0.1 canonical)
+
+The canonical evidence bundle contract is defined in `shared/types.ts` (v0.1).
 
 ```json
 {
-  "jobId": "0x...",
-  "verifierAddress": "0x...",
-  "timestamp": 1234567890,
-  "promptHash": "0x...",
-  "models": ["gpt-4", "claude-3-opus", "gemini-pro"],
-  "modelResponses": [
+  "task_id": "0x...",
+  "bundle_version": "0.1",
+  "created_at": "2024-10-12T09:43:22Z",
+  "evaluator": {
+    "node_id": "node:abcd",
+    "eth_address": "0x...",
+    "software": {
+      "name": "verifier-node",
+      "ver": "0.1",
+      "commit": "abc1234"
+    }
+  },
+  "prompt_hash": "0x...",
+  "rubric_hash": "0x...",
+  "model_runs": [
     {
-      "model": "gpt-4",
       "provider": "openai",
-      "response": "...",
-      "metadata": {
-        "tokensUsed": 150,
-        "duration": 1234
-      }
+      "model": "gpt-4",
+      "temperature": 0.1,
+      "max_tokens": 2000,
+      "raw_output": "...",
+      "output_hash": "0x...",
+      "timestamp": 1728726202,
+      "latency_ms": 1234,
+      "tokens_used": 150
     }
   ],
-  "scoringResult": {
-    "score": 95,
-    "verdict": "reliable",
-    "confidence": 0.98,
-    "breakdown": {
-      "consistency": 92,
-      "agreement": 94,
-      "citationQuality": 100,
-      "factualAccuracy": 94
-    },
-    "reasoning": "Verified across 3 models. High consistency..."
-  },
-  "analysis": {
-    "claims": [["claim1", "claim2"], ...],
-    "citations": [...],
-    "contradictions": []
-  },
-  "checksPerformed": [
-    "multi-model-query",
-    "consistency-analysis",
-    "citation-analysis"
+  "claims": [
+    {
+      "claim_id": "c1",
+      "text": "Paris is the capital of France.",
+      "type": "factual",
+      "support": [],
+      "contradictions": [],
+      "confidence": 0.93
+    }
   ],
-  "bundleHash": "0x..."
+  "metrics": {
+    "consensus": {
+      "agreement": 0.92,
+      "clusters": 1,
+      "cluster_sizes": [3],
+      "outliers": 0
+    },
+    "factuality": {
+      "supported_claim_ratio": 0.94,
+      "total_claims": 12,
+      "verified_claims": 11,
+      "contradicted_claims": 1
+    },
+    "citation_quality": {
+      "authority_score": 0.98,
+      "source_count": 5,
+      "high_authority_ratio": 0.6,
+      "citation_density": 0.4
+    },
+    "bias": {
+      "sensitive_variance": 0.0
+    },
+    "stability": {
+      "reask_delta": 0.94
+    }
+  },
+  "final_score_bps": 9500,
+  "explanation": "Verified across 3 models. High consistency...",
+  "signatures": {
+    "bundle_sig_eip712": "0x..."
+  }
 }
 ```
 

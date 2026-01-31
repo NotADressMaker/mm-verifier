@@ -1,6 +1,6 @@
 import { create, IPFSHTTPClient } from 'ipfs-http-client';
 import { logger } from '../utils/logger';
-import { EvidenceBundle } from './evidenceBundler';
+import { EvidenceBundle } from '../../../shared/types';
 
 let ipfsClient: IPFSHTTPClient | null = null;
 
@@ -41,7 +41,7 @@ export async function uploadEvidenceToIPFS(
     const cid = result.path;
 
     logger.info('Evidence uploaded to IPFS', {
-      jobId: bundle.jobId,
+      taskId: bundle.task_id,
       cid,
       size: bundleJson.length,
     });
@@ -96,13 +96,13 @@ function storeLocally(bundle: EvidenceBundle): string {
     fs.mkdirSync(storageDir, { recursive: true });
   }
 
-  const filename = `${bundle.bundleHash}.json`;
+  const filename = `bundle-${bundle.task_id}-${Date.now()}.json`;
   const filepath = path.join(storageDir, filename);
 
   fs.writeFileSync(filepath, JSON.stringify(bundle, null, 2));
 
   logger.warn('Evidence stored locally (IPFS unavailable)', {
-    jobId: bundle.jobId,
+    taskId: bundle.task_id,
     filepath,
   });
 
