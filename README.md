@@ -76,6 +76,13 @@ MMV/
 └── docs/              # Documentation
 ```
 
+## Content Insurance Layer
+
+MMV now includes a content insurance concept that pairs onchain policies with verification
+guarantees. Creators can insure either human-authored work or AI-generated work that has been
+verified, while claimants can challenge coverage with evidence. See
+[`docs/CONTENT_INSURANCE.md`](docs/CONTENT_INSURANCE.md) for contract and verification details.
+
 ## How It Works
 
 ### The Marketplace Model
