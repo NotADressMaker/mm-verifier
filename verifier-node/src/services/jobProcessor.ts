@@ -85,9 +85,6 @@ export async function startJobProcessor() {
       const evidenceCid = await uploadEvidenceToIPFS(evidenceBundle);
       const { signatures, ...bundleWithoutSig } = evidenceBundle;
       const evidenceHash = hashEvidenceBundle(bundleWithoutSig);
-      if (!evidenceHash.startsWith('0x') || evidenceHash.length !== 66) {
-        throw new Error(`Invalid evidence hash format: ${evidenceHash}`);
-      }
 
       logger.info('Evidence uploaded', {
         jobId,
