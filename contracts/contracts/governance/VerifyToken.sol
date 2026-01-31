@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title VerifyToken
- * @notice Governance token for MM Verifier protocol
+ * @notice Governance token for MMV protocol
  * @dev ERC20Votes enables on-chain governance with delegation
  *
  * Features:

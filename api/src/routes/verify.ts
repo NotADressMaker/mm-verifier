@@ -4,6 +4,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 import { submitVerificationJob } from '../services/blockchain';
 import { queueVerificationJob } from '../services/jobQueue';
+import {
+  getProgram,
+  registerProgram,
+  validateVerificationProgram,
+  VerificationProgram,
+} from '../services/programRegistry';
 
 const router = Router();
 
@@ -21,6 +27,14 @@ router.post(
       .withMessage('Invalid task type'),
     body('deadline').optional().isInt({ min: 1 }).withMessage('Deadline must be positive integer'),
     body('rewardPool').optional().isNumeric().withMessage('Reward pool must be numeric'),
+    body('programId').optional().isString().withMessage('Program ID must be a string'),
+    body('program').optional().custom((value) => {
+      const validation = validateVerificationProgram(value);
+      if (!validation.valid) {
+        throw new Error(validation.message || 'Invalid program');
+      }
+      return true;
+    }),
   ],
   async (req: Request, res: Response) => {
     try {
@@ -30,12 +44,49 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { prompt, models, taskType, deadline, rewardPool } = req.body;
+      const {
+        prompt,
+        models,
+        taskType,
+        deadline,
+        rewardPool,
+        programId,
+        program,
+      }: {
+        prompt: string;
+        models: string[];
+        taskType: string;
+        deadline?: number;
+        rewardPool?: number;
+        programId?: string;
+        program?: VerificationProgram;
+      } = req.body;
+
+      let resolvedProgramId = programId;
+      let resolvedProgram: VerificationProgram | undefined = undefined;
+
+      if (program) {
+        const record = registerProgram(program);
+        resolvedProgramId = record.id;
+        resolvedProgram = record.program;
+      }
+
+      if (resolvedProgramId) {
+        const record = getProgram(resolvedProgramId);
+        if (!record) {
+          return res.status(400).json({
+            error: 'Invalid program',
+            message: 'Program ID not found',
+          });
+        }
+        resolvedProgram = record.program;
+      }
 
       logger.info('Received verification request', {
         models,
         taskType,
         promptLength: prompt.length,
+        programId: resolvedProgramId,
       });
 
       // Hash the prompt
@@ -76,6 +127,8 @@ router.post(
         models,
         taskType,
         deadline: deadlineTimestamp,
+        programId: resolvedProgramId,
+        program: resolvedProgram,
       });
 
       logger.info('Verification job submitted', { jobId });
@@ -89,6 +142,8 @@ router.post(
         taskType,
         deadline: new Date(deadlineTimestamp * 1000).toISOString(),
         estimatedCompletion: new Date((deadlineTimestamp - 3600) * 1000).toISOString(),
+        programId: resolvedProgramId,
+        program: resolvedProgram,
       });
     } catch (error: any) {
       logger.error('Error submitting verification request:', error);

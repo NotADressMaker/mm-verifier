@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# MM Verifier Quickstart Demo
+# MMV Quickstart Demo
 # One-command setup: spin up local environment and submit a demo verification
 
 set -e
 
 echo "┌──────────────────────────────────────────────────────────┐"
-echo "│          MM Verifier - Quickstart Demo                  │"
+echo "│          MMV - Quickstart Demo                  │"
 echo "└──────────────────────────────────────────────────────────┘"
 echo ""
 
@@ -154,7 +154,7 @@ echo ""
 
 # Success!
 echo "┌──────────────────────────────────────────────────────────┐"
-echo -e "│          ${GREEN}✓ MM Verifier is running!${NC}                    │"
+echo -e "│          ${GREEN}✓ MMV is running!${NC}                    │"
 echo "└──────────────────────────────────────────────────────────┘"
 echo ""
 echo "Services:"

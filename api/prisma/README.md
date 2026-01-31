@@ -1,6 +1,6 @@
 # Database Migrations with Prisma
 
-This directory contains the Prisma schema and database migrations for the MM Verifier API.
+This directory contains the Prisma schema and database migrations for the MMV API.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This directory contains the Prisma schema and database migrations for the MM Ver
 
 ## Overview
 
-MM Verifier uses **Prisma** as its database ORM and migration tool. Prisma provides:
+MMV uses **Prisma** as its database ORM and migration tool. Prisma provides:
 
 - **Type-safe database client** for TypeScript/JavaScript
 - **Declarative schema** in `schema.prisma`

@@ -358,6 +358,97 @@ export const EIP712_TYPES = {
 };
 
 // ============================================================================
+// MMV Attestations (Multi-LLM Verifier)
+// ============================================================================
+
+export interface MMVCandidate {
+  index: number;
+  output: string;
+  outputHash: string;
+}
+
+export interface MMVVerificationInput {
+  taskId: string;
+  input: string;
+  candidates: MMVCandidate[];
+  evidence?: Record<string, unknown>;
+}
+
+export interface MMVCandidateScore {
+  index: number;
+  score: number;
+  confidence: number;
+  riskFlags: string[];
+  rationale: string;
+}
+
+export interface MMVVerificationResult {
+  taskId: string;
+  inputHash: string;
+  selectedIndex: number;
+  selectedOutputHash: string;
+  overallScore: number;
+  pass: boolean;
+  candidateScores: MMVCandidateScore[];
+  rationale: {
+    summary: string;
+    checks: string[];
+    policyViolations: string[];
+    promptInjectionDetected: boolean;
+  };
+  verifier: {
+    provider: 'openai';
+    model: string;
+    version: string;
+    configHash: string;
+  };
+}
+
+export interface MMVVerifierConfig {
+  provider: 'openai';
+  model: string;
+  maxRollouts: number;
+  minPassScore: number;
+  minCandidateScore: number;
+  timeoutMs: number;
+  rateLimitPerMinute: number;
+  version: string;
+}
+
+export interface MMVAttestation {
+  taskId: string;
+  inputHash: string;
+  selectedOutputHash: string;
+  verifierVersionHash: string;
+  configHash: string;
+  timestamp: number;
+  expiresAt: number;
+  score: number;
+  passed: boolean;
+}
+
+export const MMV_EIP712_DOMAIN = {
+  name: 'MMVVerifier',
+  version: '1',
+  chainId: 42161,
+  verifyingContract: '',
+};
+
+export const MMV_EIP712_TYPES = {
+  Attestation: [
+    { name: 'taskId', type: 'bytes32' },
+    { name: 'inputHash', type: 'bytes32' },
+    { name: 'selectedOutputHash', type: 'bytes32' },
+    { name: 'verifierVersionHash', type: 'bytes32' },
+    { name: 'configHash', type: 'bytes32' },
+    { name: 'timestamp', type: 'uint256' },
+    { name: 'expiresAt', type: 'uint256' },
+    { name: 'score', type: 'uint256' },
+    { name: 'passed', type: 'bool' },
+  ],
+};
+
+// ============================================================================
 // Configuration
 // ============================================================================
 
