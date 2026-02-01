@@ -4,6 +4,8 @@
 
 MMV is an open-source blockchain platform for AI output verification—a global, programmable **world computer** for trust in model responses. Instead of trusting a single AI model, get consensus-based verification with stake-backed accountability.
 
+[Getting Started](docs/getting-started.md)
+
 ## What It Does
 
 When you ask an AI a question, the answer can sound confident and still be wrong. MMV gives you a structured second opinion, delivered by a shared, decentralized verification layer that any app can program against:
