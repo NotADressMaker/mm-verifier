@@ -18,6 +18,87 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 
 **Think of it as**: Ethereum-style infrastructure for AI outputs—an open network where verifiers, auditors, and applications coordinate to produce reliable, programmable trust.
 
+## Developer Quickstart (10 minutes)
+
+Get verification working in your app with the SDK and example.
+
+### 1. Install the SDK
+
+```bash
+npm install @mmv/sdk
+```
+
+### 2. Verify LLM Output (3 lines)
+
+```typescript
+import { verify, configure } from '@mmv/sdk';
+
+// Configure once at startup
+configure({ baseUrl: 'http://localhost:3000' });
+
+// Verify any LLM output
+const receipt = await verify('Paris is the capital of France');
+
+console.log(receipt.verdict ? 'Verified' : 'Unverified');
+console.log(`Score: ${receipt.score_bps / 100}%`);
+```
+
+### 3. Run the Example App
+
+Try the Express example app with a verification badge UI:
+
+```bash
+# Navigate to the example
+cd examples/express-quickstart
+
+# Install dependencies
+npm install
+
+# Run (mock mode - no backend required)
+npm start
+
+# Open http://localhost:3001 in your browser
+```
+
+The example demonstrates:
+- Sending a prompt to an LLM
+- Calling `verify(...)` on the output
+- Displaying a "Verified" badge with receipt details
+
+### 4. Verify Receipts
+
+Check that a receipt is valid:
+
+```typescript
+import { verifyReceiptOnchain } from '@mmv/sdk';
+
+const result = verifyReceiptOnchain(receipt);
+
+if (result.valid) {
+  console.log('Receipt verified');
+} else {
+  console.error('Verification failed:', result.errors);
+}
+```
+
+### Receipt Structure
+
+Every verification produces a compact `Receipt`:
+
+| Field | Description |
+|-------|-------------|
+| `task_id` | Unique task identifier |
+| `verdict` | Pass/fail (true if score >= 5000 bps) |
+| `score_bps` | Confidence score (0-10000 basis points) |
+| `bundle_hash` | keccak256 hash of evidence bundle |
+| `bundle_uri` | IPFS URI for evidence bundle |
+| `program_id` | Verification program used |
+| `program_version` | Program version (semver) |
+| `chain_id` | Blockchain chain ID |
+| `contract_address` | Verification contract address |
+
+See [docs/PROGRAMS.md](docs/PROGRAMS.md) for details on the built-in `factual-consensus-v1` program.
+
 ## AI Accountability: Beyond Ethereum
 
 Ethereum provides general-purpose transaction transparency. MMV extends this with AI-specific accountability primitives that address the "black box" problem in AI systems:

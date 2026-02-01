@@ -10,12 +10,25 @@ import {
   OnChainVerifyResult,
   VerificationReceipt,
   ReceiptResponse,
+  Receipt,
+  VerifyOptions,
+  OnchainVerifyResult,
 } from './types';
+
+// Default configuration
+const DEFAULT_CHAIN_ID = 421614; // Arbitrum Sepolia
+const DEFAULT_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000';
+const DEFAULT_PROGRAM_ID = 'factual-consensus-v1';
+const DEFAULT_PROGRAM_VERSION = '1.0.0';
 
 export interface MMVClientOptions {
   baseUrl: string;
   apiKey?: string;
   fetcher?: typeof fetch;
+  /** Chain ID for receipts (default: 421614 for Arbitrum Sepolia) */
+  chainId?: number;
+  /** Contract address for receipts */
+  contractAddress?: string;
 }
 
 export interface VerifyTextParams {
@@ -38,11 +51,76 @@ export class MMVClient {
   private baseUrl: string;
   private apiKey?: string;
   private fetcher: typeof fetch;
+  private chainId: number;
+  private contractAddress: string;
 
   constructor(options: MMVClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.apiKey = options.apiKey;
     this.fetcher = options.fetcher ?? fetch;
+    this.chainId = options.chainId ?? DEFAULT_CHAIN_ID;
+    this.contractAddress = options.contractAddress ?? DEFAULT_CONTRACT_ADDRESS;
+  }
+
+  // ============================================================================
+  // Quickstart API - Simple verify() entrypoint
+  // ============================================================================
+
+  /**
+   * Verify LLM output and return a compact receipt.
+   * This is the recommended entrypoint for new integrations.
+   *
+   * @param text - The LLM output text to verify
+   * @param options - Optional configuration
+   * @returns A compact Receipt object
+   *
+   * @example
+   * ```ts
+   * const client = new MMVClient({ baseUrl: 'http://localhost:3000' });
+   * const receipt = await client.verifyOutput('Paris is the capital of France');
+   * console.log(receipt.verdict ? 'Verified' : 'Unverified');
+   * ```
+   */
+  async verifyOutput(text: string, options: VerifyOptions = {}): Promise<Receipt> {
+    const models = options.models ?? ['gpt-4', 'claude-3'];
+    const taskType = options.taskType ?? 'factual-qa';
+    const programId = options.programId ?? DEFAULT_PROGRAM_ID;
+    const timeoutMs = options.timeoutMs ?? 120000;
+    const pollIntervalMs = options.pollIntervalMs ?? 3000;
+
+    // Submit the verification task
+    const task = await this.verifyWithProgram({
+      prompt: text,
+      models,
+      taskType,
+      programId,
+    });
+
+    // Wait for finalization
+    const fullReceipt = await this.waitForFinal(task.task_id, {
+      timeoutMs,
+      pollIntervalMs,
+    });
+
+    // Convert to compact receipt
+    return this.toCompactReceipt(fullReceipt);
+  }
+
+  /**
+   * Convert a full VerificationReceipt to a compact Receipt
+   */
+  private toCompactReceipt(receipt: VerificationReceipt): Receipt {
+    return {
+      task_id: receipt.task_id,
+      verdict: receipt.verdict,
+      score_bps: receipt.score_bps,
+      bundle_hash: receipt.evidence.bundle_hash,
+      bundle_uri: receipt.evidence.bundle_uri,
+      program_id: receipt.program?.program_id ?? DEFAULT_PROGRAM_ID,
+      program_version: receipt.program?.version ?? DEFAULT_PROGRAM_VERSION,
+      chain_id: receipt.chain_context?.chain_id ?? this.chainId,
+      contract_address: receipt.chain_context?.contract_address ?? this.contractAddress,
+    };
   }
 
   async verifyText(params: VerifyTextParams): Promise<VerifyResponse> {
