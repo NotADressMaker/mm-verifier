@@ -48,9 +48,7 @@ interface IWETH {
     /// @return Allowance amount
     function allowance(address owner, address spender) external view returns (uint256);
 
-    /// @notice ERC20 events
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    /// @notice WETH-specific events
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 }

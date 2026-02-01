@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./IWETH.sol";
+
 /**
  * @title IBondVaultWETH
  * @notice Interface for centralized WETH bond management
@@ -34,10 +36,10 @@ interface IBondVaultWETH {
     // ========================================================================
 
     /**
-     * @notice Get WETH token address
-     * @return WETH contract address
+     * @notice Get WETH token contract
+     * @return WETH contract interface
      */
-    function WETH() external view returns (address);
+    function WETH() external view returns (IWETH);
 
     /**
      * @notice Get free (unlocked) bond balance for user

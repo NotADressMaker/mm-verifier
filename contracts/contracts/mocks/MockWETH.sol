@@ -37,4 +37,25 @@ contract MockWETH is ERC20, IWETH {
     receive() external payable {
         deposit();
     }
+
+    // Override functions that exist in both ERC20 and IWETH
+    function balanceOf(address account) public view override(ERC20, IWETH) returns (uint256) {
+        return super.balanceOf(account);
+    }
+
+    function transfer(address to, uint256 amount) public override(ERC20, IWETH) returns (bool) {
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(address from, address to, uint256 amount) public override(ERC20, IWETH) returns (bool) {
+        return super.transferFrom(from, to, amount);
+    }
+
+    function approve(address spender, uint256 amount) public override(ERC20, IWETH) returns (bool) {
+        return super.approve(spender, amount);
+    }
+
+    function allowance(address owner, address spender) public view override(ERC20, IWETH) returns (uint256) {
+        return super.allowance(owner, spender);
+    }
 }

@@ -171,7 +171,7 @@ contract ReputationBadges is ERC721, Ownable {
             '<rect width="350" height="350" fill="#1a1a2e"/>',
             '<circle cx="175" cy="120" r="60" fill="', color, '" opacity="0.3"/>',
             '<circle cx="175" cy="120" r="50" fill="', color, '"/>',
-            '<text x="175" y="130" text-anchor="middle" fill="white" font-size="40" font-weight="bold">✓</text>',
+            '<text x="175" y="130" text-anchor="middle" fill="white" font-size="40" font-weight="bold">&#x2713;</text>',
             '<text x="175" y="220" text-anchor="middle" fill="white" font-size="24" font-weight="bold">',
             name,
             '</text>',

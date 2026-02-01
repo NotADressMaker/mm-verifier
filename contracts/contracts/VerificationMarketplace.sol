@@ -9,17 +9,18 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title VerificationMarketplace
+ * @title VerifierMarketplace
  * @notice WETH-based marketplace for LLM verification with commit-reveal protocol
  * @dev Evaluators post WETH bonds, commit scores, reveal with evidence bundles,
  *      and earn rewards based on accuracy (proximity to median consensus)
  *
- * TODO: Migrate to canonical libraries for type consistency
- * - Replace Task struct with VerifierTypes.TaskMeta
- * - Replace Evaluation with VerifierTypes.CommitInfo + VerifierTypes.RevealBundle
- * - Use VerifierHash.commitHash() for canonical commitment computation
- * - Use bytes32 taskId (from VerifierHash.generateTaskId()) instead of uint256
- * - This will ensure consistency with DisputeLadder and BondVaultWETH
+ * Task Lifecycle:
+ *   OPEN -> REVEALING -> PROVISIONAL -> (DISPUTED ->) FINAL
+ *
+ * Escrow Model:
+ *   - Bonds held until dispute deadline passes (or dispute settles)
+ *   - Non-revealers slashed and marked ineligible for payouts
+ *   - Payouts released via releaseEscrow() or settleAfterDispute()
  */
 contract VerifierMarketplace is Ownable, ReentrancyGuard {
     IWETH public immutable WETH;
@@ -30,16 +31,25 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     uint256 public nonRevealSlashBps = 10_000; // 100%
 
     address public miningContract;
+    address public disputeResolver;
 
-    enum TaskState { Open, Reveal, Provisional, Disputed, Resolved }
+    enum TaskState { Open, Revealing, Provisional, Disputed, Final }
 
     struct Evaluation {
         bytes32 commitHash;
         bool committed;
         bool revealed;
+        bool slashed;           // true if slashed for non-reveal
         uint16 scoreBps;        // 0..10000
         bytes32 bundleHash;     // hash of bundle json/cbor
         string bundleURI;       // optional ipfs/arweave
+    }
+
+    struct EscrowEntry {
+        uint256 bondAmount;     // bond held in escrow (0 if slashed or released)
+        uint256 payoutAmount;   // calculated payout (0 if not eligible)
+        bool eligible;          // eligible for payout (revealed and not penalized)
+        bool released;          // true if funds have been released
     }
 
     struct Task {
@@ -59,11 +69,11 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         uint256 feePool; // WETH
         uint16 finalScoreBps;
         uint256 payoutPool;
-        bool payoutsSettled;
-        bool wasDisputed;
+        uint256 totalSlashed;
 
         address[] evaluators;
         mapping(address => Evaluation) evals;
+        mapping(address => EscrowEntry) escrow;
     }
 
     uint256 public nextTaskId = 1;
@@ -73,22 +83,11 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     // Reputation System
     // ========================================================================
 
-    /// @notice Total evaluations completed by verifier
     mapping(address => uint256) public totalEvaluations;
-
-    /// @notice Evaluations within 250bps of median (accurate)
     mapping(address => uint256) public accurateEvaluations;
-
-    /// @notice Cumulative WETH rewards earned (excludes bond returns)
     mapping(address => uint256) public totalRewardsEarned;
-
-    /// @notice Last activity timestamp for drift detection
     mapping(address => uint256) public lastActivityTimestamp;
-
-    /// @notice Times this verifier's evaluation was disputed
     mapping(address => uint256) public disputesAgainst;
-
-    /// @notice Times this verifier successfully defended against dispute
     mapping(address => uint256) public disputesWon;
 
     // ========================================================================
@@ -98,11 +97,20 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     event TaskCreated(uint256 indexed taskId, address indexed requester, uint256 feePool);
     event Committed(uint256 indexed taskId, address indexed evaluator, bytes32 commitHash);
     event Revealed(uint256 indexed taskId, address indexed evaluator, uint16 scoreBps, bytes32 bundleHash, string bundleURI);
-    event Finalized(uint256 indexed taskId, uint16 finalScoreBps, uint256 feePool);
-    event TaskResolved(uint256 indexed taskId, uint16 finalScoreBps, uint256 payoutPool, bool disputed);
-    event DisputeOpened(uint256 indexed taskId, address indexed challenger);
-    event MiningContractSet(address indexed miningContract);
+
+    // Lifecycle events
+    event ProvisionalFinalized(uint256 indexed taskId, uint16 medianScoreBps, uint256 payoutPool, uint40 disputeDeadline);
+    event EscrowFunded(uint256 indexed taskId, address indexed evaluator, uint256 bondAmount, uint256 payoutAmount);
+    event EscrowReleased(uint256 indexed taskId, address indexed evaluator, uint256 totalAmount);
+    event TaskFinal(uint256 indexed taskId, uint16 finalScoreBps, uint256 totalPaid, bool wasDisputed);
+
+    // Slashing and dispute events
     event NonRevealSlashed(uint256 indexed taskId, address indexed evaluator, uint256 slashedAmount);
+    event DisputeOpened(uint256 indexed taskId, address indexed challenger);
+    event DisputeSettled(uint256 indexed taskId, uint16 finalScoreBps, uint256 penalizedCount);
+    event DisputeResolverSet(address indexed resolver);
+
+    event MiningContractSet(address indexed miningContract);
     event ReputationUpdated(
         address indexed verifier,
         uint256 totalEvals,
@@ -111,11 +119,19 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         uint256 timestamp
     );
 
+    // Legacy events for compatibility
+    event Finalized(uint256 indexed taskId, uint16 finalScoreBps, uint256 feePool);
+    event TaskResolved(uint256 indexed taskId, uint16 finalScoreBps, uint256 payoutPool, bool disputed);
+
     constructor(IWETH _weth, uint256 _evalBond, uint256 _disputeBond) Ownable(msg.sender) {
         WETH = _weth;
         evalBond = _evalBond;
         disputeBond = _disputeBond;
     }
+
+    // ========================================================================
+    // Admin Functions
+    // ========================================================================
 
     function setBonds(uint256 _evalBond, uint256 _disputeBond) external onlyOwner {
         evalBond = _evalBond;
@@ -136,6 +152,15 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         miningContract = _miningContract;
         emit MiningContractSet(_miningContract);
     }
+
+    function setDisputeResolver(address _resolver) external onlyOwner {
+        disputeResolver = _resolver;
+        emit DisputeResolverSet(_resolver);
+    }
+
+    // ========================================================================
+    // View Functions
+    // ========================================================================
 
     function getTaskMeta(uint256 taskId)
         external
@@ -162,6 +187,41 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
             t.minEvals, t.maxEvals, t.feePool, t.finalScoreBps, t.evaluators.length
         );
     }
+
+    function getEscrowInfo(uint256 taskId, address evaluator)
+        external
+        view
+        returns (
+            uint256 bondAmount,
+            uint256 payoutAmount,
+            bool eligible,
+            bool released
+        )
+    {
+        EscrowEntry storage e = tasks[taskId].escrow[evaluator];
+        return (e.bondAmount, e.payoutAmount, e.eligible, e.released);
+    }
+
+    function getEvaluation(uint256 taskId, address evaluator)
+        external
+        view
+        returns (
+            bytes32 commitHash,
+            bool committed,
+            bool revealed,
+            bool slashed,
+            uint16 scoreBps,
+            bytes32 bundleHash,
+            string memory bundleURI
+        )
+    {
+        Evaluation storage e = tasks[taskId].evals[evaluator];
+        return (e.commitHash, e.committed, e.revealed, e.slashed, e.scoreBps, e.bundleHash, e.bundleURI);
+    }
+
+    // ========================================================================
+    // Task Creation
+    // ========================================================================
 
     function createTask(
         bytes32 promptHash,
@@ -196,6 +256,10 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         emit TaskCreated(taskId, msg.sender, feePool);
     }
 
+    // ========================================================================
+    // Commit Phase
+    // ========================================================================
+
     function commitEvaluation(uint256 taskId, bytes32 commitHash) external nonReentrant {
         Task storage t = tasks[taskId];
         require(t.state == TaskState.Open, "not open");
@@ -215,7 +279,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         // move to reveal early if full
         if (t.evaluators.length == t.maxEvals) {
-            t.state = TaskState.Reveal;
+            t.state = TaskState.Revealing;
         }
     }
 
@@ -223,8 +287,12 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         Task storage t = tasks[taskId];
         require(t.state == TaskState.Open, "bad state");
         require(block.timestamp > t.commitDeadline, "too early");
-        t.state = TaskState.Reveal;
+        t.state = TaskState.Revealing;
     }
+
+    // ========================================================================
+    // Reveal Phase
+    // ========================================================================
 
     function revealEvaluation(
         uint256 taskId,
@@ -234,7 +302,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         bytes32 salt
     ) external {
         Task storage t = tasks[taskId];
-        require(t.state == TaskState.Reveal, "not reveal");
+        require(t.state == TaskState.Revealing, "not revealing");
         require(block.timestamp <= t.revealDeadline, "reveal ended");
         require(scoreBps <= 10_000, "score>100%");
         Evaluation storage e = t.evals[msg.sender];
@@ -252,26 +320,50 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         emit Revealed(taskId, msg.sender, scoreBps, bundleHash, bundleURI);
     }
 
+    // ========================================================================
+    // Finalize (Provisional) - Computes outcome, slashes non-revealers, holds escrow
+    // ========================================================================
+
     function finalize(uint256 taskId) external nonReentrant {
         Task storage t = tasks[taskId];
-        require(t.state == TaskState.Reveal, "bad state");
+        require(t.state == TaskState.Revealing, "bad state");
         require(block.timestamp > t.revealDeadline, "too early");
 
-        // collect revealed scores
         uint256 n = t.evaluators.length;
         uint16[] memory scores = new uint16[](n);
         uint256 revealedCount = 0;
 
+        // Slash non-revealers first
+        uint256 totalSlashed = 0;
+        uint256 slashAmount = (evalBond * nonRevealSlashBps) / 10_000;
+
         for (uint256 i = 0; i < n; i++) {
             address ev = t.evaluators[i];
-            if (t.evals[ev].revealed) {
-                scores[revealedCount] = t.evals[ev].scoreBps;
+            Evaluation storage e = t.evals[ev];
+
+            if (e.committed && !e.revealed) {
+                // Slash non-revealer: no bond refund, no payout
+                e.slashed = true;
+                totalSlashed += slashAmount;
+
+                // Store escrow entry with zero bond (slashed) and zero payout
+                t.escrow[ev] = EscrowEntry({
+                    bondAmount: 0,
+                    payoutAmount: 0,
+                    eligible: false,
+                    released: false
+                });
+
+                emit NonRevealSlashed(taskId, ev, slashAmount);
+            } else if (e.revealed) {
+                scores[revealedCount] = e.scoreBps;
                 revealedCount++;
             }
         }
+
         require(revealedCount >= t.minEvals, "not enough reveals");
 
-        // sort scores[0:revealedCount] (insertion sort; revealedCount <= 10)
+        // Sort scores[0:revealedCount] (insertion sort; revealedCount <= 10)
         for (uint256 i = 1; i < revealedCount; i++) {
             uint16 key = scores[i];
             uint256 j = i;
@@ -284,108 +376,33 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         uint16 median = scores[revealedCount / 2];
         t.finalScoreBps = median;
-        t.state = TaskState.Provisional;
 
-        // protocol fee
+        // Protocol fee
         uint256 fee = (t.feePool * protocolFeeBps) / 10_000;
         uint256 payoutPool = t.feePool - fee;
         if (fee > 0) WETH.transfer(owner(), fee);
         t.payoutPool = payoutPool;
+        t.totalSlashed = totalSlashed;
 
-        uint256 totalSlashed = 0;
-        uint256 slashAmount = (evalBond * nonRevealSlashBps) / 10_000;
-
-        for (uint256 i = 0; i < n; i++) {
-            address ev = t.evaluators[i];
-            Evaluation storage e = t.evals[ev];
-
-            if (!e.committed) continue;
-
-            if (e.revealed) {
-                WETH.transfer(ev, evalBond);
-            } else {
-                totalSlashed += slashAmount;
-                uint256 refund = evalBond - slashAmount;
-                if (refund > 0) {
-                    WETH.transfer(ev, refund);
-                }
-                if (slashAmount > 0) {
-                    emit NonRevealSlashed(taskId, ev, slashAmount);
-                }
-            }
-        }
-
+        // Transfer slashed funds to protocol
         if (totalSlashed > 0) {
             WETH.transfer(owner(), totalSlashed);
         }
 
-        emit Finalized(taskId, median, t.feePool);
+        // Calculate payouts and setup escrow for revealed evaluators
+        _calculatePayouts(taskId, median);
+
+        t.state = TaskState.Provisional;
+
+        emit ProvisionalFinalized(taskId, median, payoutPool, t.disputeDeadline);
+        emit Finalized(taskId, median, t.feePool); // Legacy event
     }
 
-    function finalizeUndisputed(uint256 taskId) external nonReentrant {
+    function _calculatePayouts(uint256 taskId, uint16 finalScore) internal {
         Task storage t = tasks[taskId];
-        require(t.state == TaskState.Provisional, "not provisional");
-        require(block.timestamp > t.disputeDeadline, "dispute window");
-        t.state = TaskState.Resolved;
-        _settleTask(taskId, false);
-    }
-
-    /// @dev Called by DisputeManager. Here for MVP wiring.
-    function markDisputed(uint256 taskId) external onlyOwner {
-        Task storage t = tasks[taskId];
-        require(t.state == TaskState.Provisional, "not provisional");
-        t.state = TaskState.Disputed;
-        t.wasDisputed = true;
-
-        // Track disputes against all evaluators who revealed
-        for (uint256 i = 0; i < t.evaluators.length; i++) {
-            address ev = t.evaluators[i];
-            if (t.evals[ev].revealed) {
-                disputesAgainst[ev]++;
-            }
-        }
-    }
-
-    function markResolved(uint256 taskId, uint16 newFinalScoreBps) external onlyOwner {
-        Task storage t = tasks[taskId];
-        require(t.state == TaskState.Disputed, "not disputed");
-
-        uint16 originalScore = t.finalScoreBps;
-        t.finalScoreBps = newFinalScoreBps;
-        t.state = TaskState.Resolved;
-
-        // If score didn't change significantly, evaluators successfully defended
-        uint16 diff = originalScore > newFinalScoreBps
-            ? (originalScore - newFinalScoreBps)
-            : (newFinalScoreBps - originalScore);
-
-        // If change is < 500 bps (5%), consider it a successful defense
-        if (diff < 500) {
-            for (uint256 i = 0; i < t.evaluators.length; i++) {
-                address ev = t.evaluators[i];
-                if (t.evals[ev].revealed) {
-                    disputesWon[ev]++;
-                }
-            }
-        }
-
-        _settleTask(taskId, true);
-    }
-
-    /// @dev Dispute bond escrowed in DisputeManager; emitted here for indexing convenience.
-    function emitDisputeOpened(uint256 taskId, address challenger) external onlyOwner {
-        emit DisputeOpened(taskId, challenger);
-    }
-
-    function _settleTask(uint256 taskId, bool disputed) internal {
-        Task storage t = tasks[taskId];
-        require(!t.payoutsSettled, "settled");
-
         uint256 n = t.evaluators.length;
-        uint16 finalScore = t.finalScoreBps;
 
-        // pay evaluators: equal split among revealers + small "accuracy bonus"
-        // bonus: within 250 bps of final score gets +20% share weight
+        // Calculate weights: base 100, bonus 120 if within 250 bps
         uint256 baseWeight = 100;
         uint256 bonusWeight = 120;
         uint256 totalWeight = 0;
@@ -397,69 +414,263 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
             if (!e.revealed) continue;
 
             uint256 w = baseWeight;
-            uint256 diff = e.scoreBps > finalScore ? (e.scoreBps - finalScore) : (finalScore - e.scoreBps);
+            uint256 diff = e.scoreBps > finalScore
+                ? (e.scoreBps - finalScore)
+                : (finalScore - e.scoreBps);
             if (diff <= 250) w = bonusWeight;
 
             weights[i] = w;
             totalWeight += w;
         }
 
-        uint256 payoutPool = t.payoutPool;
-
+        // Assign payouts and escrow entries
         for (uint256 i = 0; i < n; i++) {
             address ev = t.evaluators[i];
             Evaluation storage e = t.evals[ev];
 
+            if (!e.revealed || e.slashed) continue;
+
             uint256 w = weights[i];
-            if (w == 0) continue;
+            uint256 payout = (t.payoutPool * w) / totalWeight;
 
-            uint256 amt = (payoutPool * w) / totalWeight;
-            if (amt > 0) {
-                WETH.transfer(ev, amt);
-                totalRewardsEarned[ev] += amt;
+            t.escrow[ev] = EscrowEntry({
+                bondAmount: evalBond,
+                payoutAmount: payout,
+                eligible: true,
+                released: false
+            });
+
+            emit EscrowFunded(taskId, ev, evalBond, payout);
+        }
+    }
+
+    // ========================================================================
+    // Release Escrow (after dispute window, if not disputed)
+    // ========================================================================
+
+    function releaseEscrow(uint256 taskId) external nonReentrant {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Provisional, "not provisional");
+        require(block.timestamp > t.disputeDeadline, "dispute window open");
+
+        t.state = TaskState.Final;
+        uint256 totalPaid = _releaseAllEscrow(taskId, t.finalScoreBps);
+
+        emit TaskFinal(taskId, t.finalScoreBps, totalPaid, false);
+        emit TaskResolved(taskId, t.finalScoreBps, t.payoutPool, false); // Legacy
+    }
+
+    function _releaseAllEscrow(uint256 taskId, uint16 finalScore) internal returns (uint256 totalPaid) {
+        Task storage t = tasks[taskId];
+        uint256 n = t.evaluators.length;
+
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            EscrowEntry storage esc = t.escrow[ev];
+            Evaluation storage e = t.evals[ev];
+
+            if (esc.released) continue;
+            esc.released = true;
+
+            uint256 amount = 0;
+            if (esc.eligible) {
+                amount = esc.bondAmount + esc.payoutAmount;
+                totalPaid += esc.payoutAmount;
+
+                // Update reputation
+                totalEvaluations[ev]++;
+                totalRewardsEarned[ev] += esc.payoutAmount;
+                lastActivityTimestamp[ev] = block.timestamp;
+
+                // Check accuracy for reputation
+                uint256 diff = e.scoreBps > finalScore
+                    ? (e.scoreBps - finalScore)
+                    : (finalScore - e.scoreBps);
+                if (diff <= 250) {
+                    accurateEvaluations[ev]++;
+                }
+
+                // Notify mining contract
+                if (miningContract != address(0)) {
+                    IVerifierMining(miningContract).recordEvaluation(ev, diff <= 250);
+                }
+
+                emit ReputationUpdated(
+                    ev,
+                    totalEvaluations[ev],
+                    accurateEvaluations[ev],
+                    totalRewardsEarned[ev],
+                    block.timestamp
+                );
             }
 
-            totalEvaluations[ev]++;
-            if (w == bonusWeight) {
-                accurateEvaluations[ev]++;
+            if (amount > 0) {
+                WETH.transfer(ev, amount);
+                emit EscrowReleased(taskId, ev, amount);
             }
+        }
+    }
 
-            lastActivityTimestamp[ev] = block.timestamp;
+    // ========================================================================
+    // Dispute Functions
+    // ========================================================================
 
-            if (miningContract != address(0)) {
-                IVerifierMining(miningContract).recordEvaluation(ev, w == bonusWeight);
+    /**
+     * @notice Mark a task as disputed (callable by owner or dispute resolver)
+     * @param taskId The task to mark as disputed
+     */
+    function markDisputed(uint256 taskId) external {
+        require(msg.sender == owner() || msg.sender == disputeResolver, "not authorized");
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Provisional, "not provisional");
+        require(block.timestamp <= t.disputeDeadline, "dispute window closed");
+
+        t.state = TaskState.Disputed;
+
+        // Track disputes against all evaluators who revealed
+        for (uint256 i = 0; i < t.evaluators.length; i++) {
+            address ev = t.evaluators[i];
+            if (t.evals[ev].revealed) {
+                disputesAgainst[ev]++;
             }
+        }
+    }
 
-            emit ReputationUpdated(
-                ev,
-                totalEvaluations[ev],
-                accurateEvaluations[ev],
-                totalRewardsEarned[ev],
-                block.timestamp
-            );
+    /**
+     * @notice Settle task after dispute resolution
+     * @dev Can be called by disputeResolver or owner (for MVP)
+     * @param taskId The task ID
+     * @param finalScoreBps The final score from dispute resolution
+     * @param penalizedVerifiers Verifiers who should not receive payouts
+     */
+    function settleAfterDispute(
+        uint256 taskId,
+        uint16 finalScoreBps,
+        address[] calldata penalizedVerifiers
+    ) external nonReentrant {
+        require(
+            msg.sender == disputeResolver || msg.sender == owner(),
+            "not authorized"
+        );
+
+        Task storage t = tasks[taskId];
+        require(
+            t.state == TaskState.Disputed || t.state == TaskState.Provisional,
+            "invalid state"
+        );
+
+        uint16 originalScore = t.finalScoreBps;
+        t.finalScoreBps = finalScoreBps;
+
+        // Mark penalized verifiers as ineligible
+        for (uint256 i = 0; i < penalizedVerifiers.length; i++) {
+            address penalized = penalizedVerifiers[i];
+            EscrowEntry storage esc = t.escrow[penalized];
+            if (esc.eligible && !esc.released) {
+                esc.eligible = false;
+                // Bond goes to protocol when penalized
+                if (esc.bondAmount > 0) {
+                    WETH.transfer(owner(), esc.bondAmount);
+                    esc.bondAmount = 0;
+                }
+                esc.payoutAmount = 0;
+            }
         }
 
-        t.payoutsSettled = true;
-        emit TaskResolved(taskId, finalScore, payoutPool, disputed || t.wasDisputed);
+        // Recalculate payouts for remaining eligible verifiers
+        _recalculatePayouts(taskId, finalScoreBps);
+
+        // If score didn't change significantly, evaluators defended successfully
+        uint16 diff = originalScore > finalScoreBps
+            ? (originalScore - finalScoreBps)
+            : (finalScoreBps - originalScore);
+
+        if (diff < 500) {
+            for (uint256 i = 0; i < t.evaluators.length; i++) {
+                address ev = t.evaluators[i];
+                if (t.evals[ev].revealed && t.escrow[ev].eligible) {
+                    disputesWon[ev]++;
+                }
+            }
+        }
+
+        t.state = TaskState.Final;
+        uint256 totalPaid = _releaseAllEscrow(taskId, finalScoreBps);
+
+        emit DisputeSettled(taskId, finalScoreBps, penalizedVerifiers.length);
+        emit TaskFinal(taskId, finalScoreBps, totalPaid, true);
+        emit TaskResolved(taskId, finalScoreBps, t.payoutPool, true); // Legacy
+    }
+
+    function _recalculatePayouts(uint256 taskId, uint16 finalScore) internal {
+        Task storage t = tasks[taskId];
+        uint256 n = t.evaluators.length;
+
+        // Calculate weights for eligible verifiers only
+        uint256 baseWeight = 100;
+        uint256 bonusWeight = 120;
+        uint256 totalWeight = 0;
+
+        uint256[] memory weights = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            EscrowEntry storage esc = t.escrow[ev];
+            Evaluation storage e = t.evals[ev];
+
+            if (!esc.eligible || esc.released) continue;
+
+            uint256 w = baseWeight;
+            uint256 diff = e.scoreBps > finalScore
+                ? (e.scoreBps - finalScore)
+                : (finalScore - e.scoreBps);
+            if (diff <= 250) w = bonusWeight;
+
+            weights[i] = w;
+            totalWeight += w;
+        }
+
+        // Reassign payouts
+        if (totalWeight > 0) {
+            for (uint256 i = 0; i < n; i++) {
+                address ev = t.evaluators[i];
+                EscrowEntry storage esc = t.escrow[ev];
+
+                if (!esc.eligible || esc.released) continue;
+
+                uint256 w = weights[i];
+                esc.payoutAmount = (t.payoutPool * w) / totalWeight;
+            }
+        }
+    }
+
+    /**
+     * @notice Legacy function - now calls releaseEscrow
+     */
+    function finalizeUndisputed(uint256 taskId) external nonReentrant {
+        this.releaseEscrow(taskId);
+    }
+
+    /**
+     * @notice Legacy function for dispute resolution
+     */
+    function markResolved(uint256 taskId, uint16 newFinalScoreBps) external {
+        require(msg.sender == owner() || msg.sender == disputeResolver, "not authorized");
+        address[] memory empty = new address[](0);
+        this.settleAfterDispute(taskId, newFinalScoreBps, empty);
+    }
+
+    /**
+     * @notice Emit dispute opened event (called by dispute manager)
+     */
+    function emitDisputeOpened(uint256 taskId, address challenger) external {
+        require(msg.sender == owner() || msg.sender == disputeResolver, "not authorized");
+        emit DisputeOpened(taskId, challenger);
     }
 
     // ========================================================================
     // Reputation View Functions
     // ========================================================================
 
-    /**
-     * @notice Get comprehensive reputation metrics for verifier (dashboard helper)
-     * @param verifier Address to query
-     * @return totalEvals Total evaluations completed
-     * @return accurateEvals Evaluations within 250bps of median
-     * @return accuracyBps Accuracy percentage in basis points (0-10000)
-     * @return totalRewards Cumulative WETH rewards earned
-     * @return disputes Total disputes against this verifier
-     * @return disputeWins Disputes successfully defended
-     * @return disputeWinRate Win rate in basis points (0-10000)
-     * @return lastActivity Timestamp of last evaluation
-     * @return daysSinceActive Days since last activity (for drift detection)
-     */
     function getVerifierReputation(address verifier) external view returns (
         uint256 totalEvals,
         uint256 accurateEvals,
@@ -478,17 +689,13 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         disputeWins = disputesWon[verifier];
         lastActivity = lastActivityTimestamp[verifier];
 
-        // Calculate accuracy percentage
         accuracyBps = totalEvals > 0 ? (accurateEvals * 10_000) / totalEvals : 0;
-
-        // Calculate dispute win rate
         disputeWinRate = disputes > 0 ? (disputeWins * 10_000) / disputes : 0;
 
-        // Calculate days since last activity
         if (lastActivity > 0) {
             daysSinceActive = (block.timestamp - lastActivity) / 1 days;
         } else {
-            daysSinceActive = type(uint256).max; // Never active
+            daysSinceActive = type(uint256).max;
         }
     }
 }

@@ -35,9 +35,6 @@ describe("BondVaultWETH", function () {
       await ethers.getSigners();
 
     // Deploy mock WETH
-    const WETHFactory = await ethers.getContractFactory("contracts/interfaces/IWETH.sol:IWETH");
-    // Note: In production, use actual WETH deployment or mock
-    // For now, we'll assume WETH is deployed separately
     const wethAddress = await deployMockWETH();
     weth = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", wethAddress);
 

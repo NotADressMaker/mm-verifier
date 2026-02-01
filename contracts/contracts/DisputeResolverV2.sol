@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./StakingManager.sol";
-import "./AuditorRegistry.sol";
+import "./AuditorRegistryV2.sol";
 
 /**
  * @title DisputeResolverV2
@@ -17,7 +17,7 @@ import "./AuditorRegistry.sol";
  */
 contract DisputeResolverV2 is Ownable, ReentrancyGuard {
     StakingManager public immutable stakingManager;
-    AuditorRegistry public immutable auditorRegistry;
+    AuditorRegistryV2 public immutable auditorRegistry;
 
     enum DisputeStatus {
         Pending,
@@ -103,7 +103,7 @@ contract DisputeResolverV2 is Ownable, ReentrancyGuard {
         address _auditorRegistry
     ) Ownable(msg.sender) {
         stakingManager = StakingManager(_stakingManager);
-        auditorRegistry = AuditorRegistry(_auditorRegistry);
+        auditorRegistry = AuditorRegistryV2(_auditorRegistry);
     }
 
     /**
@@ -388,7 +388,8 @@ contract DisputeResolverV2 is Ownable, ReentrancyGuard {
      * @notice Slash verifiers who deviate significantly from consensus
      * @param jobId Job identifier
      * @param consensusScore Final consensus score
-     * @param verifierScoresData Array of (verifier, score) tuples
+     * @param verifiers Array of verifier addresses
+     * @param scores Array of corresponding verifier scores
      */
     function slashConsensusDeviators(
         bytes32 jobId,

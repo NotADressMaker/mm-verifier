@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./StakingManager.sol";
-import "./AuditorRegistry.sol";
+import "./AuditorRegistryV2.sol";
 
 /**
  * @title DisputeResolver
@@ -13,7 +13,7 @@ import "./AuditorRegistry.sol";
  */
 contract DisputeResolver is Ownable, ReentrancyGuard {
     StakingManager public immutable stakingManager;
-    AuditorRegistry public immutable auditorRegistry;
+    AuditorRegistryV2 public immutable auditorRegistry;
 
     enum DisputeStatus {
         Pending,
@@ -85,7 +85,7 @@ contract DisputeResolver is Ownable, ReentrancyGuard {
         address _auditorRegistry
     ) Ownable(msg.sender) {
         stakingManager = StakingManager(_stakingManager);
-        auditorRegistry = AuditorRegistry(_auditorRegistry);
+        auditorRegistry = AuditorRegistryV2(_auditorRegistry);
     }
 
     /**
