@@ -161,18 +161,18 @@ function finalize(uint256 taskId) external nonReentrant {
 Add to `finalize()`:
 
 ```solidity
-// After calculating accuracy
+// After calculating finalScore
 for (uint256 i = 0; i < n; i++) {
     address ev = t.evaluators[i];
     Evaluation storage e = t.evals[ev];
 
     if (e.revealed && address(mining) != address(0)) {
-        uint256 diff = e.scoreBps > median
-            ? (e.scoreBps - median)
-            : (median - e.scoreBps);
+        uint256 diff = e.scoreBps > finalScore
+            ? (e.scoreBps - finalScore)
+            : (finalScore - e.scoreBps);
 
-        uint256 accuracyBps = diff <= 250 ? 10000 : 7500;
-        mining.recordEvaluation(ev, accuracyBps);
+        bool accurate = diff <= 250;
+        mining.recordEvaluation(ev, accurate);
     }
 }
 ```

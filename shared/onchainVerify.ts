@@ -2,7 +2,7 @@
  * On-Chain Verification Helpers
  *
  * Utilities for verifying that verification receipts match on-chain records.
- * Uses existing VerificationMarketplace events (Revealed, Finalized).
+ * Uses existing VerificationMarketplace events (Revealed, TaskResolved).
  */
 
 import { VerificationReceipt, computeReceiptHash } from './receipt';
@@ -27,12 +27,13 @@ export interface RevealedEvent {
 }
 
 /**
- * Data from VerificationMarketplace.Finalized event
+ * Data from VerificationMarketplace.TaskResolved event
  */
-export interface FinalizedEvent {
+export interface ResolvedEvent {
   taskId: string;
   finalScoreBps: number;
-  feePool?: string;
+  payoutPool?: string;
+  disputed?: boolean;
   blockNumber: number;
   txHash: string;
   timestamp: number;
@@ -68,30 +69,30 @@ export interface OnChainVerificationResult {
  * Verify a receipt against on-chain event data
  *
  * @param receipt - The verification receipt to verify
- * @param finalizedEvent - The Finalized event from chain
+ * @param resolvedEvent - The TaskResolved event from chain
  * @param revealedEvent - The Revealed event from chain (optional, for bundle hash check)
  * @returns Verification result with detailed checks
  */
 export function verifyReceiptAgainstEvents(
   receipt: VerificationReceipt,
-  finalizedEvent: FinalizedEvent,
+  resolvedEvent: ResolvedEvent,
   revealedEvent?: RevealedEvent
 ): OnChainVerificationResult {
   const errors: string[] = [];
   const receiptHash = computeReceiptHash(receipt);
 
   // Check 1: Task ID matches
-  if (receipt.task_id !== finalizedEvent.taskId) {
+  if (receipt.task_id !== resolvedEvent.taskId) {
     errors.push(
-      `Task ID mismatch: receipt=${receipt.task_id}, chain=${finalizedEvent.taskId}`
+      `Task ID mismatch: receipt=${receipt.task_id}, chain=${resolvedEvent.taskId}`
     );
   }
 
   // Check 2: Score matches
-  const scoreMatches = receipt.score_bps === finalizedEvent.finalScoreBps;
+  const scoreMatches = receipt.score_bps === resolvedEvent.finalScoreBps;
   if (!scoreMatches) {
     errors.push(
-      `Score mismatch: receipt=${receipt.score_bps}, chain=${finalizedEvent.finalScoreBps}`
+      `Score mismatch: receipt=${receipt.score_bps}, chain=${resolvedEvent.finalScoreBps}`
     );
   }
 
@@ -110,7 +111,7 @@ export function verifyReceiptAgainstEvents(
 
   // Check 4: Timestamp is valid (receipt generated before or at finalization)
   const timestampValid =
-    receipt.generated_at <= finalizedEvent.timestamp + 60; // 60s tolerance
+    receipt.generated_at <= resolvedEvent.timestamp + 60; // 60s tolerance
   if (!timestampValid) {
     errors.push(
       `Timestamp invalid: receipt generated after finalization`
@@ -134,9 +135,9 @@ export function verifyReceiptAgainstEvents(
       timestamp_valid: timestampValid,
     },
     chain_data: {
-      block_number: finalizedEvent.blockNumber,
-      tx_hash: finalizedEvent.txHash,
-      finalized_at: finalizedEvent.timestamp,
+      block_number: resolvedEvent.blockNumber,
+      tx_hash: resolvedEvent.txHash,
+      finalized_at: resolvedEvent.timestamp,
     },
     errors,
   };
@@ -206,19 +207,19 @@ export function verifyOutputHash(
 // ============================================================================
 
 /**
- * Build chain context from finalized event for attaching to receipt
+ * Build chain context from resolved event for attaching to receipt
  */
 export function buildChainContext(
-  finalizedEvent: FinalizedEvent,
+  resolvedEvent: ResolvedEvent,
   chainId: number,
   contractAddress: string
 ): NonNullable<VerificationReceipt['chain_context']> {
   return {
     chain_id: chainId,
     contract_address: contractAddress as `0x${string}`,
-    finalized_at: finalizedEvent.timestamp,
-    block_number: finalizedEvent.blockNumber,
-    tx_hash: finalizedEvent.txHash as `0x${string}`,
+    finalized_at: resolvedEvent.timestamp,
+    block_number: resolvedEvent.blockNumber,
+    tx_hash: resolvedEvent.txHash as `0x${string}`,
   };
 }
 
@@ -228,7 +229,7 @@ export function buildChainContext(
 
 export interface FullVerificationParams {
   receipt: VerificationReceipt;
-  finalizedEvent: FinalizedEvent;
+  resolvedEvent: ResolvedEvent;
   revealedEvent?: RevealedEvent;
   bundleContent?: unknown;
   inputContent?: unknown;
@@ -247,13 +248,13 @@ export interface FullVerificationResult extends OnChainVerificationResult {
 export function performFullVerification(
   params: FullVerificationParams
 ): FullVerificationResult {
-  const { receipt, finalizedEvent, revealedEvent, bundleContent, inputContent, outputContent } =
+  const { receipt, resolvedEvent, revealedEvent, bundleContent, inputContent, outputContent } =
     params;
 
   // First verify against events
   const result = verifyReceiptAgainstEvents(
     receipt,
-    finalizedEvent,
+    resolvedEvent,
     revealedEvent
   ) as FullVerificationResult;
 
