@@ -245,3 +245,53 @@ export interface VerificationReceipt {
 export interface ReceiptResponse {
   receipt: VerificationReceipt;
 }
+
+// ============================================================================
+// Compact Receipt (for quickstart API)
+// ============================================================================
+
+/**
+ * Compact receipt for the simplified verify() API.
+ * Contains all essential fields for displaying verification results.
+ */
+export interface Receipt {
+  task_id: string;
+  verdict: boolean;
+  score_bps: number;
+  bundle_hash: string;
+  bundle_uri: string;
+  program_id: string;
+  program_version: string;
+  chain_id: number;
+  contract_address: string;
+}
+
+/**
+ * Options for the verify() function
+ */
+export interface VerifyOptions {
+  /** Models to use for verification (default: ['gpt-4', 'claude-3']) */
+  models?: string[];
+  /** Task type (default: 'factual-qa') */
+  taskType?: string;
+  /** Program ID to use (default: built-in 'factual-consensus-v1') */
+  programId?: string;
+  /** Timeout for waiting for finalization (default: 120000ms) */
+  timeoutMs?: number;
+  /** Poll interval when waiting for finalization (default: 3000ms) */
+  pollIntervalMs?: number;
+}
+
+/**
+ * Result of verifyReceiptOnchain()
+ */
+export interface OnchainVerifyResult {
+  valid: boolean;
+  checks: {
+    receipt_exists: boolean;
+    hash_matches: boolean;
+    chain_matches: boolean;
+    contract_matches: boolean;
+  };
+  errors: string[];
+}
