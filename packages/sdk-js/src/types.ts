@@ -90,3 +90,72 @@ export interface ProgramRecord {
   program: ProgramDefinition;
   created_at: string;
 }
+
+// ============================================================================
+// Verified Output Records
+// ============================================================================
+
+/**
+ * A verified output record representing a trustworthy AI artifact.
+ * Derived from on-chain events (Revealed + Finalized).
+ */
+export interface VerifiedOutputRecord {
+  record_version: '1';
+  task_id: string;
+  score_bps: number;
+  verdict: boolean;
+  worthy: boolean;
+  bundle_hash: string;
+  bundle_uri: string;
+  finalized_at: number;
+  chain_id: number;
+  contract_address: string;
+  input_hash?: string;
+  output_hash?: string;
+  evaluator?: string;
+  block_number?: number;
+  tx_hash?: string;
+}
+
+/**
+ * Filter options for listing records
+ */
+export interface RecordQueryFilter {
+  min_score_bps?: number;
+  worthy_only?: boolean;
+  verdict?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Response from listRecords
+ */
+export interface RecordListResponse {
+  records: VerifiedOutputRecord[];
+  total: number;
+  has_more: boolean;
+  filter: {
+    min_score_bps?: number;
+    worthy_only?: boolean;
+    limit?: number;
+    offset?: number;
+  };
+}
+
+/**
+ * Response from getRecord
+ */
+export interface RecordResponse {
+  record: VerifiedOutputRecord;
+}
+
+/**
+ * Response from verifyRecordOnChain
+ */
+export interface OnChainVerifyResult {
+  task_id: string;
+  verified: boolean;
+  block_number?: number;
+  tx_hash?: string;
+}

@@ -99,6 +99,108 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /api/mmv/tasks/{task_id}/record:
+    get:
+      summary: Get verified output record for a task
+      operationId: getTaskRecord
+      description: |
+        Returns the VerifiedOutputRecord for a finalized verification task.
+        Records are derived from on-chain events (Revealed + Finalized).
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+          description: The task identifier
+      responses:
+        '200':
+          description: Verified output record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  record:
+                    $ref: '#/components/schemas/VerifiedOutputRecord'
+        '404':
+          description: Record not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/mmv/records:
+    get:
+      summary: List verified output records
+      operationId: listRecords
+      description: |
+        Returns a paginated list of verified output records.
+        By default, only returns "worthy" records (score >= 8000 bps).
+      parameters:
+        - in: query
+          name: min_score_bps
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+          description: Minimum score in basis points (0-10000)
+        - in: query
+          name: worthy_only
+          schema:
+            type: boolean
+            default: true
+          description: Only return records with score >= WORTHY_MIN_BPS (8000)
+        - in: query
+          name: verdict
+          schema:
+            type: boolean
+          description: Filter by verdict (true = passed, false = failed)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of records to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of records to skip for pagination
+      responses:
+        '200':
+          description: List of verified output records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordListResponse'
+
+  /api/mmv/tasks/{task_id}/verify:
+    get:
+      summary: Verify record exists on-chain
+      operationId: verifyRecordOnChain
+      description: |
+        Checks that a Finalized event exists on-chain for the given task.
+        Returns block number and transaction hash if verified.
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: On-chain verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnChainVerifyResult'
+
 components:
   schemas:
     ProgramIO:
@@ -297,3 +399,114 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VerifyError'
+
+    VerifiedOutputRecord:
+      type: object
+      description: |
+        A derived record representing a verified AI output.
+        Built from on-chain events (Revealed + Finalized) and receipt data.
+      required:
+        - record_version
+        - task_id
+        - score_bps
+        - verdict
+        - worthy
+        - bundle_hash
+        - bundle_uri
+        - finalized_at
+        - chain_id
+        - contract_address
+      properties:
+        record_version:
+          type: string
+          enum: ['1']
+          description: Record schema version
+        task_id:
+          type: string
+          description: Task identifier (uint256-safe string)
+        score_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          description: Final verification score in basis points
+        verdict:
+          type: boolean
+          description: Verification verdict (true = passed)
+        worthy:
+          type: boolean
+          description: Whether score meets WORTHY_MIN_BPS threshold (8000)
+        bundle_hash:
+          type: string
+          description: keccak256 hash of the evidence bundle
+        bundle_uri:
+          type: string
+          description: URI to the evidence bundle (IPFS/Arweave)
+        finalized_at:
+          type: integer
+          description: Unix timestamp when verification was finalized
+        chain_id:
+          type: integer
+          description: Chain ID where verification was recorded
+        contract_address:
+          type: string
+          description: VerificationMarketplace contract address
+        input_hash:
+          type: string
+          nullable: true
+          description: keccak256 hash of input content (if available)
+        output_hash:
+          type: string
+          nullable: true
+          description: keccak256 hash of output content (if available)
+        evaluator:
+          type: string
+          nullable: true
+          description: Evaluator address who submitted the evaluation
+        block_number:
+          type: integer
+          nullable: true
+          description: Block number where Finalized event was emitted
+        tx_hash:
+          type: string
+          nullable: true
+          description: Transaction hash of the finalization
+
+    RecordListResponse:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiedOutputRecord'
+        total:
+          type: integer
+          description: Total number of matching records
+        has_more:
+          type: boolean
+          description: Whether more records are available
+        filter:
+          type: object
+          properties:
+            min_score_bps:
+              type: integer
+            worthy_only:
+              type: boolean
+            limit:
+              type: integer
+            offset:
+              type: integer
+
+    OnChainVerifyResult:
+      type: object
+      properties:
+        task_id:
+          type: string
+        verified:
+          type: boolean
+          description: Whether Finalized event exists on-chain
+        block_number:
+          type: integer
+          nullable: true
+        tx_hash:
+          type: string
+          nullable: true
