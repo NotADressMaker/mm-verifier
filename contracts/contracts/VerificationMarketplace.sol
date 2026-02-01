@@ -6,6 +6,7 @@ import "./libraries/VerifierTypes.sol";
 import "./libraries/VerifierHash.sol";
 import "./interfaces/IVerifierMining.sol";
 import "./interfaces/IVerifierRewards.sol";
+import "./interfaces/ITruthChain.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -32,6 +33,8 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
     address public miningContract;
     address public rewardsDistributor;
+    address public truthChain;
+    bool public truthChainEnabled;
 
     enum TaskState { Open, Reveal, Provisional, Disputed, Resolved }
 
@@ -154,6 +157,11 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     function setRewardsDistributor(address _rewardsDistributor) external onlyOwner {
         rewardsDistributor = _rewardsDistributor;
         emit RewardsDistributorSet(_rewardsDistributor);
+    }
+
+    function setTruthChain(address _truthChain, bool _enabled) external onlyOwner {
+        truthChain = _truthChain;
+        truthChainEnabled = _enabled;
     }
 
     function getTaskMeta(uint256 taskId)
@@ -500,6 +508,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         }
         emit TaskFinal(taskId, t.finalScoreBps, t.finalBundleHash, t.finalBundleURI, t.promptHash, t.rubricHash);
         emit TaskResolved(taskId, finalScore, payoutPool, disputed || t.wasDisputed);
+        _appendTruthBlock(taskId);
     }
 
     function _setFinalEvidence(uint256 taskId) internal {
@@ -535,6 +544,28 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         t.finalBundleHash = bestHash;
         t.finalBundleURI = bestURI;
+    }
+
+    function _appendTruthBlock(uint256 taskId) internal {
+        if (!truthChainEnabled || truthChain == address(0)) {
+            return;
+        }
+
+        Task storage t = tasks[taskId];
+        bytes32 taskIdHash = bytes32(taskId);
+        bytes32 claimHash = keccak256(abi.encode(taskIdHash, t.finalBundleHash));
+        bytes32 outcomeHash = keccak256(abi.encode(t.finalScoreBps));
+        bytes32 programHash = bytes32(0);
+
+        try
+            ITruthChain(truthChain).appendTruthBlock(
+                taskIdHash,
+                claimHash,
+                outcomeHash,
+                t.finalBundleHash,
+                programHash
+            )
+        returns (bytes32) {} catch {}
     }
 
     // ========================================================================
