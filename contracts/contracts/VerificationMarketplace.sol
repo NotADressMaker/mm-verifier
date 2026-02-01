@@ -5,6 +5,7 @@ import "./interfaces/IWETH.sol";
 import "./libraries/VerifierTypes.sol";
 import "./libraries/VerifierHash.sol";
 import "./interfaces/IVerifierMining.sol";
+import "./interfaces/IVerifierRewards.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -30,6 +31,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     uint256 public nonRevealSlashBps = 10_000; // 100%
 
     address public miningContract;
+    address public rewardsDistributor;
 
     enum TaskState { Open, Reveal, Provisional, Disputed, Resolved }
 
@@ -58,9 +60,12 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         uint256 feePool; // WETH
         uint16 finalScoreBps;
+        bytes32 finalBundleHash;
+        string finalBundleURI;
         uint256 payoutPool;
         bool payoutsSettled;
         bool wasDisputed;
+        bool rewardsPaid;
 
         address[] evaluators;
         mapping(address => Evaluation) evals;
@@ -99,9 +104,18 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     event Committed(uint256 indexed taskId, address indexed evaluator, bytes32 commitHash);
     event Revealed(uint256 indexed taskId, address indexed evaluator, uint16 scoreBps, bytes32 bundleHash, string bundleURI);
     event Finalized(uint256 indexed taskId, uint16 finalScoreBps, uint256 feePool);
+    event TaskFinal(
+        uint256 indexed taskId,
+        uint16 finalScoreBps,
+        bytes32 finalBundleHash,
+        string finalBundleURI,
+        bytes32 promptHash,
+        bytes32 rubricHash
+    );
     event TaskResolved(uint256 indexed taskId, uint16 finalScoreBps, uint256 payoutPool, bool disputed);
     event DisputeOpened(uint256 indexed taskId, address indexed challenger);
     event MiningContractSet(address indexed miningContract);
+    event RewardsDistributorSet(address indexed rewardsDistributor);
     event NonRevealSlashed(uint256 indexed taskId, address indexed evaluator, uint256 slashedAmount);
     event ReputationUpdated(
         address indexed verifier,
@@ -137,6 +151,11 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         emit MiningContractSet(_miningContract);
     }
 
+    function setRewardsDistributor(address _rewardsDistributor) external onlyOwner {
+        rewardsDistributor = _rewardsDistributor;
+        emit RewardsDistributorSet(_rewardsDistributor);
+    }
+
     function getTaskMeta(uint256 taskId)
         external
         view
@@ -161,6 +180,38 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
             t.commitDeadline, t.revealDeadline, t.disputeDeadline,
             t.minEvals, t.maxEvals, t.feePool, t.finalScoreBps, t.evaluators.length
         );
+    }
+
+    function getTaskFinalOutcome(uint256 taskId)
+        external
+        view
+        returns (
+            uint16 finalScoreBps,
+            bytes32 finalBundleHash,
+            string memory finalBundleURI
+        )
+    {
+        Task storage t = tasks[taskId];
+        return (t.finalScoreBps, t.finalBundleHash, t.finalBundleURI);
+    }
+
+    function getEvaluators(uint256 taskId) external view returns (address[] memory) {
+        return tasks[taskId].evaluators;
+    }
+
+    function getEvaluation(uint256 taskId, address evaluator)
+        external
+        view
+        returns (
+            bool committed,
+            bool revealed,
+            uint16 scoreBps,
+            bytes32 bundleHash,
+            string memory bundleURI
+        )
+    {
+        Evaluation storage e = tasks[taskId].evals[evaluator];
+        return (e.committed, e.revealed, e.scoreBps, e.bundleHash, e.bundleURI);
     }
 
     function createTask(
@@ -285,6 +336,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         uint16 median = scores[revealedCount / 2];
         t.finalScoreBps = median;
         t.state = TaskState.Provisional;
+        _setFinalEvidence(taskId);
 
         // protocol fee
         uint256 fee = (t.feePool * protocolFeeBps) / 10_000;
@@ -352,6 +404,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         uint16 originalScore = t.finalScoreBps;
         t.finalScoreBps = newFinalScoreBps;
+        _setFinalEvidence(taskId);
         t.state = TaskState.Resolved;
 
         // If score didn't change significantly, evaluators successfully defended
@@ -440,7 +493,48 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         }
 
         t.payoutsSettled = true;
+        if (rewardsDistributor != address(0)) {
+            require(!t.rewardsPaid, "rewards paid");
+            t.rewardsPaid = true;
+            IVerifierRewards(rewardsDistributor).onTaskFinalized(taskId);
+        }
+        emit TaskFinal(taskId, t.finalScoreBps, t.finalBundleHash, t.finalBundleURI, t.promptHash, t.rubricHash);
         emit TaskResolved(taskId, finalScore, payoutPool, disputed || t.wasDisputed);
+    }
+
+    function _setFinalEvidence(uint256 taskId) internal {
+        Task storage t = tasks[taskId];
+        require(
+            t.state == TaskState.Provisional || t.state == TaskState.Disputed,
+            "bad state"
+        );
+
+        uint256 n = t.evaluators.length;
+        uint16 finalScore = t.finalScoreBps;
+        uint256 bestDiff = type(uint256).max;
+        bytes32 bestHash = bytes32(0);
+        string memory bestURI = "";
+
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            Evaluation storage e = t.evals[ev];
+            if (!e.revealed) continue;
+            if (e.bundleHash == bytes32(0)) continue;
+            if (bytes(e.bundleURI).length == 0) continue;
+
+            uint256 diff = e.scoreBps > finalScore
+                ? (e.scoreBps - finalScore)
+                : (finalScore - e.scoreBps);
+
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                bestHash = e.bundleHash;
+                bestURI = e.bundleURI;
+            }
+        }
+
+        t.finalBundleHash = bestHash;
+        t.finalBundleURI = bestURI;
     }
 
     // ========================================================================
