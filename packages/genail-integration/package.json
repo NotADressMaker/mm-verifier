@@ -1,0 +1,43 @@
+{
+  "name": "@mmv/genail-integration",
+  "version": "0.1.0",
+  "description": "GenAI Language integration for MMV verification with metering, receipts, and auditable evidence",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "test": "jest"
+  },
+  "keywords": [
+    "mmv",
+    "genail",
+    "verification",
+    "ai",
+    "llm",
+    "metering"
+  ],
+  "author": "MMV Contributors",
+  "license": "MIT",
+  "dependencies": {
+    "@mmv/sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "genai-lang": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "genai-lang": {
+      "optional": true
+    }
+  }
+}
