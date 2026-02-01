@@ -979,3 +979,26 @@ export const DEFAULT_BLS_CONFIG: BLSConfig = {
   redundancy_threshold: 0.85,
   lambda_excess_weight: 2.0,
 };
+
+// ============================================================================
+// VerifiedOutputRecord - Re-export from dedicated module
+// ============================================================================
+
+export {
+  VerifiedOutputRecord,
+  buildVerifiedOutputRecord,
+  hashVerifiedOutputRecord,
+  computeRecordId,
+  toEip712Message,
+  validateVerifiedOutputRecord,
+  calculateBuilderReward,
+  matchesFilter,
+  BuildVerifiedOutputRecordParams,
+  VerifiedOutputEIP712Message,
+  BuilderRewardsConfig,
+  VerifiedOutputQueryFilter,
+  DEFAULT_BUILDER_REWARDS_CONFIG,
+  VERIFIED_OUTPUT_EIP712_DOMAIN,
+  VERIFIED_OUTPUT_EIP712_TYPES,
+  getVerifiedOutputEip712Domain,
+} from './verifiedOutput';
