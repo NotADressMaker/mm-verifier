@@ -684,6 +684,62 @@ components:
               type: string
             signed_at:
               type: integer
+        model_commitments:
+          type: array
+          nullable: true
+          description: Model commitment hashes for accountability
+          items:
+            type: object
+            properties:
+              provider:
+                type: string
+              model:
+                type: string
+              model_commitment_hash:
+                type: string
+                description: keccak256 of provider+model+version+config
+              inference_config_hash:
+                type: string
+                description: keccak256 of inference configuration
+        reasoning_trace:
+          type: object
+          nullable: true
+          description: Reasoning trace commitments (hashes only, not raw CoT)
+          properties:
+            trace_hash:
+              type: string
+              description: keccak256 of all reasoning step hashes
+            trace_uri:
+              type: string
+              nullable: true
+              description: URI to off-chain full trace (may be encrypted)
+            step_count:
+              type: integer
+              description: Number of reasoning steps
+        zk_proof:
+          type: object
+          nullable: true
+          description: ZK proof for trustless verification (when available)
+          properties:
+            proof:
+              type: string
+              description: ZK proof bytes (hex encoded)
+            public_inputs:
+              type: object
+              properties:
+                input_hash:
+                  type: string
+                output_hash:
+                  type: string
+                model_commitment_hash:
+                  type: string
+                score_bps:
+                  type: integer
+                bundle_hash:
+                  type: string
+            proof_system:
+              type: string
+              description: Proof system used (risc_zero, sp1, noir, etc.)
 
     ReceiptVerifyResult:
       type: object

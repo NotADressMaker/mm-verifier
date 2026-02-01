@@ -212,6 +212,31 @@ export interface VerificationReceipt {
     signature: string;
     signed_at: number;
   };
+  /** Model commitment hashes for accountability */
+  model_commitments?: Array<{
+    provider: string;
+    model: string;
+    model_commitment_hash: string;
+    inference_config_hash: string;
+  }>;
+  /** Reasoning trace commitments (hashes only) */
+  reasoning_trace?: {
+    trace_hash: string;
+    trace_uri?: string;
+    step_count: number;
+  };
+  /** ZK proof for trustless verification */
+  zk_proof?: {
+    proof: string;
+    public_inputs: {
+      input_hash: string;
+      output_hash: string;
+      model_commitment_hash: string;
+      score_bps: number;
+      bundle_hash: string;
+    };
+    proof_system: string;
+  };
 }
 
 /**

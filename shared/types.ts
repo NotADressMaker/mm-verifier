@@ -69,6 +69,10 @@ export interface ProvenanceModelRun {
   latency_ms?: number;
   tokens_in?: number;
   tokens_out?: number;
+  /** Model commitment hash (provider+model+version+config) */
+  model_commitment_hash?: `0x${string}`;
+  /** Inference config hash (temperature/top_p/max_tokens/etc) */
+  inference_config_hash?: `0x${string}`;
 }
 
 export interface ProvenanceSource {
@@ -113,7 +117,30 @@ export interface EvidenceBundleV02 extends EvidenceBundleV01 {
   output: EvidenceBundleContent;
   provenance: EvidenceProvenance;
   scoring_trace: ScoringTrace;
+  /** Reasoning trace commitments (hash-based, not raw chain-of-thought) */
+  reasoning_trace?: ReasoningTraceCommitment;
+  /** ZK proof attachment (when available for trustless verification) */
+  zk_proof?: ZKProofAttachment;
 }
+
+// Re-export transparency types
+export {
+  ReasoningTraceStep,
+  ReasoningTraceCommitment,
+  ModelCommitment,
+  ModelCommitmentData,
+  InferenceConfig,
+  ZKProofAttachment,
+  ZKPublicInputs,
+  hashReasoningStep,
+  computeTraceHash,
+  buildReasoningTraceCommitment,
+  computeModelCommitment,
+  verifyModelCommitment,
+  validateReasoningTrace,
+  validateModelCommitment,
+  hasZKProof,
+} from './transparency';
 
 export type EvidenceBundle = EvidenceBundleV01 | EvidenceBundleV02;
 

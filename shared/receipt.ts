@@ -132,6 +132,46 @@ export interface VerificationReceipt {
     signature: `0x${string}`;
     signed_at: number;
   };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Model Accountability (New)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Model commitment hashes for accountability */
+  model_commitments?: Array<{
+    provider: string;
+    model: string;
+    model_commitment_hash: `0x${string}`;
+    inference_config_hash: `0x${string}`;
+  }>;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Reasoning Trace (New)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Reasoning trace commitments (hashes only, not raw CoT) */
+  reasoning_trace?: {
+    trace_hash: `0x${string}`;
+    trace_uri?: string;
+    step_count: number;
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ZK Proof (Future)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** ZK proof for trustless verification (when available) */
+  zk_proof?: {
+    proof: `0x${string}`;
+    public_inputs: {
+      input_hash: `0x${string}`;
+      output_hash: `0x${string}`;
+      model_commitment_hash: `0x${string}`;
+      score_bps: number;
+      bundle_hash: `0x${string}`;
+    };
+    proof_system: string;
+  };
 }
 
 // ============================================================================
@@ -154,6 +194,9 @@ const RECEIPT_HASH_FIELDS = [
   'evidence',
   'metering',
   'provenance',
+  'model_commitments',
+  'reasoning_trace',
+  // Note: zk_proof is NOT included in hash (it proves the hash)
 ] as const;
 
 /**
