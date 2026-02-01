@@ -50,6 +50,13 @@
     },
     {
       "type": "function",
+      "name": "finalizeUndisputed",
+      "inputs": [{ "name": "taskId", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
       "name": "getTaskMeta",
       "inputs": [{ "name": "taskId", "type": "uint256" }],
       "outputs": [
@@ -89,6 +96,20 @@
       "type": "function",
       "name": "setProtocolFeeBps",
       "inputs": [{ "name": "bps", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setNonRevealSlashBps",
+      "inputs": [{ "name": "bps", "type": "uint256" }],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "setMiningContract",
+      "inputs": [{ "name": "_miningContract", "type": "address" }],
       "outputs": [],
       "stateMutability": "nonpayable"
     },
@@ -162,6 +183,20 @@
       "name": "protocolFeeBps",
       "inputs": [],
       "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "nonRevealSlashBps",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "miningContract",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "address" }],
       "stateMutability": "view"
     },
     {
@@ -257,10 +292,39 @@
     },
     {
       "type": "event",
+      "name": "TaskResolved",
+      "inputs": [
+        { "name": "taskId", "type": "uint256", "indexed": true },
+        { "name": "finalScoreBps", "type": "uint16", "indexed": false },
+        { "name": "payoutPool", "type": "uint256", "indexed": false },
+        { "name": "disputed", "type": "bool", "indexed": false }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
       "name": "DisputeOpened",
       "inputs": [
         { "name": "taskId", "type": "uint256", "indexed": true },
         { "name": "challenger", "type": "address", "indexed": true }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "MiningContractSet",
+      "inputs": [
+        { "name": "miningContract", "type": "address", "indexed": true }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "NonRevealSlashed",
+      "inputs": [
+        { "name": "taskId", "type": "uint256", "indexed": true },
+        { "name": "evaluator", "type": "address", "indexed": true },
+        { "name": "slashedAmount", "type": "uint256", "indexed": false }
       ],
       "anonymous": false
     }

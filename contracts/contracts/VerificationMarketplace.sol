@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "./interfaces/IWETH.sol";
 import "./libraries/VerifierTypes.sol";
 import "./libraries/VerifierHash.sol";
+import "./interfaces/IVerifierMining.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -26,8 +27,11 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     uint256 public evalBond;          // WETH posted by evaluator at commit
     uint256 public disputeBond;       // WETH posted to open dispute
     uint256 public protocolFeeBps = 500; // 5%
+    uint256 public nonRevealSlashBps = 10_000; // 100%
 
-    enum TaskState { Open, Reveal, Finalized, Disputed, Resolved }
+    address public miningContract;
+
+    enum TaskState { Open, Reveal, Provisional, Disputed, Resolved }
 
     struct Evaluation {
         bytes32 commitHash;
@@ -54,6 +58,9 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         uint256 feePool; // WETH
         uint16 finalScoreBps;
+        uint256 payoutPool;
+        bool payoutsSettled;
+        bool wasDisputed;
 
         address[] evaluators;
         mapping(address => Evaluation) evals;
@@ -92,7 +99,10 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     event Committed(uint256 indexed taskId, address indexed evaluator, bytes32 commitHash);
     event Revealed(uint256 indexed taskId, address indexed evaluator, uint16 scoreBps, bytes32 bundleHash, string bundleURI);
     event Finalized(uint256 indexed taskId, uint16 finalScoreBps, uint256 feePool);
+    event TaskResolved(uint256 indexed taskId, uint16 finalScoreBps, uint256 payoutPool, bool disputed);
     event DisputeOpened(uint256 indexed taskId, address indexed challenger);
+    event MiningContractSet(address indexed miningContract);
+    event NonRevealSlashed(uint256 indexed taskId, address indexed evaluator, uint256 slashedAmount);
     event ReputationUpdated(
         address indexed verifier,
         uint256 totalEvals,
@@ -115,6 +125,16 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     function setProtocolFeeBps(uint256 bps) external onlyOwner {
         require(bps <= 2000, "too high");
         protocolFeeBps = bps;
+    }
+
+    function setNonRevealSlashBps(uint256 bps) external onlyOwner {
+        require(bps <= 10_000, "too high");
+        nonRevealSlashBps = bps;
+    }
+
+    function setMiningContract(address _miningContract) external onlyOwner {
+        miningContract = _miningContract;
+        emit MiningContractSet(_miningContract);
     }
 
     function getTaskMeta(uint256 taskId)
@@ -264,83 +284,58 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         uint16 median = scores[revealedCount / 2];
         t.finalScoreBps = median;
-        t.state = TaskState.Finalized;
+        t.state = TaskState.Provisional;
 
         // protocol fee
         uint256 fee = (t.feePool * protocolFeeBps) / 10_000;
         uint256 payoutPool = t.feePool - fee;
         if (fee > 0) WETH.transfer(owner(), fee);
+        t.payoutPool = payoutPool;
 
-        // pay evaluators: equal split among revealers + small "accuracy bonus"
-        // bonus: within 250 bps of median gets +20% share weight
-        uint256 baseWeight = 100;
-        uint256 bonusWeight = 120;
-        uint256 totalWeight = 0;
+        uint256 totalSlashed = 0;
+        uint256 slashAmount = (evalBond * nonRevealSlashBps) / 10_000;
 
-        uint256[] memory weights = new uint256[](n);
         for (uint256 i = 0; i < n; i++) {
             address ev = t.evaluators[i];
             Evaluation storage e = t.evals[ev];
-            if (!e.revealed) continue;
 
-            uint256 w = baseWeight;
-            uint256 diff = e.scoreBps > median ? (e.scoreBps - median) : (median - e.scoreBps);
-            if (diff <= 250) w = bonusWeight;
+            if (!e.committed) continue;
 
-            weights[i] = w;
-            totalWeight += w;
+            if (e.revealed) {
+                WETH.transfer(ev, evalBond);
+            } else {
+                totalSlashed += slashAmount;
+                uint256 refund = evalBond - slashAmount;
+                if (refund > 0) {
+                    WETH.transfer(ev, refund);
+                }
+                if (slashAmount > 0) {
+                    emit NonRevealSlashed(taskId, ev, slashAmount);
+                }
+            }
         }
 
-        for (uint256 i = 0; i < n; i++) {
-            address ev = t.evaluators[i];
-            Evaluation storage e = t.evals[ev];
-
-            // return eval bond if committed (revealed or not)
-            if (e.committed) {
-                WETH.transfer(ev, evalBond);
-            }
-
-            // rewards only to revealers
-            uint256 w = weights[i];
-            if (w > 0) {
-                uint256 amt = (payoutPool * w) / totalWeight;
-                if (amt > 0) {
-                    WETH.transfer(ev, amt);
-
-                    // Track reputation: rewards earned
-                    totalRewardsEarned[ev] += amt;
-                }
-
-                // Track reputation: evaluation completed
-                totalEvaluations[ev]++;
-
-                // Track reputation: accurate if within 250bps (bonusWeight = 120)
-                if (w == bonusWeight) {
-                    accurateEvaluations[ev]++;
-                }
-
-                // Update activity timestamp
-                lastActivityTimestamp[ev] = block.timestamp;
-
-                // Emit reputation update
-                emit ReputationUpdated(
-                    ev,
-                    totalEvaluations[ev],
-                    accurateEvaluations[ev],
-                    totalRewardsEarned[ev],
-                    block.timestamp
-                );
-            }
+        if (totalSlashed > 0) {
+            WETH.transfer(owner(), totalSlashed);
         }
 
         emit Finalized(taskId, median, t.feePool);
     }
 
+    function finalizeUndisputed(uint256 taskId) external nonReentrant {
+        Task storage t = tasks[taskId];
+        require(t.state == TaskState.Provisional, "not provisional");
+        require(block.timestamp > t.disputeDeadline, "dispute window");
+        t.state = TaskState.Resolved;
+        _settleTask(taskId, false);
+    }
+
     /// @dev Called by DisputeManager. Here for MVP wiring.
     function markDisputed(uint256 taskId) external onlyOwner {
         Task storage t = tasks[taskId];
-        require(t.state == TaskState.Finalized, "not finalized");
+        require(t.state == TaskState.Provisional, "not provisional");
         t.state = TaskState.Disputed;
+        t.wasDisputed = true;
 
         // Track disputes against all evaluators who revealed
         for (uint256 i = 0; i < t.evaluators.length; i++) {
@@ -373,11 +368,79 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
                 }
             }
         }
+
+        _settleTask(taskId, true);
     }
 
     /// @dev Dispute bond escrowed in DisputeManager; emitted here for indexing convenience.
     function emitDisputeOpened(uint256 taskId, address challenger) external onlyOwner {
         emit DisputeOpened(taskId, challenger);
+    }
+
+    function _settleTask(uint256 taskId, bool disputed) internal {
+        Task storage t = tasks[taskId];
+        require(!t.payoutsSettled, "settled");
+
+        uint256 n = t.evaluators.length;
+        uint16 finalScore = t.finalScoreBps;
+
+        // pay evaluators: equal split among revealers + small "accuracy bonus"
+        // bonus: within 250 bps of final score gets +20% share weight
+        uint256 baseWeight = 100;
+        uint256 bonusWeight = 120;
+        uint256 totalWeight = 0;
+
+        uint256[] memory weights = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            Evaluation storage e = t.evals[ev];
+            if (!e.revealed) continue;
+
+            uint256 w = baseWeight;
+            uint256 diff = e.scoreBps > finalScore ? (e.scoreBps - finalScore) : (finalScore - e.scoreBps);
+            if (diff <= 250) w = bonusWeight;
+
+            weights[i] = w;
+            totalWeight += w;
+        }
+
+        uint256 payoutPool = t.payoutPool;
+
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            Evaluation storage e = t.evals[ev];
+
+            uint256 w = weights[i];
+            if (w == 0) continue;
+
+            uint256 amt = (payoutPool * w) / totalWeight;
+            if (amt > 0) {
+                WETH.transfer(ev, amt);
+                totalRewardsEarned[ev] += amt;
+            }
+
+            totalEvaluations[ev]++;
+            if (w == bonusWeight) {
+                accurateEvaluations[ev]++;
+            }
+
+            lastActivityTimestamp[ev] = block.timestamp;
+
+            if (miningContract != address(0)) {
+                IVerifierMining(miningContract).recordEvaluation(ev, w == bonusWeight);
+            }
+
+            emit ReputationUpdated(
+                ev,
+                totalEvaluations[ev],
+                accurateEvaluations[ev],
+                totalRewardsEarned[ev],
+                block.timestamp
+            );
+        }
+
+        t.payoutsSettled = true;
+        emit TaskResolved(taskId, finalScore, payoutPool, disputed || t.wasDisputed);
     }
 
     // ========================================================================

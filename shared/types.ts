@@ -1015,7 +1015,7 @@ export {
   // Types
   VerifiedOutputRecord,
   RevealedEventData,
-  FinalizedEventData,
+  ResolvedEventData,
   OnChainTaskData,
   BuildRecordParams,
   RecordQueryFilter,

@@ -3,7 +3,7 @@
  *
  * This service derives records from existing VerificationMarketplace events:
  * - Revealed(taskId, evaluator, scoreBps, bundleHash, bundleURI)
- * - Finalized(taskId, finalScoreBps, feePool)
+ * - TaskResolved(taskId, finalScoreBps, payoutPool, disputed)
  *
  * No new contracts needed - records are derived from existing event logs.
  */
@@ -15,7 +15,7 @@ import { MARKETPLACE_ABI } from './blockchain';
 import {
   VerifiedOutputRecord,
   RevealedEventData,
-  FinalizedEventData,
+  ResolvedEventData,
   OnChainTaskData,
   RecordQueryFilter,
   buildRecordFromChainData,
@@ -114,19 +114,19 @@ async function fetchRevealedEvents(
 }
 
 /**
- * Fetch Finalized events from a block range
+ * Fetch TaskResolved events from a block range
  */
-async function fetchFinalizedEvents(
+async function fetchResolvedEvents(
   fromBlock: number,
   toBlock: number | 'latest'
-): Promise<FinalizedEventData[]> {
+): Promise<ResolvedEventData[]> {
   if (!marketplaceContract || !provider) return [];
 
   try {
-    const filter = marketplaceContract.filters.Finalized();
+    const filter = marketplaceContract.filters.TaskResolved();
     const logs = await marketplaceContract.queryFilter(filter, fromBlock, toBlock);
 
-    const events: FinalizedEventData[] = [];
+    const events: ResolvedEventData[] = [];
 
     for (const log of logs) {
       const eventLog = log as EventLog;
@@ -135,7 +135,8 @@ async function fetchFinalizedEvents(
       events.push({
         taskId: eventLog.args[0].toString(),
         finalScoreBps: Number(eventLog.args[1]),
-        feePool: eventLog.args[2].toString(),
+        payoutPool: eventLog.args[2].toString(),
+        disputed: Boolean(eventLog.args[3]),
         blockNumber: log.blockNumber,
         blockTimestamp: block?.timestamp,
         transactionHash: log.transactionHash,
@@ -144,7 +145,7 @@ async function fetchFinalizedEvents(
 
     return events;
   } catch (error) {
-    logger.error('Failed to fetch Finalized events', error);
+    logger.error('Failed to fetch TaskResolved events', error);
     return [];
   }
 }
@@ -154,10 +155,10 @@ async function fetchFinalizedEvents(
  */
 async function fetchTaskEvents(taskId: string): Promise<{
   revealed: RevealedEventData[];
-  finalized: FinalizedEventData | null;
+  resolved: ResolvedEventData | null;
 }> {
   if (!marketplaceContract || !provider) {
-    return { revealed: [], finalized: null };
+    return { revealed: [], resolved: null };
   }
 
   try {
@@ -178,30 +179,31 @@ async function fetchTaskEvents(taskId: string): Promise<{
       };
     });
 
-    // Fetch Finalized event for this task
-    const finalizedFilter = marketplaceContract.filters.Finalized(taskId);
-    const finalizedLogs = await marketplaceContract.queryFilter(finalizedFilter);
+    // Fetch TaskResolved event for this task
+    const resolvedFilter = marketplaceContract.filters.TaskResolved(taskId);
+    const resolvedLogs = await marketplaceContract.queryFilter(resolvedFilter);
 
-    let finalized: FinalizedEventData | null = null;
-    if (finalizedLogs.length > 0) {
-      const log = finalizedLogs[0];
+    let resolved: ResolvedEventData | null = null;
+    if (resolvedLogs.length > 0) {
+      const log = resolvedLogs[0];
       const eventLog = log as EventLog;
       const block = await provider.getBlock(log.blockNumber);
 
-      finalized = {
+      resolved = {
         taskId: eventLog.args[0].toString(),
         finalScoreBps: Number(eventLog.args[1]),
-        feePool: eventLog.args[2].toString(),
+        payoutPool: eventLog.args[2].toString(),
+        disputed: Boolean(eventLog.args[3]),
         blockNumber: log.blockNumber,
         blockTimestamp: block?.timestamp,
         transactionHash: log.transactionHash,
       };
     }
 
-    return { revealed, finalized };
+    return { revealed, resolved };
   } catch (error) {
     logger.error('Failed to fetch task events', { taskId, error });
-    return { revealed: [], finalized: null };
+    return { revealed: [], resolved: null };
   }
 }
 
@@ -218,30 +220,30 @@ export async function getRecordForTask(taskId: string): Promise<VerifiedOutputRe
     return recordCache.get(taskId)!;
   }
 
-  const { revealed, finalized } = await fetchTaskEvents(taskId);
+  const { revealed, resolved } = await fetchTaskEvents(taskId);
 
-  if (!finalized) {
-    logger.debug('Task not finalized', { taskId });
+  if (!resolved) {
+    logger.debug('Task not resolved', { taskId });
     return null;
   }
 
   // Use the first revealed event for bundle info
-  // (In case of multiple evaluators, we use the consensus score from Finalized)
+  // (In case of multiple evaluators, we use the consensus score from TaskResolved)
   const revealedEvent = revealed[0];
   if (!revealedEvent) {
-    logger.warn('No Revealed event found for finalized task', { taskId });
+    logger.warn('No Revealed event found for resolved task', { taskId });
     return null;
   }
 
   const taskData: OnChainTaskData = {
     taskId,
-    finalScoreBps: finalized.finalScoreBps,
+    finalScoreBps: resolved.finalScoreBps,
     bundleHash: revealedEvent.bundleHash,
     bundleUri: revealedEvent.bundleUri,
     evaluator: revealedEvent.evaluator,
-    finalizedAt: finalized.blockTimestamp || Math.floor(Date.now() / 1000),
-    blockNumber: finalized.blockNumber,
-    txHash: finalized.transactionHash,
+    finalizedAt: resolved.blockTimestamp || Math.floor(Date.now() / 1000),
+    blockNumber: resolved.blockNumber,
+    txHash: resolved.transactionHash,
   };
 
   const record = buildRecordFromChainData({
@@ -270,11 +272,11 @@ async function indexNewRecords(): Promise<void> {
 
     logger.debug('Indexing records', { fromBlock, toBlock: currentBlock });
 
-    const finalizedEvents = await fetchFinalizedEvents(fromBlock, currentBlock);
+    const resolvedEvents = await fetchResolvedEvents(fromBlock, currentBlock);
 
-    for (const finalized of finalizedEvents) {
-      if (!recordCache.has(finalized.taskId)) {
-        await getRecordForTask(finalized.taskId);
+    for (const resolved of resolvedEvents) {
+      if (!recordCache.has(resolved.taskId)) {
+        await getRecordForTask(resolved.taskId);
       }
     }
 
@@ -360,22 +362,22 @@ export function getCacheStats(): {
 
 /**
  * Verify a record exists on-chain (for SDK verification)
- * Checks that the Finalized event exists for the given task
+ * Checks that the TaskResolved event exists for the given task
  */
 export async function verifyRecordOnChain(taskId: string): Promise<{
   verified: boolean;
   blockNumber?: number;
   txHash?: string;
 }> {
-  const { finalized } = await fetchTaskEvents(taskId);
+  const { resolved } = await fetchTaskEvents(taskId);
 
-  if (!finalized) {
+  if (!resolved) {
     return { verified: false };
   }
 
   return {
     verified: true,
-    blockNumber: finalized.blockNumber,
-    txHash: finalized.transactionHash,
+    blockNumber: resolved.blockNumber,
+    txHash: resolved.transactionHash,
   };
 }

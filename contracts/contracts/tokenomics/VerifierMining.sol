@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  *
  * Reward Formula:
  * - Base reward: 1 point per evaluation
- * - Accuracy bonus: +1 point if accuracy >= 90%
+ * - Accuracy bonus: +1 point if evaluation is accurate vs final outcome
  * - Total reward share: (userPoints / totalPoints) * epochRewards
  *
  * Epochs:
@@ -21,8 +21,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - Unclaimed rewards carry over to next epoch
  *
  * Example:
- * - Alice: 100 evals, 95% accuracy → 200 points
- * - Bob: 50 evals, 85% accuracy → 50 points
+ * - Alice: 100 evals, 100 accurate → 200 points
+ * - Bob: 50 evals, 0 accurate → 50 points
  * - Total: 250 points
  * - Epoch rewards: 1000 VERIFY
  * - Alice gets: 800 VERIFY (80%)
@@ -52,7 +52,7 @@ contract VerifierMining is Ownable, ReentrancyGuard {
         uint256 indexed epoch,
         address indexed verifier,
         uint256 points,
-        uint256 accuracyBps
+        bool accurate
     );
     event RewardsClaimed(
         uint256 indexed epoch,
@@ -102,9 +102,9 @@ contract VerifierMining is Ownable, ReentrancyGuard {
     /**
      * @notice Record evaluation completion (called by marketplace)
      * @param verifier Address of verifier
-     * @param accuracyBps Accuracy in basis points (0-10000)
+     * @param accurate Whether evaluation was accurate versus final outcome
      */
-    function recordEvaluation(address verifier, uint256 accuracyBps) external {
+    function recordEvaluation(address verifier, bool accurate) external {
         require(msg.sender == marketplace, "Only marketplace");
 
         // Advance epoch if needed
@@ -114,15 +114,15 @@ contract VerifierMining is Ownable, ReentrancyGuard {
 
         // Calculate points
         uint256 points = 1; // Base point
-        if (accuracyBps >= 9000) {
-            points += 1; // Bonus for 90%+ accuracy
+        if (accurate) {
+            points += 1; // Bonus for accurate evaluations
         }
 
         // Update points
         verifierPoints[currentEpoch][verifier] += points;
         epochTotalPoints[currentEpoch] += points;
 
-        emit EvaluationRecorded(currentEpoch, verifier, points, accuracyBps);
+        emit EvaluationRecorded(currentEpoch, verifier, points, accurate);
     }
 
     /**

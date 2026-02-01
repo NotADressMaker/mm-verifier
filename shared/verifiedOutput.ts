@@ -2,7 +2,7 @@
  * VerifiedOutputRecord - A derived artifact representing trustworthy AI outputs
  *
  * This module provides types and helpers to derive queryable records from
- * existing on-chain events (VerificationMarketplace Revealed + Finalized)
+ * existing on-chain events (VerificationMarketplace Revealed + TaskResolved)
  * and existing receipt structures (MMVReceipt).
  *
  * No new contracts are needed - records are derived from existing data.
@@ -78,7 +78,7 @@ export interface VerifiedOutputRecord {
   /** Evaluator address who submitted this evaluation */
   evaluator?: string;
 
-  /** Block number where Finalized event was emitted */
+  /** Block number where TaskResolved event was emitted */
   block_number?: number;
 
   /** Transaction hash of the finalization */
@@ -104,13 +104,14 @@ export interface RevealedEventData {
 }
 
 /**
- * Finalized event data from VerificationMarketplace
- * Event: Finalized(uint256 indexed taskId, uint16 finalScoreBps, uint256 feePool)
+ * TaskResolved event data from VerificationMarketplace
+ * Event: TaskResolved(uint256 indexed taskId, uint16 finalScoreBps, uint256 payoutPool, bool disputed)
  */
-export interface FinalizedEventData {
+export interface ResolvedEventData {
   taskId: string;
   finalScoreBps: number;
-  feePool: string;
+  payoutPool: string;
+  disputed: boolean;
   blockNumber?: number;
   blockTimestamp?: number;
   transactionHash?: string;
