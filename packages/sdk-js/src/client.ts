@@ -8,6 +8,8 @@ import {
   RecordListResponse,
   RecordResponse,
   OnChainVerifyResult,
+  VerificationReceipt,
+  ReceiptResponse,
 } from './types';
 
 export interface MMVClientOptions {
@@ -135,6 +137,95 @@ export class MMVClient {
    */
   async verifyRecordOnChain(taskId: string): Promise<OnChainVerifyResult> {
     return this.request<OnChainVerifyResult>(`/api/mmv/tasks/${taskId}/verify`);
+  }
+
+  // ============================================================================
+  // Receipt Methods - Canonical Verification Proofs
+  // ============================================================================
+
+  /**
+   * Get the verification receipt for a finalized task
+   * Returns null if task is not finalized or doesn't exist
+   */
+  async getReceipt(taskId: string): Promise<VerificationReceipt | null> {
+    try {
+      const response = await this.request<ReceiptResponse>(
+        `/api/mmv/tasks/${taskId}/receipt`
+      );
+      return response.receipt;
+    } catch (error: any) {
+      if (error.message?.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for a task to be finalized and return the receipt
+   * Polls at the specified interval until finalized or timeout
+   */
+  async waitForFinal(
+    taskId: string,
+    options: {
+      pollIntervalMs?: number;
+      timeoutMs?: number;
+    } = {}
+  ): Promise<VerificationReceipt> {
+    const pollInterval = options.pollIntervalMs ?? 5000;
+    const timeout = options.timeoutMs ?? 300000; // 5 minutes default
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+      // Check task status
+      const task = await this.getTask(taskId);
+
+      if (task.status === 'finalized') {
+        // Task is finalized, get the receipt
+        const receipt = await this.getReceipt(taskId);
+        if (receipt) {
+          return receipt;
+        }
+      }
+
+      if (task.status === 'failed') {
+        throw new Error(`Task ${taskId} failed: ${JSON.stringify(task.errors)}`);
+      }
+
+      // Wait before next poll
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+
+    throw new Error(`Timeout waiting for task ${taskId} to finalize`);
+  }
+
+  /**
+   * Verify a receipt's hash against on-chain data
+   * Returns verification result with detailed checks
+   */
+  async verifyReceiptOnChain(
+    taskId: string,
+    receiptHash?: string
+  ): Promise<{
+    verified: boolean;
+    receipt_hash: string;
+    chain_data?: {
+      block_number: number;
+      tx_hash: string;
+      finalized_at: number;
+    };
+    errors: string[];
+  }> {
+    const params = new URLSearchParams();
+    if (receiptHash) {
+      params.set('receipt_hash', receiptHash);
+    }
+    const queryString = params.toString();
+    const path = queryString
+      ? `/api/mmv/tasks/${taskId}/receipt/verify?${queryString}`
+      : `/api/mmv/tasks/${taskId}/receipt/verify`;
+
+    return this.request(path);
   }
 
   private async verify(request: VerifyRequest): Promise<VerifyResponse> {

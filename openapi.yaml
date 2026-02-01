@@ -201,6 +201,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/OnChainVerifyResult'
 
+  /api/mmv/tasks/{task_id}/receipt:
+    get:
+      summary: Get verification receipt for a task
+      operationId: getReceipt
+      description: |
+        Returns the canonical verification receipt for a finalized task.
+        Receipts contain all data needed for independent verification.
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verification receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  receipt:
+                    $ref: '#/components/schemas/VerificationReceipt'
+        '404':
+          description: Receipt not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/mmv/tasks/{task_id}/receipt/verify:
+    get:
+      summary: Verify receipt against on-chain data
+      operationId: verifyReceiptOnChain
+      description: |
+        Verifies that a receipt's hash matches on-chain records.
+        Can optionally verify a specific receipt hash.
+      parameters:
+        - in: path
+          name: task_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: receipt_hash
+          schema:
+            type: string
+          description: Optional receipt hash to verify
+      responses:
+        '200':
+          description: Receipt verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptVerifyResult'
+
 components:
   schemas:
     ProgramIO:
@@ -266,6 +322,9 @@ components:
       properties:
         program_id:
           type: string
+        fingerprint:
+          type: string
+          description: Deterministic keccak256 hash of canonical program definition
         program:
           $ref: '#/components/schemas/ProgramDefinition'
         created_at:
@@ -510,3 +569,140 @@ components:
         tx_hash:
           type: string
           nullable: true
+
+    VerificationReceipt:
+      type: object
+      description: |
+        Canonical verification receipt - proof of task completion.
+        Contains all data needed for independent verification.
+      required:
+        - receipt_version
+        - task_id
+        - generated_at
+        - input_hash
+        - output_hash
+        - score_bps
+        - verdict
+        - worthy
+        - evidence
+        - provenance
+      properties:
+        receipt_version:
+          type: string
+          enum: ['1.0']
+        task_id:
+          type: string
+        generated_at:
+          type: integer
+          description: Unix timestamp
+        input_hash:
+          type: string
+          description: keccak256 of canonical input
+        output_hash:
+          type: string
+          description: keccak256 of canonical output
+        score_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        verdict:
+          type: boolean
+        worthy:
+          type: boolean
+        program:
+          type: object
+          nullable: true
+          properties:
+            program_id:
+              type: string
+            fingerprint:
+              type: string
+            name:
+              type: string
+            version:
+              type: string
+        evidence:
+          type: object
+          properties:
+            bundle_hash:
+              type: string
+            bundle_uri:
+              type: string
+            bundle_version:
+              type: string
+              enum: ['0.1', '0.2']
+        metering:
+          type: object
+          nullable: true
+          properties:
+            llm_calls:
+              type: integer
+            total_tokens:
+              type: integer
+            execution_ms:
+              type: integer
+            retrieval_calls:
+              type: integer
+              nullable: true
+            bundle_size_bytes:
+              type: integer
+              nullable: true
+        provenance:
+          type: object
+          properties:
+            verifier_node:
+              type: string
+              nullable: true
+            software_version:
+              type: string
+              nullable: true
+            llm_provider:
+              type: string
+            llm_model:
+              type: string
+        chain_context:
+          type: object
+          nullable: true
+          properties:
+            chain_id:
+              type: integer
+            contract_address:
+              type: string
+            finalized_at:
+              type: integer
+            block_number:
+              type: integer
+            tx_hash:
+              type: string
+        signature:
+          type: object
+          nullable: true
+          properties:
+            signer:
+              type: string
+            signature:
+              type: string
+            signed_at:
+              type: integer
+
+    ReceiptVerifyResult:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        receipt_hash:
+          type: string
+        chain_data:
+          type: object
+          nullable: true
+          properties:
+            block_number:
+              type: integer
+            tx_hash:
+              type: string
+            finalized_at:
+              type: integer
+        errors:
+          type: array
+          items:
+            type: string
