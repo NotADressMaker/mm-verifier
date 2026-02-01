@@ -2,6 +2,12 @@ import { queryOpenAI, isValidOpenAIModel } from './openai';
 import { queryAnthropic, isValidAnthropicModel } from './anthropic';
 import { queryGoogle, isValidGoogleModel } from './google';
 import { logger } from '../utils/logger';
+import {
+  computeModelCommitment,
+  ModelCommitment,
+  ModelCommitmentData,
+  InferenceConfig,
+} from '../../../shared/transparency';
 
 export interface ModelResponse {
   response: string;
@@ -9,34 +15,85 @@ export interface ModelResponse {
   provider: string;
   timestamp: number;
   metadata: any;
+  /** Model commitment hashes for accountability */
+  model_commitment?: ModelCommitment;
+}
+
+/**
+ * Default inference config used when not specified.
+ */
+export const DEFAULT_INFERENCE_CONFIG: InferenceConfig = {
+  temperature: 0.7,
+  max_tokens: 4096,
+};
+
+/**
+ * Compute model commitment for a model run.
+ */
+export function computeModelRunCommitment(
+  provider: string,
+  model: string,
+  inferenceConfig?: InferenceConfig
+): ModelCommitment {
+  const data: ModelCommitmentData = {
+    provider,
+    model,
+    inference_config: inferenceConfig ?? DEFAULT_INFERENCE_CONFIG,
+  };
+
+  return computeModelCommitment(data);
 }
 
 /**
  * Route query to appropriate LLM provider
  */
-export async function queryModel(prompt: string, model: string): Promise<ModelResponse> {
+export async function queryModel(
+  prompt: string,
+  model: string,
+  inferenceConfig?: InferenceConfig
+): Promise<ModelResponse> {
   logger.info('Routing query to model', { model });
 
   try {
+    let result: ModelResponse;
+    let provider: string;
+
     // OpenAI models
     if (isValidOpenAIModel(model) || model.startsWith('gpt-')) {
-      const result = await queryOpenAI(prompt, model);
-      return { ...result, provider: 'openai' };
+      const queryResult = await queryOpenAI(prompt, model);
+      provider = 'openai';
+      result = { ...queryResult, provider };
     }
-
     // Anthropic models
-    if (isValidAnthropicModel(model) || model.startsWith('claude-')) {
-      const result = await queryAnthropic(prompt, model);
-      return { ...result, provider: 'anthropic' };
+    else if (isValidAnthropicModel(model) || model.startsWith('claude-')) {
+      const queryResult = await queryAnthropic(prompt, model);
+      provider = 'anthropic';
+      result = { ...queryResult, provider };
     }
-
     // Google models
-    if (isValidGoogleModel(model) || model.startsWith('gemini-')) {
-      const result = await queryGoogle(prompt, model);
-      return { ...result, provider: 'google' };
+    else if (isValidGoogleModel(model) || model.startsWith('gemini-')) {
+      const queryResult = await queryGoogle(prompt, model);
+      provider = 'google';
+      result = { ...queryResult, provider };
+    } else {
+      throw new Error(`Unknown model: ${model}`);
     }
 
-    throw new Error(`Unknown model: ${model}`);
+    // Compute model commitment for accountability
+    const commitment = computeModelRunCommitment(
+      provider,
+      model,
+      inferenceConfig
+    );
+    result.model_commitment = commitment;
+
+    logger.debug('Model commitment computed', {
+      model,
+      provider,
+      commitmentHash: commitment.model_commitment_hash.slice(0, 18) + '...',
+    });
+
+    return result;
   } catch (error: any) {
     logger.error('Model query failed:', { model, error: error.message });
     throw error;

@@ -27,6 +27,7 @@ import {
   computeProgramFingerprint,
   MeteringLimits,
 } from '../../../shared/programs';
+import { ReasoningTraceCommitment } from '../../../shared/transparency';
 
 /**
  * Evidence Bundler V2
@@ -99,6 +100,8 @@ type EvidenceBundleBuildOptions = {
   program?: ProgramDefinitionWithLimits & { program_id?: string };
   /** Resource usage metering */
   metering?: ExecutionMetering;
+  /** Reasoning trace commitments (hash-based) */
+  reasoningTrace?: ReasoningTraceCommitment;
 };
 
 function buildProvenanceModelRuns(
@@ -251,6 +254,7 @@ export function createEvidenceBundle(
     const bundleV02: EvidenceBundleV02 & {
       program?: BundleProgramRef;
       metering?: ExecutionMetering;
+      reasoning_trace?: ReasoningTraceCommitment;
     } = {
       ...(bundle as EvidenceBundleV02),
       bundle_version: '0.2',
@@ -280,6 +284,11 @@ export function createEvidenceBundle(
     // Add metering data if provided
     if (options.metering) {
       bundleV02.metering = options.metering;
+    }
+
+    // Add reasoning trace commitments if provided
+    if (options.reasoningTrace) {
+      bundleV02.reasoning_trace = options.reasoningTrace;
     }
 
     return bundleV02;

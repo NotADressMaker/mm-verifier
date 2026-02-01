@@ -18,6 +18,37 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 
 **Think of it as**: Ethereum-style infrastructure for AI outputs—an open network where verifiers, auditors, and applications coordinate to produce reliable, programmable trust.
 
+## AI Accountability: Beyond Ethereum
+
+Ethereum provides general-purpose transaction transparency. MMV extends this with AI-specific accountability primitives that address the "black box" problem in AI systems:
+
+| Capability | Ethereum | MMV |
+|------------|----------|-----|
+| Transaction immutability | ✅ | ✅ (inherits) |
+| **Input/output provenance** | ❌ | ✅ Cryptographic hashes of AI inputs and outputs |
+| **Model run metadata** | ❌ | ✅ Provider, model, timing, tokens for each LLM call |
+| **Model version commitments** | ❌ | ✅ Detects silent model updates via commitment hashes |
+| **Reasoning trace commitments** | ❌ | ✅ Hash-based audit trail of reasoning steps |
+| **Multi-model consensus** | ❌ | ✅ Cross-checks outputs across multiple LLMs |
+| **Scoring transparency** | ❌ | ✅ Breakdown of how scores were computed |
+| **Evidence bundle audit** | ❌ | ✅ Complete verification trail stored off-chain |
+
+### What This Enables
+
+- **Prove what was verified**: Cryptographic commitments to exact inputs and outputs
+- **Detect model changes**: Model commitment hashes reveal when providers update models
+- **Audit reasoning**: Hash-based traces prove reasoning occurred without exposing sensitive content
+- **Independent verification**: Anyone can verify receipt hashes against on-chain events
+
+### What Remains Opaque
+
+MMV provides transparency for the verification *process* but cannot reveal:
+- Neural network internals (weights, attention patterns)
+- Why a model produced a specific answer at the neural level
+- Whether LLM providers are honest (trust assumption)
+
+For a complete analysis, see [docs/BLACK_BOX_TRANSPARENCY.md](docs/BLACK_BOX_TRANSPARENCY.md).
+
 ## What's Implemented Today
 
 - **Multi-LLM Cross-Check**: Routes prompts to OpenAI, Anthropic, and Google model providers.
