@@ -5,11 +5,19 @@ import {
   ProgramStep,
   ProgramStepType,
 } from '../../../shared/httpSchemas';
+import {
+  computeProgramFingerprint,
+  ProgramDefinitionWithLimits,
+  MeteringLimits,
+  DEFAULT_METERING_LIMITS,
+  generateProgramId,
+} from '../../../shared/programs';
 
-export type VerificationProgram = ProgramDefinition;
+export type VerificationProgram = ProgramDefinitionWithLimits;
 
 export interface ProgramRecord {
   id: string;
+  fingerprint: string;
   program: VerificationProgram;
   createdAt: string;
 }
@@ -109,15 +117,33 @@ export function validateVerificationProgram(program: any): { valid: boolean; mes
   return { valid: true };
 }
 
+// Index by fingerprint for deduplication
+const fingerprintIndex = new Map<string, string>(); // fingerprint -> programId
+
 export function registerProgram(program: VerificationProgram): ProgramRecord {
-  const id = uuidv4();
+  // Compute deterministic fingerprint
+  const fingerprint = computeProgramFingerprint(program);
+
+  // Check if a program with this fingerprint already exists
+  const existingId = fingerprintIndex.get(fingerprint);
+  if (existingId) {
+    const existing = programRegistry.get(existingId);
+    if (existing) {
+      return existing;
+    }
+  }
+
+  // Generate ID from fingerprint for reproducibility
+  const id = generateProgramId(fingerprint);
   const record: ProgramRecord = {
     id,
+    fingerprint,
     program,
     createdAt: new Date().toISOString(),
   };
 
   programRegistry.set(id, record);
+  fingerprintIndex.set(fingerprint, id);
   return record;
 }
 
@@ -127,4 +153,16 @@ export function listPrograms(): ProgramRecord[] {
 
 export function getProgram(programId: string): ProgramRecord | undefined {
   return programRegistry.get(programId);
+}
+
+export function getProgramByFingerprint(fingerprint: string): ProgramRecord | undefined {
+  const programId = fingerprintIndex.get(fingerprint);
+  if (!programId) {
+    return undefined;
+  }
+  return programRegistry.get(programId);
+}
+
+export function getDefaultMeteringLimits(): MeteringLimits {
+  return { ...DEFAULT_METERING_LIMITS };
 }

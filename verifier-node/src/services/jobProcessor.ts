@@ -3,7 +3,12 @@ import { logger } from '../utils/logger';
 import { queryMultipleModels } from '../llm-providers/modelRouter';
 import { scoreVerification } from '../scoring/scorer';
 import { createEvidenceBundle } from '../evidence/evidenceBundler';
-import { hashEvidenceBundle } from '../evidence/evidenceBundlerV2';
+import {
+  hashEvidenceBundle,
+  calculateMetering,
+  checkMeteringLimits,
+  ExecutionMetering,
+} from '../evidence/evidenceBundlerV2';
 import { uploadEvidenceToIPFS } from '../evidence/ipfsStorage';
 import {
   commitEvaluation,
@@ -13,6 +18,11 @@ import {
   wallet,
 } from './blockchain';
 import { toScoreBps } from '../utils/score';
+import {
+  MeteringLimits,
+  DEFAULT_METERING_LIMITS,
+  ProgramDefinitionWithLimits,
+} from '../../../shared/programs';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -38,13 +48,28 @@ export async function startJobProcessor() {
 
   // Process verification jobs
   jobQueue.process('verify', async (job) => {
-    const { jobId, prompt, promptHash, models, taskType } = job.data;
+    const { jobId, prompt, promptHash, models, taskType, program } = job.data as {
+      jobId: string;
+      prompt: string;
+      promptHash: string;
+      models: string[];
+      taskType: string;
+      program?: ProgramDefinitionWithLimits;
+    };
     const jobStart = Date.now();
+
+    // Determine metering limits from program or use defaults
+    const meteringLimits: MeteringLimits = program?.limits ?? DEFAULT_METERING_LIMITS;
+    let llmCallCount = 0;
+    let totalTokens = 0;
+    let retrievalCallCount = 0;
 
     logger.info('Processing verification job', {
       jobId,
       models,
       taskType,
+      hasProgram: !!program,
+      meteringLimits,
     });
 
     try {
@@ -52,6 +77,8 @@ export async function startJobProcessor() {
       logger.info('Querying models', { jobId, models });
       const queryStart = Date.now();
       const responses = await queryMultipleModels(prompt, models);
+      llmCallCount = responses.length;
+      totalTokens = responses.reduce((sum, r) => sum + (r.tokens_used ?? 0), 0);
       logger.info('Timing: model queries', {
         jobId,
         durationMs: Date.now() - queryStart,
@@ -60,6 +87,8 @@ export async function startJobProcessor() {
       logger.info('Model queries completed', {
         jobId,
         responseCount: responses.length,
+        llmCallCount,
+        totalTokens,
       });
 
       // Step 2: Score the verification
@@ -113,6 +142,29 @@ export async function startJobProcessor() {
         cid: evidenceCid,
         hash: bundleHash,
       });
+
+      // Step 4.5: Calculate and check metering
+      const bundleJson = JSON.stringify(evidenceBundle);
+      const metering: ExecutionMetering = {
+        llm_calls: llmCallCount,
+        total_tokens: totalTokens,
+        execution_ms: Date.now() - jobStart,
+        retrieval_calls: retrievalCallCount,
+        bundle_size_bytes: bundleJson.length,
+      };
+
+      const meteringCheck = checkMeteringLimits(metering, meteringLimits);
+      if (meteringCheck.exceeded) {
+        logger.warn('Metering limits exceeded', {
+          jobId,
+          violations: meteringCheck.violations,
+          metering,
+        });
+        // Note: We log but don't fail - in production this could be configurable
+        // Some deployments may want hard enforcement, others soft warnings
+      }
+
+      logger.info('Metering recorded', { jobId, metering });
 
       // Step 5: Generate commitment
       const commitPrepStart = Date.now();

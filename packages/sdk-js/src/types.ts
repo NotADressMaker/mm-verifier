@@ -159,3 +159,64 @@ export interface OnChainVerifyResult {
   block_number?: number;
   tx_hash?: string;
 }
+
+// ============================================================================
+// Verification Receipts
+// ============================================================================
+
+/**
+ * Canonical verification receipt - proof of task completion
+ */
+export interface VerificationReceipt {
+  receipt_version: '1.0';
+  task_id: string;
+  generated_at: number;
+  input_hash: string;
+  output_hash: string;
+  score_bps: number;
+  verdict: boolean;
+  worthy: boolean;
+  program?: {
+    program_id: string;
+    fingerprint: string;
+    name: string;
+    version: string;
+  };
+  evidence: {
+    bundle_hash: string;
+    bundle_uri: string;
+    bundle_version: '0.1' | '0.2';
+  };
+  metering?: {
+    llm_calls: number;
+    total_tokens: number;
+    execution_ms: number;
+    retrieval_calls?: number;
+    bundle_size_bytes?: number;
+  };
+  provenance: {
+    verifier_node?: string;
+    software_version?: string;
+    llm_provider: string;
+    llm_model: string;
+  };
+  chain_context?: {
+    chain_id: number;
+    contract_address: string;
+    finalized_at: number;
+    block_number: number;
+    tx_hash: string;
+  };
+  signature?: {
+    signer: string;
+    signature: string;
+    signed_at: number;
+  };
+}
+
+/**
+ * Response from getReceipt
+ */
+export interface ReceiptResponse {
+  receipt: VerificationReceipt;
+}

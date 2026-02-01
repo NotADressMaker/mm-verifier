@@ -55,12 +55,14 @@ router.post(
 
       logger.info('Registered verification program', {
         programId: record.id,
+        fingerprint: record.fingerprint,
         name: program.name,
         version: program.version,
       });
 
       res.status(201).json({
         program_id: record.id,
+        fingerprint: record.fingerprint,
         program: record.program,
         created_at: record.createdAt,
       });
@@ -82,7 +84,12 @@ router.get('/', (req: Request, res: Response) => {
   const programs = listPrograms();
   res.status(200).json({
     total: programs.length,
-    programs,
+    programs: programs.map((record) => ({
+      program_id: record.id,
+      fingerprint: record.fingerprint,
+      program: record.program,
+      created_at: record.createdAt,
+    })),
   });
 });
 
@@ -103,6 +110,7 @@ router.get('/:programId', (req: Request, res: Response) => {
 
   res.status(200).json({
     program_id: record.id,
+    fingerprint: record.fingerprint,
     program: record.program,
     created_at: record.createdAt,
   });

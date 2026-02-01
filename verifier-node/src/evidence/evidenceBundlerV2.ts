@@ -22,6 +22,11 @@ import {
 } from '../../../shared/types';
 import { execSync } from 'child_process';
 import { hashCanonical, hashUtf8 } from '../../../shared/canonicalJson';
+import {
+  ProgramDefinitionWithLimits,
+  computeProgramFingerprint,
+  MeteringLimits,
+} from '../../../shared/programs';
 
 /**
  * Evidence Bundler V2
@@ -55,6 +60,27 @@ function getSoftwareInfo() {
   };
 }
 
+/**
+ * Metering data captured during execution
+ */
+export interface ExecutionMetering {
+  llm_calls: number;
+  total_tokens: number;
+  execution_ms: number;
+  retrieval_calls?: number;
+  bundle_size_bytes?: number;
+}
+
+/**
+ * Program reference for the bundle
+ */
+export interface BundleProgramRef {
+  program_id: string;
+  fingerprint: string;
+  name: string;
+  version: string;
+}
+
 type EvidenceBundleBuildOptions = {
   bundleVersion?: EvidenceBundleVersion;
   inputContentType?: EvidenceBundleContent['content_type'];
@@ -69,6 +95,10 @@ type EvidenceBundleBuildOptions = {
   };
   scoringWeights?: ScoringTrace['weights'];
   provenanceOverrides?: Partial<EvidenceProvenance>;
+  /** Program used for verification */
+  program?: ProgramDefinitionWithLimits & { program_id?: string };
+  /** Resource usage metering */
+  metering?: ExecutionMetering;
 };
 
 function buildProvenanceModelRuns(
@@ -218,7 +248,10 @@ export function createEvidenceBundle(
         weights: options.scoringWeights,
       });
 
-    const bundleV02: EvidenceBundleV02 = {
+    const bundleV02: EvidenceBundleV02 & {
+      program?: BundleProgramRef;
+      metering?: ExecutionMetering;
+    } = {
       ...(bundle as EvidenceBundleV02),
       bundle_version: '0.2',
       input: {
@@ -232,6 +265,22 @@ export function createEvidenceBundle(
       provenance,
       scoring_trace: scoringTrace,
     };
+
+    // Add program reference if provided
+    if (options.program) {
+      const fingerprint = computeProgramFingerprint(options.program);
+      bundleV02.program = {
+        program_id: options.program.program_id ?? `prog_${fingerprint.slice(2, 10)}`,
+        fingerprint,
+        name: options.program.name,
+        version: options.program.version,
+      };
+    }
+
+    // Add metering data if provided
+    if (options.metering) {
+      bundleV02.metering = options.metering;
+    }
 
     return bundleV02;
   }
@@ -672,3 +721,78 @@ export const DEFAULT_RUBRIC: ScoringRubric = {
     min_cluster_size: 2,
   },
 };
+
+/**
+ * Calculate metering data from model runs
+ */
+export function calculateMetering(
+  modelRuns: ModelRun[],
+  startTime: number,
+  retrievalCalls?: number
+): ExecutionMetering {
+  const endTime = Date.now();
+  const totalTokens = modelRuns.reduce(
+    (sum, run) => sum + (run.tokens_used ?? 0),
+    0
+  );
+
+  return {
+    llm_calls: modelRuns.length,
+    total_tokens: totalTokens,
+    execution_ms: endTime - startTime,
+    retrieval_calls: retrievalCalls,
+  };
+}
+
+/**
+ * Check if metering exceeds limits
+ */
+export function checkMeteringLimits(
+  metering: ExecutionMetering,
+  limits: MeteringLimits
+): { exceeded: boolean; violations: string[] } {
+  const violations: string[] = [];
+
+  if (metering.llm_calls > limits.max_llm_calls) {
+    violations.push(
+      `LLM calls exceeded: ${metering.llm_calls} > ${limits.max_llm_calls}`
+    );
+  }
+
+  if (metering.total_tokens > limits.max_total_tokens) {
+    violations.push(
+      `Total tokens exceeded: ${metering.total_tokens} > ${limits.max_total_tokens}`
+    );
+  }
+
+  if (metering.execution_ms > limits.max_execution_ms) {
+    violations.push(
+      `Execution time exceeded: ${metering.execution_ms}ms > ${limits.max_execution_ms}ms`
+    );
+  }
+
+  if (
+    metering.retrieval_calls !== undefined &&
+    limits.max_retrieval_calls !== undefined &&
+    metering.retrieval_calls > limits.max_retrieval_calls
+  ) {
+    violations.push(
+      `Retrieval calls exceeded: ${metering.retrieval_calls} > ${limits.max_retrieval_calls}`
+    );
+  }
+
+  if (
+    metering.bundle_size_bytes !== undefined &&
+    limits.max_bundle_size_bytes !== undefined &&
+    metering.bundle_size_bytes > limits.max_bundle_size_bytes
+  ) {
+    violations.push(
+      `Bundle size exceeded: ${metering.bundle_size_bytes} > ${limits.max_bundle_size_bytes}`
+    );
+  }
+
+  return {
+    exceeded: violations.length > 0,
+    violations,
+  };
+}
