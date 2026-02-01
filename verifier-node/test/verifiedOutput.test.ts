@@ -1,506 +1,170 @@
 import {
   VerifiedOutputRecord,
-  buildVerifiedOutputRecord,
-  hashVerifiedOutputRecord,
-  computeRecordId,
-  toEip712Message,
-  validateVerifiedOutputRecord,
-  calculateBuilderReward,
+  RevealedEventData,
+  FinalizedEventData,
+  OnChainTaskData,
+  RecordQueryFilter,
+  buildRecordFromChainData,
+  buildRecordFromReceipt,
   matchesFilter,
-  DEFAULT_BUILDER_REWARDS_CONFIG,
-  BuilderRewardsConfig,
-  VerifiedOutputQueryFilter,
+  paginateRecords,
+  hashRecord,
+  normalizeTaskIdBytes32,
+  validateRecord,
+  isVerifiedOutputRecord,
+  WORTHY_MIN_BPS,
+  SCORE_THRESHOLDS,
 } from '../../shared/verifiedOutput';
-import { EvidenceBundleV02, CONSTANTS } from '../../shared/types';
-import { hashCanonical } from '../../shared/canonicalJson';
+import { MMVReceipt } from '../../shared/types';
 
-// Sample v0.2 evidence bundle for testing
-const createSampleBundleV02 = (): EvidenceBundleV02 => ({
+// Sample on-chain task data
+const createSampleTaskData = (): OnChainTaskData => ({
+  taskId: '12345',
+  finalScoreBps: 8500,
+  bundleHash: '0x' + '11'.repeat(32),
+  bundleUri: 'ipfs://QmTestBundle123',
+  evaluator: '0x1234567890abcdef1234567890abcdef12345678',
+  finalizedAt: 1705320000,
+  blockNumber: 12345678,
+  txHash: '0x' + '22'.repeat(32),
+});
+
+// Sample MMVReceipt
+const createSampleReceipt = (): MMVReceipt => ({
+  receipt_version: '0.1',
+  generated_at: '2024-01-15T12:00:00Z',
   task_id: '12345',
-  bundle_version: '0.2',
-  created_at: '2024-01-15T12:00:00Z',
-  evaluator: {
-    node_id: 'node:test-001',
-    eth_address: '0x1234567890abcdef1234567890abcdef12345678',
-    software: {
-      name: 'verifier-node',
-      ver: '0.2',
-      commit: 'abc123',
-    },
+  input_hash: '0x' + '33'.repeat(32),
+  selected_output_hash: '0x' + '44'.repeat(32),
+  decision: {
+    pass: true,
+    overall_score: 85, // 0-100 scale
+    selected_index: 0,
+    candidate_scores: [
+      {
+        index: 0,
+        score: 85,
+        confidence: 0.9,
+        riskFlags: [],
+        rationale: 'Good answer',
+      },
+    ],
   },
-  prompt_hash: '0x' + '11'.repeat(32),
-  rubric_hash: '0x' + '22'.repeat(32),
-  model_runs: [
-    {
-      provider: 'openai',
-      model: 'gpt-4',
-      temperature: 0.0,
-      raw_output: 'Test output',
-      output_hash: '0x' + '33'.repeat(32),
-      timestamp: 1705320000,
-      latency_ms: 1500,
-    },
-  ],
-  claims: [],
-  metrics: {
-    consensus: { agreement: 0.95, clusters: 1 },
-    factuality: { supported_claim_ratio: 0.9 },
-    citation_quality: { authority_score: 0.8 },
-    bias: { sensitive_variance: 0.1 },
-    stability: { reask_delta: 0.05 },
-  },
-  final_score_bps: 8500,
-  explanation: 'High quality verification with strong consensus.',
-  signatures: {
-    bundle_sig_eip712: '0x' + 'aa'.repeat(65),
-  },
-  input: {
-    content_type: 'text',
-    content_hash: `0x${'44'.repeat(32)}` as `0x${string}`,
-  },
-  output: {
-    content_type: 'json',
-    content_hash: `0x${'55'.repeat(32)}` as `0x${string}`,
+  verifier: {
+    provider: 'openai',
+    model: 'gpt-4',
+    version: '1.0.0',
+    config_hash: '0x' + '55'.repeat(32),
   },
   provenance: {
-    model_runs: [
-      {
-        provider: 'openai',
-        model: 'gpt-4',
-        prompt_hash: `0x${'11'.repeat(32)}` as `0x${string}`,
-        response_hash: `0x${'33'.repeat(32)}` as `0x${string}`,
-        started_at: 1705319998,
-        finished_at: 1705320000,
-        latency_ms: 1500,
-      },
-    ],
-    sources: [
-      {
-        uri: 'https://example.com/source1',
-        content_hash: `0x${'66'.repeat(32)}` as `0x${string}`,
-        content_type: 'text',
-        retrieved_at: 1705319000,
-      },
-    ],
-    environment: {
-      verifier_node: 'node:test-001',
-      software_commit: 'abc123',
-    },
-  },
-  scoring_trace: {
-    rubric_hash: `0x${'22'.repeat(32)}` as `0x${string}`,
-    score_bps: 8500,
-    verdict: 'reliable',
-    breakdown: {
-      consistency: 95,
-      agreement: 95,
-      citation_quality: 80,
-      factual_accuracy: 90,
-    },
-    weights: {
-      consistency: 0.25,
-      agreement: 0.25,
-      citation_quality: 0.25,
-      factual_accuracy: 0.25,
-    },
-    reasoning_hash: `0x${'77'.repeat(32)}` as `0x${string}`,
-    generated_at: 1705320000,
+    request_timestamp: 1705319000,
+    response_timestamp: 1705320000,
+    model_latency_ms: 1500,
+    prompt_tokens: 100,
+    completion_tokens: 200,
+    raw_response_hash: '0x' + '66'.repeat(32),
   },
 });
 
 describe('VerifiedOutputRecord', () => {
-  describe('buildVerifiedOutputRecord', () => {
-    it('should build valid record from EvidenceBundleV02', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'mmv-factual-qa',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest123',
-        chain_id: 421614,
-        contract_address: '0xabcdef1234567890abcdef1234567890abcdef12' as `0x${string}`,
+  describe('Constants', () => {
+    it('should have correct default WORTHY_MIN_BPS', () => {
+      expect(WORTHY_MIN_BPS).toBe(8000);
+    });
+
+    it('should have correct SCORE_THRESHOLDS', () => {
+      expect(SCORE_THRESHOLDS.WORTHY).toBe(WORTHY_MIN_BPS);
+      expect(SCORE_THRESHOLDS.PASS).toBe(5000);
+      expect(SCORE_THRESHOLDS.RELIABLE).toBe(8000);
+    });
+  });
+
+  describe('buildRecordFromChainData', () => {
+    it('should build valid record from on-chain data', () => {
+      const taskData = createSampleTaskData();
+
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
       });
 
       expect(record.record_version).toBe('1');
       expect(record.task_id).toBe('12345');
-      expect(record.program_id).toBe('mmv-factual-qa');
-      expect(record.program_version).toBe('1.0.0');
-      expect(record.input_hash).toBe(bundle.input.content_hash);
-      expect(record.output_hash).toBe(bundle.output.content_hash);
       expect(record.score_bps).toBe(8500);
-      expect(record.verdict).toBe(true); // score >= 5000
-      expect(record.bundle_uri).toBe('ipfs://QmTest123');
+      expect(record.verdict).toBe(true); // 8500 >= 5000
+      expect(record.worthy).toBe(true); // 8500 >= 8000
+      expect(record.bundle_hash).toBe(taskData.bundleHash);
+      expect(record.bundle_uri).toBe(taskData.bundleUri);
+      expect(record.finalized_at).toBe(1705320000);
       expect(record.chain_id).toBe(421614);
-      expect(record.contract_address).toBe('0xabcdef1234567890abcdef1234567890abcdef12');
+      expect(record.evaluator).toBe(taskData.evaluator);
+      expect(record.block_number).toBe(12345678);
     });
 
-    it('should extract model run refs from provenance', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+    it('should include input/output hashes from receipt', () => {
+      const taskData = createSampleTaskData();
+      const receipt = createSampleReceipt();
+
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
+        receipt,
       });
 
-      expect(record.model_run_refs).toBeDefined();
-      expect(record.model_run_refs?.length).toBe(1);
-      expect(record.model_run_refs?.[0]).toBe(`0x${'33'.repeat(32)}`);
-    });
-
-    it('should extract source refs from provenance', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      expect(record.source_refs).toBeDefined();
-      expect(record.source_refs?.length).toBe(1);
-      expect(record.source_refs?.[0]).toBe('https://example.com/source1');
-    });
-
-    it('should apply optional tags', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-        tags: ['finance', 'factual'],
-      });
-
-      expect(record.tags).toEqual(['finance', 'factual']);
+      expect(record.input_hash).toBe(receipt.input_hash);
+      expect(record.output_hash).toBe(receipt.selected_output_hash);
     });
 
     it('should set verdict=false for low scores', () => {
-      const bundle = createSampleBundleV02();
-      bundle.final_score_bps = 4000; // Below MIXED_THRESHOLD
+      const taskData = createSampleTaskData();
+      taskData.finalScoreBps = 4000; // Below PASS threshold
 
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
       });
 
       expect(record.verdict).toBe(false);
+      expect(record.worthy).toBe(false);
+    });
+
+    it('should set worthy=false for medium scores', () => {
+      const taskData = createSampleTaskData();
+      taskData.finalScoreBps = 6000; // Above PASS but below WORTHY
+
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      expect(record.verdict).toBe(true); // 6000 >= 5000
+      expect(record.worthy).toBe(false); // 6000 < 8000
     });
   });
 
-  describe('hashVerifiedOutputRecord', () => {
-    it('should produce deterministic hash', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-        finalized_at: 1705320000, // Fixed timestamp for test
+  describe('buildRecordFromReceipt', () => {
+    it('should build record from MMVReceipt', () => {
+      const receipt = createSampleReceipt();
+
+      const record = buildRecordFromReceipt(receipt, {
+        chainId: 421614,
+        contractAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
+        bundleHash: '0x' + '77'.repeat(32),
+        bundleUri: 'ipfs://QmReceiptBundle',
+        finalizedAt: 1705320000,
       });
 
-      const hash1 = hashVerifiedOutputRecord(record);
-      const hash2 = hashVerifiedOutputRecord(record);
-
-      expect(hash1).toBe(hash2);
-      expect(hash1).toMatch(/^0x[0-9a-f]{64}$/);
-    });
-
-    it('should differ for different records', () => {
-      const bundle1 = createSampleBundleV02();
-      const bundle2 = createSampleBundleV02();
-      bundle2.task_id = '54321';
-
-      const record1 = buildVerifiedOutputRecord({
-        bundle: bundle1,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-        finalized_at: 1705320000,
-      });
-
-      const record2 = buildVerifiedOutputRecord({
-        bundle: bundle2,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-        finalized_at: 1705320000,
-      });
-
-      const hash1 = hashVerifiedOutputRecord(record1);
-      const hash2 = hashVerifiedOutputRecord(record2);
-
-      expect(hash1).not.toBe(hash2);
-    });
-  });
-
-  describe('computeRecordId', () => {
-    it('should compute deterministic record ID', () => {
-      const id1 = computeRecordId('12345', 'mmv-factual-qa', 421614);
-      const id2 = computeRecordId('12345', 'mmv-factual-qa', 421614);
-
-      expect(id1).toBe(id2);
-      expect(id1).toMatch(/^0x[0-9a-f]{64}$/);
-    });
-
-    it('should differ for different inputs', () => {
-      const id1 = computeRecordId('12345', 'mmv-factual-qa', 421614);
-      const id2 = computeRecordId('12346', 'mmv-factual-qa', 421614);
-      const id3 = computeRecordId('12345', 'mmv-math-proof', 421614);
-      const id4 = computeRecordId('12345', 'mmv-factual-qa', 1);
-
-      expect(id1).not.toBe(id2);
-      expect(id1).not.toBe(id3);
-      expect(id1).not.toBe(id4);
-    });
-  });
-
-  describe('toEip712Message', () => {
-    it('should convert record to EIP-712 message format', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-        finalized_at: 1705320000,
-      });
-
-      const message = toEip712Message(record);
-
-      expect(message.taskId).toMatch(/^0x[0-9a-f]{64}$/);
-      expect(message.programId).toMatch(/^0x[0-9a-f]{64}$/);
-      expect(message.inputHash).toBe(record.input_hash);
-      expect(message.outputHash).toBe(record.output_hash);
-      expect(message.scoreBps).toBe(8500);
-      expect(message.verdict).toBe(true);
-      expect(message.bundleHash).toMatch(/^0x[0-9a-f]{64}$/);
-      expect(message.finalizedAt).toBe(1705320000);
-    });
-
-    it('should normalize numeric task_id to bytes32', () => {
-      const bundle = createSampleBundleV02();
-      bundle.task_id = '999';
-
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      const message = toEip712Message(record);
-
-      // 999 = 0x3e7, padded to 64 chars
-      expect(message.taskId).toBe('0x' + '0'.repeat(61) + '3e7');
-    });
-  });
-
-  describe('validateVerifiedOutputRecord', () => {
-    it('should validate correct record', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest123',
-        chain_id: 421614,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      const result = validateVerifiedOutputRecord(record);
-
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-    });
-
-    it('should reject invalid record_version', () => {
-      const record = {
-        record_version: '2' as const, // Invalid
-        task_id: '12345',
-        program_id: 'test',
-        program_version: '1.0.0',
-        input_hash: `0x${'11'.repeat(32)}` as `0x${string}`,
-        output_hash: `0x${'22'.repeat(32)}` as `0x${string}`,
-        score_bps: 8000,
-        verdict: true,
-        bundle_hash: `0x${'33'.repeat(32)}` as `0x${string}`,
-        bundle_uri: 'ipfs://test',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-        finalized_at: 1705320000,
-      };
-
-      const result = validateVerifiedOutputRecord(record);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('record_version'))).toBe(true);
-    });
-
-    it('should reject invalid score_bps', () => {
-      const bundle = createSampleBundleV02();
-      bundle.final_score_bps = 15000; // Invalid: > 10000
-
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest123',
-        chain_id: 421614,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      const result = validateVerifiedOutputRecord(record);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('score_bps'))).toBe(true);
-    });
-
-    it('should reject invalid input_hash format', () => {
-      const record: any = {
-        record_version: '1',
-        task_id: '12345',
-        program_id: 'test',
-        program_version: '1.0.0',
-        input_hash: 'invalid-hash', // Invalid
-        output_hash: `0x${'22'.repeat(32)}`,
-        score_bps: 8000,
-        verdict: true,
-        bundle_hash: `0x${'33'.repeat(32)}`,
-        bundle_uri: 'ipfs://test',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678',
-        finalized_at: 1705320000,
-      };
-
-      const result = validateVerifiedOutputRecord(record);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('input_hash'))).toBe(true);
-    });
-  });
-
-  describe('calculateBuilderReward', () => {
-    it('should return zero when rewards disabled', () => {
-      const bundle = createSampleBundleV02();
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      const config: BuilderRewardsConfig = {
-        ...DEFAULT_BUILDER_REWARDS_CONFIG,
-        enabled: false,
-      };
-
-      const result = calculateBuilderReward(record, config);
-
-      expect(result.reward).toBe('0');
-      expect(result.qualityBonus).toBe(false);
-    });
-
-    it('should return zero when below minimum score', () => {
-      const bundle = createSampleBundleV02();
-      bundle.final_score_bps = 4000; // Below minScoreForRewards
-
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      const config: BuilderRewardsConfig = {
-        ...DEFAULT_BUILDER_REWARDS_CONFIG,
-        enabled: true,
-        minScoreForRewards: 5000,
-      };
-
-      const result = calculateBuilderReward(record, config);
-
-      expect(result.reward).toBe('0');
-    });
-
-    it('should apply quality bonus for high scores', () => {
-      const bundle = createSampleBundleV02();
-      bundle.final_score_bps = 8500; // Above RELIABLE_THRESHOLD
-
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      const config: BuilderRewardsConfig = {
-        enabled: true,
-        rewardType: 'points',
-        baseRewardPerOutput: '100',
-        qualityBonusMultiplier: 1.5,
-        minScoreForRewards: 5000,
-        maxDailyRewardsPerBuilder: '10000',
-      };
-
-      const result = calculateBuilderReward(record, config);
-
-      expect(result.reward).toBe('150'); // 100 * 1.5
-      expect(result.qualityBonus).toBe(true);
-    });
-
-    it('should return base reward for medium scores', () => {
-      const bundle = createSampleBundleV02();
-      bundle.final_score_bps = 6000; // Between thresholds
-
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test-program',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      const config: BuilderRewardsConfig = {
-        enabled: true,
-        rewardType: 'points',
-        baseRewardPerOutput: '100',
-        qualityBonusMultiplier: 1.5,
-        minScoreForRewards: 5000,
-        maxDailyRewardsPerBuilder: '10000',
-      };
-
-      const result = calculateBuilderReward(record, config);
-
-      expect(result.reward).toBe('100');
-      expect(result.qualityBonus).toBe(false);
+      expect(record.record_version).toBe('1');
+      expect(record.task_id).toBe('12345');
+      expect(record.score_bps).toBe(8500); // 85 * 100
+      expect(record.verdict).toBe(true);
+      expect(record.worthy).toBe(true);
+      expect(record.input_hash).toBe(receipt.input_hash);
+      expect(record.output_hash).toBe(receipt.selected_output_hash);
     });
   });
 
@@ -508,16 +172,11 @@ describe('VerifiedOutputRecord', () => {
     let sampleRecord: VerifiedOutputRecord;
 
     beforeEach(() => {
-      const bundle = createSampleBundleV02();
-      sampleRecord = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'mmv-factual-qa',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://QmTest',
-        chain_id: 421614,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-        finalized_at: 1705320000,
-        tags: ['finance', 'factual'],
+      const taskData = createSampleTaskData();
+      sampleRecord = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
       });
     });
 
@@ -525,29 +184,30 @@ describe('VerifiedOutputRecord', () => {
       expect(matchesFilter(sampleRecord, {})).toBe(true);
     });
 
-    it('should filter by program_id', () => {
-      expect(matchesFilter(sampleRecord, { program_id: 'mmv-factual-qa' })).toBe(true);
-      expect(matchesFilter(sampleRecord, { program_id: 'mmv-math-proof' })).toBe(false);
-    });
-
     it('should filter by min_score_bps', () => {
       expect(matchesFilter(sampleRecord, { min_score_bps: 8000 })).toBe(true);
       expect(matchesFilter(sampleRecord, { min_score_bps: 9000 })).toBe(false);
     });
 
+    it('should filter by worthy_only', () => {
+      expect(matchesFilter(sampleRecord, { worthy_only: true })).toBe(true);
+
+      // Create non-worthy record
+      const lowScoreData = createSampleTaskData();
+      lowScoreData.finalScoreBps = 6000;
+      const lowRecord = buildRecordFromChainData({
+        taskData: lowScoreData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      expect(matchesFilter(lowRecord, { worthy_only: true })).toBe(false);
+      expect(matchesFilter(lowRecord, { worthy_only: false })).toBe(true);
+    });
+
     it('should filter by verdict', () => {
       expect(matchesFilter(sampleRecord, { verdict: true })).toBe(true);
       expect(matchesFilter(sampleRecord, { verdict: false })).toBe(false);
-    });
-
-    it('should filter by tag', () => {
-      expect(matchesFilter(sampleRecord, { tag: 'finance' })).toBe(true);
-      expect(matchesFilter(sampleRecord, { tag: 'unknown' })).toBe(false);
-    });
-
-    it('should filter by chain_id', () => {
-      expect(matchesFilter(sampleRecord, { chain_id: 421614 })).toBe(true);
-      expect(matchesFilter(sampleRecord, { chain_id: 1 })).toBe(false);
     });
 
     it('should filter by time range', () => {
@@ -558,61 +218,179 @@ describe('VerifiedOutputRecord', () => {
     });
 
     it('should combine multiple filters', () => {
-      const filter: VerifiedOutputQueryFilter = {
-        program_id: 'mmv-factual-qa',
+      const filter: RecordQueryFilter = {
         min_score_bps: 8000,
+        worthy_only: true,
         verdict: true,
-        tag: 'finance',
       };
 
       expect(matchesFilter(sampleRecord, filter)).toBe(true);
 
-      // Change one filter to not match
       filter.min_score_bps = 9000;
       expect(matchesFilter(sampleRecord, filter)).toBe(false);
     });
   });
 
-  describe('bundle hash consistency', () => {
-    it('should produce consistent bundle_hash across builds', () => {
-      const bundle = createSampleBundleV02();
+  describe('paginateRecords', () => {
+    it('should paginate correctly', () => {
+      const records: VerifiedOutputRecord[] = [];
+      for (let i = 0; i < 10; i++) {
+        const taskData = createSampleTaskData();
+        taskData.taskId = `task-${i}`;
+        records.push(
+          buildRecordFromChainData({
+            taskData,
+            chainId: 421614,
+            contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          })
+        );
+      }
 
-      const record1 = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://test',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
+      const result1 = paginateRecords(records, 3, 0);
+      expect(result1.records.length).toBe(3);
+      expect(result1.total).toBe(10);
+      expect(result1.has_more).toBe(true);
 
-      const record2 = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://test',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
-      });
-
-      expect(record1.bundle_hash).toBe(record2.bundle_hash);
+      const result2 = paginateRecords(records, 3, 9);
+      expect(result2.records.length).toBe(1);
+      expect(result2.total).toBe(10);
+      expect(result2.has_more).toBe(false);
     });
 
-    it('should match canonical hash of bundle without signatures', () => {
-      const bundle = createSampleBundleV02();
-      const { signatures, ...bundleWithoutSig } = bundle;
+    it('should handle empty list', () => {
+      const result = paginateRecords([], 10, 0);
+      expect(result.records.length).toBe(0);
+      expect(result.total).toBe(0);
+      expect(result.has_more).toBe(false);
+    });
+  });
 
-      const record = buildVerifiedOutputRecord({
-        bundle,
-        program_id: 'test',
-        program_version: '1.0.0',
-        bundle_uri: 'ipfs://test',
-        chain_id: 1,
-        contract_address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+  describe('hashRecord', () => {
+    it('should produce deterministic hash', () => {
+      const taskData = createSampleTaskData();
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
       });
 
-      const expectedHash = hashCanonical(bundleWithoutSig);
-      expect(record.bundle_hash).toBe(expectedHash);
+      const hash1 = hashRecord(record);
+      const hash2 = hashRecord(record);
+
+      expect(hash1).toBe(hash2);
+      expect(hash1).toMatch(/^0x[0-9a-f]{64}$/);
+    });
+
+    it('should differ for different records', () => {
+      const taskData1 = createSampleTaskData();
+      const taskData2 = createSampleTaskData();
+      taskData2.taskId = '54321';
+
+      const record1 = buildRecordFromChainData({
+        taskData: taskData1,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      const record2 = buildRecordFromChainData({
+        taskData: taskData2,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      expect(hashRecord(record1)).not.toBe(hashRecord(record2));
+    });
+  });
+
+  describe('normalizeTaskIdBytes32', () => {
+    it('should normalize numeric string', () => {
+      const result = normalizeTaskIdBytes32('999');
+      expect(result).toBe('0x' + '0'.repeat(61) + '3e7');
+    });
+
+    it('should normalize hex string', () => {
+      const result = normalizeTaskIdBytes32('0x123');
+      expect(result).toBe('0x' + '0'.repeat(61) + '123');
+    });
+
+    it('should handle already-padded hex', () => {
+      const padded = '0x' + '11'.repeat(32);
+      const result = normalizeTaskIdBytes32(padded);
+      expect(result).toBe(padded);
+    });
+  });
+
+  describe('validateRecord', () => {
+    it('should validate correct record', () => {
+      const taskData = createSampleTaskData();
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      const result = validateRecord(record);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should reject invalid record_version', () => {
+      const record: any = {
+        record_version: '2',
+        task_id: '123',
+        score_bps: 8000,
+        verdict: true,
+        worthy: true,
+        bundle_hash: '0x11',
+        bundle_uri: 'ipfs://test',
+        finalized_at: 1705320000,
+        chain_id: 1,
+        contract_address: '0x1234567890abcdef1234567890abcdef12345678',
+      };
+
+      const result = validateRecord(record);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('record_version'))).toBe(true);
+    });
+
+    it('should reject invalid score_bps', () => {
+      const taskData = createSampleTaskData();
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      (record as any).score_bps = 15000;
+
+      const result = validateRecord(record);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('score_bps'))).toBe(true);
+    });
+
+    it('should reject non-object', () => {
+      const result = validateRecord('not an object');
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toBe('Record must be an object');
+    });
+  });
+
+  describe('isVerifiedOutputRecord', () => {
+    it('should return true for valid record', () => {
+      const taskData = createSampleTaskData();
+      const record = buildRecordFromChainData({
+        taskData,
+        chainId: 421614,
+        contractAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      });
+
+      expect(isVerifiedOutputRecord(record)).toBe(true);
+    });
+
+    it('should return false for invalid record', () => {
+      expect(isVerifiedOutputRecord({ foo: 'bar' })).toBe(false);
+      expect(isVerifiedOutputRecord(null)).toBe(false);
+      expect(isVerifiedOutputRecord(undefined)).toBe(false);
     });
   });
 });

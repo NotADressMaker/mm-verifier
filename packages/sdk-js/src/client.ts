@@ -3,6 +3,11 @@ import {
   ProgramRecord,
   VerifyRequest,
   VerifyResponse,
+  VerifiedOutputRecord,
+  RecordQueryFilter,
+  RecordListResponse,
+  RecordResponse,
+  OnChainVerifyResult,
 } from './types';
 
 export interface MMVClientOptions {
@@ -71,6 +76,65 @@ export class MMVClient {
 
   async getTask(taskId: string): Promise<VerifyResponse> {
     return this.request<VerifyResponse>(`/v1/tasks/${taskId}`);
+  }
+
+  // ============================================================================
+  // Record Methods - Trustworthy AI Outputs Ledger
+  // ============================================================================
+
+  /**
+   * Get a verified output record for a task
+   * Returns null if task is not finalized or doesn't exist
+   */
+  async getRecord(taskId: string): Promise<VerifiedOutputRecord | null> {
+    try {
+      const response = await this.request<RecordResponse>(
+        `/api/mmv/tasks/${taskId}/record`
+      );
+      return response.record;
+    } catch (error: any) {
+      if (error.message?.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * List verified output records with filtering and pagination
+   * By default returns only "worthy" records (score >= 8000 bps)
+   */
+  async listRecords(filter: RecordQueryFilter = {}): Promise<RecordListResponse> {
+    const params = new URLSearchParams();
+
+    if (filter.min_score_bps !== undefined) {
+      params.set('min_score_bps', filter.min_score_bps.toString());
+    }
+    if (filter.worthy_only !== undefined) {
+      params.set('worthy_only', filter.worthy_only.toString());
+    }
+    if (filter.verdict !== undefined) {
+      params.set('verdict', filter.verdict.toString());
+    }
+    if (filter.limit !== undefined) {
+      params.set('limit', filter.limit.toString());
+    }
+    if (filter.offset !== undefined) {
+      params.set('offset', filter.offset.toString());
+    }
+
+    const queryString = params.toString();
+    const path = queryString ? `/api/mmv/records?${queryString}` : '/api/mmv/records';
+
+    return this.request<RecordListResponse>(path);
+  }
+
+  /**
+   * Verify that a record exists on-chain
+   * Checks for Finalized event and returns block/tx info
+   */
+  async verifyRecordOnChain(taskId: string): Promise<OnChainVerifyResult> {
+    return this.request<OnChainVerifyResult>(`/api/mmv/tasks/${taskId}/verify`);
   }
 
   private async verify(request: VerifyRequest): Promise<VerifyResponse> {

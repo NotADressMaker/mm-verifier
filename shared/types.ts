@@ -985,20 +985,25 @@ export const DEFAULT_BLS_CONFIG: BLSConfig = {
 // ============================================================================
 
 export {
+  // Types
   VerifiedOutputRecord,
-  buildVerifiedOutputRecord,
-  hashVerifiedOutputRecord,
-  computeRecordId,
-  toEip712Message,
-  validateVerifiedOutputRecord,
-  calculateBuilderReward,
+  RevealedEventData,
+  FinalizedEventData,
+  OnChainTaskData,
+  BuildRecordParams,
+  RecordQueryFilter,
+  // Builder functions
+  buildRecordFromChainData,
+  buildRecordFromReceipt,
+  // Query helpers
   matchesFilter,
-  BuildVerifiedOutputRecordParams,
-  VerifiedOutputEIP712Message,
-  BuilderRewardsConfig,
-  VerifiedOutputQueryFilter,
-  DEFAULT_BUILDER_REWARDS_CONFIG,
-  VERIFIED_OUTPUT_EIP712_DOMAIN,
-  VERIFIED_OUTPUT_EIP712_TYPES,
-  getVerifiedOutputEip712Domain,
+  paginateRecords,
+  // Utilities
+  hashRecord,
+  normalizeTaskIdBytes32,
+  validateRecord,
+  isVerifiedOutputRecord,
+  // Constants
+  WORTHY_MIN_BPS,
+  SCORE_THRESHOLDS,
 } from './verifiedOutput';
