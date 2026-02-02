@@ -552,14 +552,13 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         }
 
         Task storage t = tasks[taskId];
-        bytes32 taskIdHash = bytes32(taskId);
-        bytes32 claimHash = keccak256(abi.encode(taskIdHash, t.finalBundleHash));
+        bytes32 claimHash = keccak256(abi.encode(taskId, t.finalBundleHash));
         bytes32 outcomeHash = keccak256(abi.encode(t.finalScoreBps));
         bytes32 programHash = bytes32(0);
 
         try
             ITruthChain(truthChain).appendTruthBlock(
-                taskIdHash,
+                taskId,
                 claimHash,
                 outcomeHash,
                 t.finalBundleHash,

@@ -8,17 +8,18 @@ pragma solidity ^0.8.20;
 contract TruthChain {
     bytes32 public truthHead;
     mapping(bytes32 => bytes32) public prevByBlock; // blockHash -> prevHash
-    mapping(bytes32 => bytes32) public taskToBlock; // taskId -> blockHash
+    mapping(uint256 => bytes32) public taskToBlock; // taskId -> blockHash
 
-    address public immutable marketplace;
+    address public marketplace;
 
     event TruthBlockAppended(
-        bytes32 indexed taskId,
+        uint256 indexed taskId,
         bytes32 indexed blockHash,
         bytes32 prevHash,
         bytes32 claimHash
     );
     event TruthHeadUpdated(bytes32 oldHead, bytes32 newHead);
+    event MarketplaceSet(address indexed marketplace);
 
     modifier onlyMarketplace() {
         require(msg.sender == marketplace, "only marketplace");
@@ -28,10 +29,11 @@ contract TruthChain {
     constructor(address _marketplace) {
         require(_marketplace != address(0), "marketplace=0");
         marketplace = _marketplace;
+        emit MarketplaceSet(_marketplace);
     }
 
     function appendTruthBlock(
-        bytes32 taskId,
+        uint256 taskId,
         bytes32 claimHash,
         bytes32 outcomeHash,
         bytes32 evidenceBundleHash,
