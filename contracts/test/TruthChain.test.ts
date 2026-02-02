@@ -122,16 +122,12 @@ describe("TruthChain integration", function () {
 
     await commitAndReveal(taskId);
 
-    expect(await truthChain.taskToBlock(ethers.zeroPadValue(ethers.toBeHex(taskId), 32))).to.equal(
-      ethers.ZeroHash
-    );
+    expect(await truthChain.taskToBlock(taskId)).to.equal(ethers.ZeroHash);
 
     await time.increaseTo(Number(revealDeadline) + Number(disputeWindow) + 1);
     await marketplace.finalizeUndisputed(taskId);
 
-    const blockHash = await truthChain.taskToBlock(
-      ethers.zeroPadValue(ethers.toBeHex(taskId), 32)
-    );
+    const blockHash = await truthChain.taskToBlock(taskId);
     expect(blockHash).to.not.equal(ethers.ZeroHash);
     expect(await truthChain.truthHead()).to.equal(blockHash);
   });
@@ -142,18 +138,14 @@ describe("TruthChain integration", function () {
     await time.increaseTo(Number(first.revealDeadline) + Number(first.disputeWindow) + 1);
     await marketplace.finalizeUndisputed(first.taskId);
 
-    const firstBlock = await truthChain.taskToBlock(
-      ethers.zeroPadValue(ethers.toBeHex(first.taskId), 32)
-    );
+    const firstBlock = await truthChain.taskToBlock(first.taskId);
 
     const second = await createTask();
     await commitAndReveal(second.taskId);
     await time.increaseTo(Number(second.revealDeadline) + Number(second.disputeWindow) + 1);
     await marketplace.finalizeUndisputed(second.taskId);
 
-    const secondBlock = await truthChain.taskToBlock(
-      ethers.zeroPadValue(ethers.toBeHex(second.taskId), 32)
-    );
+    const secondBlock = await truthChain.taskToBlock(second.taskId);
     expect(await truthChain.prevByBlock(secondBlock)).to.equal(firstBlock);
     expect(await truthChain.truthHead()).to.equal(secondBlock);
 
@@ -168,7 +160,7 @@ describe("TruthChain integration", function () {
       truthChain
         .connect(impersonatedMarketplace)
         .appendTruthBlock(
-          ethers.zeroPadValue(ethers.toBeHex(second.taskId), 32),
+          second.taskId,
           ethers.ZeroHash,
           ethers.ZeroHash,
           ethers.ZeroHash,

@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 interface ITruthChain {
     function appendTruthBlock(
-        bytes32 taskId,
+        uint256 taskId,
         bytes32 claimHash,
         bytes32 outcomeHash,
         bytes32 evidenceBundleHash,
