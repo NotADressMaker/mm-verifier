@@ -24,6 +24,8 @@ async function main() {
   const AUDITOR_MIN_STAKE = process.env.AUDITOR_MIN_STAKE || ethers.parseEther("0.25"); // 0.25 WETH
 
   const feeCollector = deployer.address; // Using deployer as fee collector for now
+  const IDENTITY_REGISTRY_ADDRESS = process.env.IDENTITY_REGISTRY_ADDRESS || "";
+  const VALIDATION_REGISTRY_ADDRESS = process.env.VALIDATION_REGISTRY_ADDRESS || "";
 
   // Deploy StakingManager
   console.log("Deploying StakingManager...");
@@ -121,6 +123,21 @@ async function main() {
   console.log("✅ BondVaultWETH deployed to:", bondVaultAddress);
   console.log("   Authorized: Marketplace (lock/unlock), DisputeLadder (slash), Both (reward)\n");
 
+  let jobBoardEscrowAddress = "";
+  if (IDENTITY_REGISTRY_ADDRESS && VALIDATION_REGISTRY_ADDRESS) {
+    console.log("Deploying JobBoardEscrow...");
+    const JobBoardEscrow = await ethers.getContractFactory("JobBoardEscrow");
+    const jobBoardEscrow = await JobBoardEscrow.deploy(
+      IDENTITY_REGISTRY_ADDRESS,
+      VALIDATION_REGISTRY_ADDRESS
+    );
+    await jobBoardEscrow.waitForDeployment();
+    jobBoardEscrowAddress = await jobBoardEscrow.getAddress();
+    console.log("✅ JobBoardEscrow deployed to:", jobBoardEscrowAddress, "\n");
+  } else {
+    console.log("⚠️ Skipping JobBoardEscrow deployment (missing registry addresses)\n");
+  }
+
   // Set up contract relationships
   console.log("Setting up contract relationships...");
 
@@ -152,6 +169,9 @@ async function main() {
   console.log("  DisputeResolver (legacy):", disputeResolverAddress);
   console.log("  VerifierMarketplace:     ", marketplaceAddress);
   console.log("  BondVaultWETH:           ", bondVaultAddress);
+  if (jobBoardEscrowAddress) {
+    console.log("  JobBoardEscrow:          ", jobBoardEscrowAddress);
+  }
   console.log("\nWETH & Bond Configuration:");
   console.log("  WETH Address:            ", WETH_ADDRESS);
   console.log("  Evaluator Bond:          ", ethers.formatEther(EVAL_BOND), "WETH");
@@ -179,6 +199,7 @@ async function main() {
       DisputeResolver: disputeResolverAddress,
       VerifierMarketplace: marketplaceAddress,
       BondVaultWETH: bondVaultAddress,
+      JobBoardEscrow: jobBoardEscrowAddress,
     },
     weth: {
       address: WETH_ADDRESS,

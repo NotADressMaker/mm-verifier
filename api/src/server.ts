@@ -9,6 +9,7 @@ import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { verifyRoutes } from './routes/verify';
 import { jobRoutes } from './routes/jobs';
+import { jobBoardRoutes } from './routes/jobBoard';
 import { statsRoutes } from './routes/stats';
 import { programRoutes } from './routes/programs';
 import { mmvRoutes } from './routes/mmv';
@@ -16,8 +17,10 @@ import { verifyV1Routes } from './routes/v1/verify';
 import { programV1Routes } from './routes/v1/programs';
 import { tasksV1Routes } from './routes/v1/tasks';
 import { initializeBlockchain } from './services/blockchain';
+import { initializeJobBoardIndexer } from './services/jobBoardIndexer';
 import { initializeRedis } from './services/redis';
 import { setupWebSocket } from './services/websocket';
+import { renderJobBoardDashboard } from './views/jobBoardDashboard';
 
 dotenv.config({ path: '../.env' });
 
@@ -60,12 +63,17 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/verify', verifyRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/job-board', jobBoardRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/programs', programRoutes);
 app.use('/api/mmv', mmvRoutes);
 app.use('/v1/verify', verifyV1Routes);
 app.use('/v1/programs', programV1Routes);
 app.use('/v1/tasks', tasksV1Routes);
+
+app.get('/job-board', (_req, res) => {
+  res.status(200).send(renderJobBoardDashboard());
+});
 
 // Error handling
 app.use(errorHandler);
@@ -90,6 +98,10 @@ async function initialize() {
     // Initialize blockchain connection
     await initializeBlockchain();
     logger.info('✅ Blockchain connected');
+
+    // Initialize job board indexer
+    await initializeJobBoardIndexer();
+    logger.info('✅ Job board indexer initialized');
 
     // Setup WebSocket handlers
     setupWebSocket(wss);

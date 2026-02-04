@@ -1,0 +1,46 @@
+{
+  "contractName": "JobBoardEscrow",
+  "sourceName": "contracts/aiagent/JobBoardEscrow.sol",
+  "abi": [
+    {
+      "type": "function",
+      "name": "nextJobId",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "jobs",
+      "inputs": [{ "name": "", "type": "uint256" }],
+      "outputs": [
+        {
+          "name": "",
+          "type": "tuple",
+          "components": [
+            { "name": "owner", "type": "address" },
+            { "name": "jobURI", "type": "string" },
+            { "name": "jobHash", "type": "bytes32" },
+            { "name": "paymentToken", "type": "address" },
+            { "name": "budgetAmount", "type": "uint256" },
+            { "name": "deadline", "type": "uint256" },
+            { "name": "awardedAt", "type": "uint256" },
+            { "name": "agentId", "type": "uint256" },
+            { "name": "milestoneCount", "type": "uint256" },
+            { "name": "passThreshold", "type": "uint16" },
+            { "name": "totalReleased", "type": "uint256" },
+            { "name": "milestonesAdded", "type": "bool" },
+            { "name": "closed", "type": "bool" },
+            { "name": "disputeOpen", "type": "bool" },
+            { "name": "disputePayoutBps", "type": "uint16" },
+            { "name": "disputeOpenedAt", "type": "uint256" },
+            { "name": "disputeURI", "type": "string" },
+            { "name": "disputeHash", "type": "bytes32" }
+          ]
+        }
+      ],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": "0x"
+}
