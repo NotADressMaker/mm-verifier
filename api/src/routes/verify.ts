@@ -12,6 +12,7 @@ import {
 } from '../services/programRegistry';
 import { CONSTANTS } from '../../../shared/types';
 import { normalizeUnixSeconds, resolveCommitDeadline, resolveRevealDeadline } from '../utils/time';
+import { formatTaskStatus } from '../utils/taskStatus';
 
 const router = Router();
 
@@ -210,8 +211,7 @@ router.get('/:jobId', async (req: Request, res: Response) => {
     const taskDetails = await getTaskDetails(jobId);
 
     // Map status
-    const statusMap = ['open', 'reveal-phase', 'completed', 'disputed', 'resolved'];
-    const status = statusMap[taskDetails.state];
+    const status = formatTaskStatus(taskDetails.state);
 
     // Build response
     const response: any = {
