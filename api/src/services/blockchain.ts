@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
 import { logger } from '../utils/logger';
+import { formatTaskStatus } from '../utils/taskStatus';
 import { getRpcUrl } from '../../../shared/env';
 import { VerifierMarketplace, AuditorRegistry, StakingManager } from '../../../shared/abi';
 
@@ -30,30 +31,31 @@ export async function initializeBlockchain() {
       name: network.name,
     });
 
+    const marketplaceAddress = process.env.MARKETPLACE_ADDRESS || '';
+    const stakingAddress = process.env.STAKING_ADDRESS || '';
+    const auditorRegistryAddress = process.env.AUDITOR_REGISTRY_ADDRESS || '';
+
     // Initialize wallet if private key is provided
     if (process.env.PRIVATE_KEY) {
       wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
       logger.info('Wallet initialized', { address: wallet.address });
+    }
 
-      // Load contract addresses from deployment
-      const marketplaceAddress = process.env.MARKETPLACE_ADDRESS || '';
-      const stakingAddress = process.env.STAKING_ADDRESS || '';
-      const auditorRegistryAddress = process.env.AUDITOR_REGISTRY_ADDRESS || '';
+    const signerOrProvider = wallet ?? provider;
 
-      if (marketplaceAddress) {
-        marketplaceContract = new ethers.Contract(marketplaceAddress, MARKETPLACE_ABI, wallet);
-        logger.info('Marketplace contract loaded', { address: marketplaceAddress });
-      }
+    if (marketplaceAddress) {
+      marketplaceContract = new ethers.Contract(marketplaceAddress, MARKETPLACE_ABI, signerOrProvider);
+      logger.info('Marketplace contract loaded', { address: marketplaceAddress });
+    }
 
-      if (stakingAddress) {
-        stakingContract = new ethers.Contract(stakingAddress, STAKING_ABI, wallet);
-        logger.info('Staking contract loaded', { address: stakingAddress });
-      }
+    if (stakingAddress) {
+      stakingContract = new ethers.Contract(stakingAddress, STAKING_ABI, signerOrProvider);
+      logger.info('Staking contract loaded', { address: stakingAddress });
+    }
 
-      if (auditorRegistryAddress) {
-        auditorRegistryContract = new ethers.Contract(auditorRegistryAddress, AUDITOR_REGISTRY_ABI, wallet);
-        logger.info('Auditor registry contract loaded', { address: auditorRegistryAddress });
-      }
+    if (auditorRegistryAddress) {
+      auditorRegistryContract = new ethers.Contract(auditorRegistryAddress, AUDITOR_REGISTRY_ABI, signerOrProvider);
+      logger.info('Auditor registry contract loaded', { address: auditorRegistryAddress });
     }
   } catch (error) {
     logger.error('Failed to initialize blockchain:', error);
@@ -77,6 +79,9 @@ export async function submitVerificationJob(params: {
   try {
     if (!marketplaceContract) {
       throw new Error('Marketplace contract not initialized');
+    }
+    if (!wallet) {
+      throw new Error('Wallet not initialized for write operations');
     }
 
     logger.info('Submitting job to blockchain', {
@@ -141,7 +146,7 @@ export async function getTaskDetails(taskId: bigint | string) {
 
     const task = await marketplaceContract.getTaskMeta(taskId);
     return {
-      state: task[0],
+      state: Number(task[0]),
       requester: task[1],
       promptHash: task[2],
       rubricHash: task[3],
@@ -156,6 +161,53 @@ export async function getTaskDetails(taskId: bigint | string) {
     };
   } catch (error) {
     logger.error('Failed to get job details:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all verification jobs from blockchain
+ */
+export async function getAllJobs() {
+  try {
+    if (!marketplaceContract) {
+      throw new Error('Marketplace contract not initialized');
+    }
+
+    const nextTaskId = await marketplaceContract.nextTaskId();
+    const totalTasks = Math.max(0, Number(nextTaskId) - 1);
+
+    if (totalTasks === 0) {
+      return [];
+    }
+
+    const jobs = await Promise.all(
+      Array.from({ length: totalTasks }, async (_value, index) => {
+        const taskId = BigInt(index + 1);
+        const task = await getTaskDetails(taskId);
+
+        return {
+          taskId: taskId.toString(),
+          status: formatTaskStatus(task.state),
+          state: task.state,
+          requester: task.requester,
+          promptHash: task.promptHash,
+          rubricHash: task.rubricHash,
+          commitDeadline: task.commitDeadline,
+          revealDeadline: task.revealDeadline,
+          disputeDeadline: task.disputeDeadline,
+          minEvals: task.minEvals,
+          maxEvals: task.maxEvals,
+          rewardPool: task.feePool.toString(),
+          consensusScore: Number(task.finalScoreBps),
+          evalCount: Number(task.evalCount),
+        };
+      })
+    );
+
+    return jobs;
+  } catch (error) {
+    logger.error('Failed to get all jobs:', error);
     throw error;
   }
 }

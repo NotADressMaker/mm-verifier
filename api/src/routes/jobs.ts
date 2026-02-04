@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import { getAllJobs } from '../services/blockchain';
+import { normalizeTaskStatusQuery, TASK_STATUS_LABELS } from '../utils/taskStatus';
 
 const router = Router();
 
@@ -11,15 +12,16 @@ const router = Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { status, limit = 50, offset = 0 } = req.query;
+    const normalizedStatus = normalizeTaskStatusQuery(status as string | undefined);
 
-    logger.info('Fetching jobs', { status, limit, offset });
+    logger.info('Fetching jobs', { status, normalizedStatus, limit, offset });
 
     const jobs = await getAllJobs();
 
     // Filter by status if provided
     let filteredJobs = jobs;
-    if (status) {
-      filteredJobs = jobs.filter((job: any) => job.status === status);
+    if (normalizedStatus) {
+      filteredJobs = jobs.filter((job: any) => job.status === normalizedStatus);
     }
 
     // Pagination
@@ -52,14 +54,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     const stats = {
       total: jobs.length,
-      byStatus: {
-        pending: 0,
-        commitPhase: 0,
-        revealPhase: 0,
-        completed: 0,
-        disputed: 0,
-        cancelled: 0,
-      },
+      byStatus: Object.fromEntries(TASK_STATUS_LABELS.map((label) => [label, 0])) as Record<string, number>,
       averageScore: 0,
       totalRewards: '0',
     };
@@ -70,12 +65,12 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     for (const job of jobs) {
       // Count by status
-      const statusMap = ['pending', 'commitPhase', 'revealPhase', 'completed', 'disputed', 'cancelled'];
-      const statusKey = statusMap[job.status] as keyof typeof stats.byStatus;
-      stats.byStatus[statusKey]++;
+      if (job.status in stats.byStatus) {
+        stats.byStatus[job.status]++;
+      }
 
       // Calculate averages for completed jobs
-      if (job.status === 3) { // Completed
+      if (job.status === 'completed') {
         totalScore += Number(job.consensusScore);
         completedCount++;
       }
