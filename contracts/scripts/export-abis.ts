@@ -20,6 +20,7 @@ const CONTRACTS_TO_EXPORT = [
   'BLSSlashingManager',
   'StakingManager',
   'DisputeResolver',
+  'JobBoardEscrow',
 ];
 
 async function exportABIs() {

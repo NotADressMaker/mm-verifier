@@ -17,6 +17,7 @@ import AuditorRegistryArtifact from './AuditorRegistry.json';
 import BundleRegistryArtifact from './BundleRegistry.json';
 import BLSSlashingManagerArtifact from './BLSSlashingManager.json';
 import StakingManagerArtifact from './StakingManager.json';
+import JobBoardEscrowArtifact from './JobBoardEscrow.json';
 
 /**
  * Contract ABI exports
@@ -73,6 +74,12 @@ export const StakingManager = {
   contractName: 'StakingManager',
 };
 
+export const JobBoardEscrow = {
+  abi: JobBoardEscrowArtifact.abi,
+  bytecode: JobBoardEscrowArtifact.bytecode,
+  contractName: 'JobBoardEscrow',
+};
+
 /**
  * Helper function to get contract ABI by name
  * @param contractName Name of the contract
@@ -87,6 +94,7 @@ export function getContractABI(contractName: string) {
     BundleRegistry,
     BLSSlashingManager,
     StakingManager,
+    JobBoardEscrow,
   };
 
   const contract = contracts[contractName];
@@ -115,5 +123,6 @@ export default {
   BundleRegistry,
   BLSSlashingManager,
   StakingManager,
+  JobBoardEscrow,
   getContractABI,
 };
