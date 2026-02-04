@@ -558,10 +558,15 @@ For sensitive prompts:
 - [ ] TEE attestation MVP (attested verifier runtime + proof attachment)
 - [ ] ZK proof prototype (score verification for simple claim types)
 - [ ] Auditor tooling (CLI for evidence fetch + dispute workflow)
+- [ ] Validator-as-a-Service (work verification pipeline)
+  - [ ] Validator agent accepts validation requests and posts responses
+  - [ ] Plugins for deterministic re-execution, test-suite verification, and optional TEE attestation/ZK proof verification
 
 ### Long Term (6+ months)
 - [ ] Mainnet deployment (Arbitrum One)
 - [ ] Governance token
+- [ ] “Trust Lens” browser extension for agent/endpoint safety
+  - [ ] Show agent identity token, reputation summary, last validation outcomes, and risk flags (new agent, low-signal reviews, sudden score changes)
 
 ## Testing
 
