@@ -1,35 +1,24 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const [owner, agentOwner, validator] = await ethers.getSigners();
+  const [owner, agent, validator] = await ethers.getSigners();
 
   console.log("JobBoardEscrow demo (local Anvil)");
   console.log("Owner:", owner.address);
-  console.log("Agent owner:", agentOwner.address);
+  console.log("Agent:", agent.address);
+  console.log("Validator:", validator.address);
 
-  const IdentityFactory = await ethers.getContractFactory("MockIdentityRegistry");
-  const identity = await IdentityFactory.deploy();
-  await identity.waitForDeployment();
-
-  const ValidationFactory = await ethers.getContractFactory("MockValidationRegistry");
-  const validation = await ValidationFactory.deploy();
-  await validation.waitForDeployment();
-
+  // Deploy standalone JobBoardEscrow (no external registries)
   const EscrowFactory = await ethers.getContractFactory("JobBoardEscrow");
-  const escrow = await EscrowFactory.deploy(
-    await identity.getAddress(),
-    await validation.getAddress()
-  );
+  const escrow = await EscrowFactory.deploy();
   await escrow.waitForDeployment();
 
   console.log("✅ JobBoardEscrow deployed:", await escrow.getAddress());
 
-  const agentId = 1;
-  await identity.setAgent(agentId, agentOwner.address, "ipfs://agent");
-
   const budget = ethers.parseEther("0.2");
   const deadline = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
 
+  // Post a job
   const jobTx = await escrow.connect(owner).postJob(
     "ipfs://job",
     ethers.keccak256(ethers.toUtf8Bytes("job")),
@@ -42,6 +31,7 @@ async function main() {
   );
   await jobTx.wait();
 
+  // Add milestones
   await escrow.connect(owner).addMilestones(
     1,
     ["ipfs://milestone-1", "ipfs://milestone-2"],
@@ -52,17 +42,22 @@ async function main() {
     [5000, 5000]
   );
 
-  await escrow.connect(owner).award(1, agentId);
+  // Award directly to agent address (no external registry)
+  await escrow.connect(owner).award(1, agent.address);
 
-  console.log("✅ Job posted and awarded");
+  console.log("✅ Job posted and awarded to agent");
 
-  await escrow.connect(agentOwner).submitProof(
+  // Agent submits proof
+  await escrow.connect(agent).submitProof(
     1,
     0,
     "ipfs://proof-1",
     ethers.keccak256(ethers.toUtf8Bytes("proof-1"))
   );
 
+  console.log("✅ Agent submitted proof for milestone 0");
+
+  // Owner requests validation
   const requestHash = ethers.keccak256(ethers.toUtf8Bytes("request-1"));
   await escrow.connect(owner).requestValidation(
     1,
@@ -72,7 +67,10 @@ async function main() {
     requestHash
   );
 
-  await validation.submitResponse(
+  console.log("✅ Owner requested validation from validator");
+
+  // Validator submits response directly to escrow
+  await escrow.connect(validator).submitValidation(
     requestHash,
     85,
     "ipfs://response-1",
@@ -80,9 +78,19 @@ async function main() {
     "milestone-0"
   );
 
+  console.log("✅ Validator submitted validation response (score: 85)");
+
+  // Finalize milestone
   await escrow.connect(owner).finalize(1, 0, requestHash);
 
-  console.log("✅ Milestone 1 finalized");
+  console.log("✅ Milestone 0 finalized, agent paid 0.1 ETH");
+
+  // Check agent balance change
+  const job = await escrow.jobs(1);
+  console.log("\nJob status:");
+  console.log("  Budget:", ethers.formatEther(job.budgetAmount), "ETH");
+  console.log("  Total released:", ethers.formatEther(job.totalReleased), "ETH");
+  console.log("  Closed:", job.closed);
 }
 
 main()

@@ -6,13 +6,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "../interfaces/IIdentityRegistry.sol";
-import "../interfaces/IValidationRegistry.sol";
-
 /**
  * @title JobBoardEscrow
- * @notice On-chain job board with escrowed payouts released by validation registry responses.
+ * @notice Standalone on-chain job board with escrowed payouts released by validator responses.
  * @dev Jobs commit to off-chain specs via jobHash + milestone hashes. Payments held in escrow.
+ *      This version does NOT depend on external ERC-8004 registries.
  */
 contract JobBoardEscrow is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -25,7 +23,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         uint256 budgetAmount;
         uint256 deadline;
         uint256 awardedAt;
-        uint256 agentId;
+        address agent; // Direct agent address (no external registry)
         uint256 milestoneCount;
         uint16 passThreshold;
         uint256 totalReleased;
@@ -52,14 +50,20 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         uint256 submittedAt;
     }
 
-    struct ValidationRequestMeta {
-        uint256 jobId;
-        uint256 milestoneIndex;
+    struct ValidationResponse {
+        uint8 score;
+        string responseURI;
+        bytes32 responseHash;
+        string tag;
         bool exists;
     }
 
-    IIdentityRegistry public immutable identityRegistry;
-    IValidationRegistry public immutable validationRegistry;
+    struct ValidationRequestMeta {
+        uint256 jobId;
+        uint256 milestoneIndex;
+        address validator;
+        bool exists;
+    }
 
     uint256 public nextJobId = 1;
     uint256 public disputeWindowSeconds = 7 days;
@@ -69,6 +73,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
     mapping(uint256 => mapping(uint256 => Milestone)) public milestones;
     mapping(uint256 => mapping(uint256 => Proof)) public proofs;
     mapping(bytes32 => ValidationRequestMeta) public validationRequests;
+    mapping(bytes32 => ValidationResponse) public validationResponses;
 
     event JobPosted(
         uint256 indexed jobId,
@@ -82,7 +87,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         uint16 passThreshold
     );
     event MilestonesAdded(uint256 indexed jobId, uint256 milestoneCount);
-    event JobAwarded(uint256 indexed jobId, uint256 indexed agentId, uint256 awardedAt);
+    event JobAwarded(uint256 indexed jobId, address indexed agent, uint256 awardedAt);
     event ProofSubmitted(
         uint256 indexed jobId,
         uint256 indexed milestoneIndex,
@@ -96,6 +101,13 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         address indexed validator,
         bytes32 requestHash,
         string requestURI
+    );
+    event ValidationSubmitted(
+        bytes32 indexed requestHash,
+        uint8 score,
+        string responseURI,
+        bytes32 responseHash,
+        string tag
     );
     event JobFinalized(
         uint256 indexed jobId,
@@ -118,14 +130,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
     );
     event RemainderReclaimed(uint256 indexed jobId, uint256 amount);
 
-    constructor(IIdentityRegistry _identityRegistry, IValidationRegistry _validationRegistry)
-        Ownable(msg.sender)
-    {
-        require(address(_identityRegistry) != address(0), "Invalid identity registry");
-        require(address(_validationRegistry) != address(0), "Invalid validation registry");
-        identityRegistry = _identityRegistry;
-        validationRegistry = _validationRegistry;
-    }
+    constructor() Ownable(msg.sender) {}
 
     function setDisputeWindowSeconds(uint256 newWindow) external onlyOwner {
         require(newWindow > 0, "Invalid window");
@@ -169,7 +174,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
             budgetAmount: budgetAmount,
             deadline: deadline,
             awardedAt: 0,
-            agentId: 0,
+            agent: address(0),
             milestoneCount: milestoneCount,
             passThreshold: passThreshold == 0 ? defaultPassThreshold : passThreshold,
             totalReleased: 0,
@@ -231,18 +236,22 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         emit MilestonesAdded(jobId, job.milestoneCount);
     }
 
-    function award(uint256 jobId, uint256 agentId) external {
+    /**
+     * @notice Award job to an agent address (no external registry lookup)
+     * @param jobId The job to award
+     * @param agent The agent address to receive payouts
+     */
+    function award(uint256 jobId, address agent) external {
         Job storage job = jobs[jobId];
         require(job.owner == msg.sender, "Not job owner");
         require(job.awardedAt == 0, "Already awarded");
         require(job.milestonesAdded, "Milestones required");
-        require(agentId != 0, "Agent required");
-        require(identityRegistry.ownerOf(agentId) != address(0), "Invalid agent");
+        require(agent != address(0), "Agent required");
 
-        job.agentId = agentId;
+        job.agent = agent;
         job.awardedAt = block.timestamp;
 
-        emit JobAwarded(jobId, agentId, job.awardedAt);
+        emit JobAwarded(jobId, agent, job.awardedAt);
     }
 
     function submitProof(
@@ -252,8 +261,8 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         bytes32 proofHash
     ) external {
         Job storage job = jobs[jobId];
-        require(job.agentId != 0, "Job not awarded");
-        require(_isAuthorizedAgent(job.agentId, msg.sender), "Not agent");
+        require(job.agent != address(0), "Job not awarded");
+        require(msg.sender == job.agent, "Not agent");
         require(milestoneIndex <= job.milestoneCount, "Invalid milestone index");
         require(bytes(proofURI).length > 0, "Proof URI required");
         require(proofHash != bytes32(0), "Proof hash required");
@@ -268,6 +277,10 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         emit ProofSubmitted(jobId, milestoneIndex, proofURI, proofHash, msg.sender);
     }
 
+    /**
+     * @notice Job owner requests validation from a validator
+     * @dev Stores the request metadata; validator must call submitValidation to respond
+     */
     function requestValidation(
         uint256 jobId,
         address validator,
@@ -277,21 +290,77 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
     ) external {
         Job storage job = jobs[jobId];
         require(job.owner == msg.sender, "Not job owner");
-        require(job.agentId != 0, "Job not awarded");
+        require(job.agent != address(0), "Job not awarded");
         require(!job.closed, "Job closed");
         require(milestoneIndex <= job.milestoneCount, "Invalid milestone index");
         require(requestHash != bytes32(0), "Request hash required");
         require(!validationRequests[requestHash].exists, "Request hash used");
+        require(validator != address(0), "Validator required");
 
         validationRequests[requestHash] = ValidationRequestMeta({
             jobId: jobId,
             milestoneIndex: milestoneIndex,
+            validator: validator,
             exists: true
         });
 
-        validationRegistry.validationRequest(validator, job.agentId, requestURI, requestHash);
-
         emit ValidationRequested(jobId, milestoneIndex, validator, requestHash, requestURI);
+    }
+
+    /**
+     * @notice Validator submits a validation response
+     * @param requestHash The request hash to respond to
+     * @param score Validation score (0-100)
+     * @param responseURI Off-chain response details
+     * @param responseHash Hash of the response content
+     * @param tag Tag for the response (e.g., "milestone-0", "final")
+     */
+    function submitValidation(
+        bytes32 requestHash,
+        uint8 score,
+        string calldata responseURI,
+        bytes32 responseHash,
+        string calldata tag
+    ) external {
+        ValidationRequestMeta storage meta = validationRequests[requestHash];
+        require(meta.exists, "Request does not exist");
+        require(meta.validator == msg.sender, "Not designated validator");
+        require(!validationResponses[requestHash].exists, "Already responded");
+        require(score <= 100, "Invalid score");
+
+        validationResponses[requestHash] = ValidationResponse({
+            score: score,
+            responseURI: responseURI,
+            responseHash: responseHash,
+            tag: tag,
+            exists: true
+        });
+
+        emit ValidationSubmitted(requestHash, score, responseURI, responseHash, tag);
+    }
+
+    /**
+     * @notice Get validation response for a request hash
+     */
+    function getValidationResponse(bytes32 requestHash)
+        external
+        view
+        returns (
+            uint8 score,
+            string memory responseURI,
+            bytes32 responseHash,
+            string memory tag,
+            bool exists
+        )
+    {
+        ValidationResponse memory response = validationResponses[requestHash];
+        return (
+            response.score,
+            response.responseURI,
+            response.responseHash,
+            response.tag,
+            response.exists
+        );
     }
 
     function finalize(
@@ -307,12 +376,12 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         ValidationRequestMeta memory meta = validationRequests[requestHash];
         require(meta.exists && meta.jobId == jobId && meta.milestoneIndex == milestoneIndex, "Invalid request");
 
-        (uint8 score, , , , bool exists) = validationRegistry.getValidationResponse(requestHash);
-        require(exists, "Validation missing");
-        require(score >= job.passThreshold, "Validation failed");
+        ValidationResponse memory response = validationResponses[requestHash];
+        require(response.exists, "Validation missing");
+        require(response.score >= job.passThreshold, "Validation failed");
 
         uint256 payoutAmount;
-        address payoutAddress = _resolvePayoutAddress(job.agentId);
+        address payoutAddress = job.agent;
 
         if (milestoneIndex == job.milestoneCount) {
             payoutAmount = job.budgetAmount - job.totalReleased;
@@ -332,7 +401,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
             job.closed = true;
         }
 
-        emit JobFinalized(jobId, milestoneIndex, requestHash, score, payoutAmount, payoutAddress);
+        emit JobFinalized(jobId, milestoneIndex, requestHash, response.score, payoutAmount, payoutAddress);
     }
 
     function openDispute(
@@ -343,7 +412,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
     ) external {
         Job storage job = jobs[jobId];
         require(job.owner == msg.sender, "Not job owner");
-        require(job.agentId != 0, "Job not awarded");
+        require(job.agent != address(0), "Job not awarded");
         require(!job.closed, "Job closed");
         require(!job.disputeOpen, "Dispute already open");
         require(_inDisputeWindow(job), "Dispute window closed");
@@ -366,7 +435,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         Job storage job = jobs[jobId];
         require(job.disputeOpen, "No dispute");
         require(!job.closed, "Job closed");
-        require(_isAuthorizedAgent(job.agentId, msg.sender), "Not agent");
+        require(msg.sender == job.agent, "Not agent");
         require(_inDisputeWindow(job), "Dispute window closed");
 
         uint256 targetPayout = (job.budgetAmount * job.disputePayoutBps) / 10000;
@@ -375,7 +444,7 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         uint256 agentAmount = targetPayout - job.totalReleased;
         uint256 ownerRefund = job.budgetAmount - targetPayout;
 
-        address payoutAddress = _resolvePayoutAddress(job.agentId);
+        address payoutAddress = job.agent;
         if (agentAmount > 0) {
             job.totalReleased += agentAmount;
             _payout(job.paymentToken, payoutAddress, agentAmount);
@@ -414,20 +483,6 @@ contract JobBoardEscrow is Ownable, ReentrancyGuard {
         } else {
             IERC20(token).safeTransfer(to, amount);
         }
-    }
-
-    function _resolvePayoutAddress(uint256 agentId) internal view returns (address) {
-        address wallet = identityRegistry.agentWallet(agentId);
-        if (wallet == address(0)) {
-            wallet = identityRegistry.ownerOf(agentId);
-        }
-        return wallet;
-    }
-
-    function _isAuthorizedAgent(uint256 agentId, address caller) internal view returns (bool) {
-        address wallet = identityRegistry.agentWallet(agentId);
-        address owner = identityRegistry.ownerOf(agentId);
-        return caller == wallet || caller == owner;
     }
 
     function _inDisputeWindow(Job storage job) internal view returns (bool) {
