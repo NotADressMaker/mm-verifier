@@ -74,7 +74,7 @@ export function renderJobBoardDashboard(): string {
         <tr>
           <th>Job ID</th>
           <th>Status</th>
-          <th>Agent ID</th>
+          <th>Agent</th>
           <th>Budget</th>
           <th>Released</th>
           <th>Deadline</th>
@@ -111,10 +111,13 @@ export function renderJobBoardDashboard(): string {
 
       data.jobs.forEach((job) => {
         const row = document.createElement('tr');
+        const agentDisplay = job.agent === '0x0000000000000000000000000000000000000000'
+          ? '—'
+          : job.agent.slice(0, 6) + '…' + job.agent.slice(-4);
         row.innerHTML = `
           <td>#${job.jobId}</td>
           <td><span class="badge ${job.status}">${job.status}</span></td>
-          <td>${job.agentId === '0' ? '—' : job.agentId}</td>
+          <td title="${job.agent}">${agentDisplay}</td>
           <td>${formatBudget(job.budgetAmount)}</td>
           <td>${formatBudget(job.totalReleased)}</td>
           <td>${formatTimestamp(job.deadline)}</td>

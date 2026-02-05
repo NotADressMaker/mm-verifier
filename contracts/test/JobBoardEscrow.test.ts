@@ -4,44 +4,25 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import {
   JobBoardEscrow,
   MockERC20,
-  MockIdentityRegistry,
-  MockValidationRegistry,
 } from "../typechain-types";
 
 describe("JobBoardEscrow", function () {
   let escrow: JobBoardEscrow;
-  let identity: MockIdentityRegistry;
-  let validation: MockValidationRegistry;
   let token: MockERC20;
   let owner: any;
-  let agentOwner: any;
+  let agent: any;
   let validator: any;
 
-  const agentId = 1;
-
   beforeEach(async function () {
-    [owner, agentOwner, validator] = await ethers.getSigners();
-
-    const IdentityFactory = await ethers.getContractFactory("MockIdentityRegistry");
-    identity = await IdentityFactory.deploy();
-    await identity.waitForDeployment();
-
-    const ValidationFactory = await ethers.getContractFactory("MockValidationRegistry");
-    validation = await ValidationFactory.deploy();
-    await validation.waitForDeployment();
+    [owner, agent, validator] = await ethers.getSigners();
 
     const EscrowFactory = await ethers.getContractFactory("JobBoardEscrow");
-    escrow = await EscrowFactory.deploy(
-      await identity.getAddress(),
-      await validation.getAddress()
-    );
+    escrow = await EscrowFactory.deploy();
     await escrow.waitForDeployment();
 
     const TokenFactory = await ethers.getContractFactory("MockERC20");
     token = await TokenFactory.deploy("Mock Token", "MOCK");
     await token.waitForDeployment();
-
-    await identity.setAgent(agentId, agentOwner.address, "ipfs://agent");
   });
 
   it("releases milestone payouts after validation", async function () {
@@ -70,9 +51,10 @@ describe("JobBoardEscrow", function () {
       [5000, 5000]
     );
 
-    await escrow.connect(owner).award(1, agentId);
+    // Award to agent address directly (no external registry)
+    await escrow.connect(owner).award(1, agent.address);
 
-    await escrow.connect(agentOwner).submitProof(
+    await escrow.connect(agent).submitProof(
       1,
       0,
       "ipfs://proof1",
@@ -88,7 +70,8 @@ describe("JobBoardEscrow", function () {
       requestHash
     );
 
-    await validation.submitResponse(
+    // Validator submits response directly to the escrow contract
+    await escrow.connect(validator).submitValidation(
       requestHash,
       80,
       "ipfs://response1",
@@ -96,10 +79,10 @@ describe("JobBoardEscrow", function () {
       "milestone-0"
     );
 
-    const balanceBefore = await ethers.provider.getBalance(agentOwner.address);
+    const balanceBefore = await ethers.provider.getBalance(agent.address);
     const finalizeTx = await escrow.connect(owner).finalize(1, 0, requestHash);
     await finalizeTx.wait();
-    const balanceAfter = await ethers.provider.getBalance(agentOwner.address);
+    const balanceAfter = await ethers.provider.getBalance(agent.address);
 
     expect(balanceAfter - balanceBefore).to.equal(ethers.parseEther("0.5"));
 
@@ -112,7 +95,7 @@ describe("JobBoardEscrow", function () {
       finalRequestHash
     );
 
-    await validation.submitResponse(
+    await escrow.connect(validator).submitValidation(
       finalRequestHash,
       90,
       "ipfs://final-response",
@@ -122,7 +105,7 @@ describe("JobBoardEscrow", function () {
 
     await expect(escrow.connect(owner).finalize(1, 2, finalRequestHash))
       .to.emit(escrow, "JobFinalized")
-      .withArgs(1, 2, finalRequestHash, 90, ethers.parseEther("0.5"), agentOwner.address);
+      .withArgs(1, 2, finalRequestHash, 90, ethers.parseEther("0.5"), agent.address);
   });
 
   it("handles dispute acceptance and remainder reclaim", async function () {
@@ -149,7 +132,8 @@ describe("JobBoardEscrow", function () {
       [10000]
     );
 
-    await escrow.connect(owner).award(1, agentId);
+    // Award to agent address directly
+    await escrow.connect(owner).award(1, agent.address);
 
     await escrow.connect(owner).openDispute(
       1,
@@ -158,11 +142,11 @@ describe("JobBoardEscrow", function () {
       ethers.keccak256(ethers.toUtf8Bytes("dispute"))
     );
 
-    await expect(escrow.connect(agentOwner).acceptDispute(1))
+    await expect(escrow.connect(agent).acceptDispute(1))
       .to.emit(escrow, "DisputeAccepted")
       .withArgs(1, 600n, 400n);
 
-    expect(await token.balanceOf(agentOwner.address)).to.equal(600n);
+    expect(await token.balanceOf(agent.address)).to.equal(600n);
     expect(await token.balanceOf(owner.address)).to.equal(400n);
 
     const jobId = 2;
@@ -186,7 +170,7 @@ describe("JobBoardEscrow", function () {
       [10000]
     );
 
-    await escrow.connect(owner).award(jobId, agentId);
+    await escrow.connect(owner).award(jobId, agent.address);
 
     await escrow.connect(owner).openDispute(
       jobId,
@@ -202,5 +186,123 @@ describe("JobBoardEscrow", function () {
       .withArgs(jobId, budget);
 
     expect(await token.balanceOf(owner.address)).to.equal(1400n);
+  });
+
+  it("only allows designated validator to submit validation", async function () {
+    const budget = ethers.parseEther("1");
+    const deadline = (await time.latest()) + 86400;
+
+    await escrow.connect(owner).postJob(
+      "ipfs://job",
+      ethers.keccak256(ethers.toUtf8Bytes("job")),
+      ethers.ZeroAddress,
+      budget,
+      deadline,
+      1,
+      70,
+      { value: budget }
+    );
+
+    await escrow.connect(owner).addMilestones(
+      1,
+      ["ipfs://ms"],
+      [ethers.keccak256(ethers.toUtf8Bytes("ms"))],
+      [10000]
+    );
+
+    await escrow.connect(owner).award(1, agent.address);
+
+    const requestHash = ethers.keccak256(ethers.toUtf8Bytes("request1"));
+    await escrow.connect(owner).requestValidation(
+      1,
+      validator.address,
+      0,
+      "ipfs://request1",
+      requestHash
+    );
+
+    // Non-designated validator cannot submit
+    await expect(
+      escrow.connect(agent).submitValidation(
+        requestHash,
+        80,
+        "ipfs://response1",
+        ethers.keccak256(ethers.toUtf8Bytes("response1")),
+        "milestone-0"
+      )
+    ).to.be.revertedWith("Not designated validator");
+
+    // Designated validator can submit
+    await escrow.connect(validator).submitValidation(
+      requestHash,
+      80,
+      "ipfs://response1",
+      ethers.keccak256(ethers.toUtf8Bytes("response1")),
+      "milestone-0"
+    );
+
+    // Cannot submit twice
+    await expect(
+      escrow.connect(validator).submitValidation(
+        requestHash,
+        90,
+        "ipfs://response2",
+        ethers.keccak256(ethers.toUtf8Bytes("response2")),
+        "milestone-0"
+      )
+    ).to.be.revertedWith("Already responded");
+  });
+
+  it("can read validation response via getValidationResponse", async function () {
+    const budget = ethers.parseEther("1");
+    const deadline = (await time.latest()) + 86400;
+
+    await escrow.connect(owner).postJob(
+      "ipfs://job",
+      ethers.keccak256(ethers.toUtf8Bytes("job")),
+      ethers.ZeroAddress,
+      budget,
+      deadline,
+      1,
+      70,
+      { value: budget }
+    );
+
+    await escrow.connect(owner).addMilestones(
+      1,
+      ["ipfs://ms"],
+      [ethers.keccak256(ethers.toUtf8Bytes("ms"))],
+      [10000]
+    );
+
+    await escrow.connect(owner).award(1, agent.address);
+
+    const requestHash = ethers.keccak256(ethers.toUtf8Bytes("request1"));
+    await escrow.connect(owner).requestValidation(
+      1,
+      validator.address,
+      0,
+      "ipfs://request1",
+      requestHash
+    );
+
+    // Before submission, response should not exist
+    let response = await escrow.getValidationResponse(requestHash);
+    expect(response.exists).to.equal(false);
+
+    await escrow.connect(validator).submitValidation(
+      requestHash,
+      85,
+      "ipfs://response1",
+      ethers.keccak256(ethers.toUtf8Bytes("response1")),
+      "milestone-0"
+    );
+
+    // After submission, response should exist with correct values
+    response = await escrow.getValidationResponse(requestHash);
+    expect(response.exists).to.equal(true);
+    expect(response.score).to.equal(85);
+    expect(response.responseURI).to.equal("ipfs://response1");
+    expect(response.tag).to.equal("milestone-0");
   });
 });

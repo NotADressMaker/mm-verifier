@@ -6,7 +6,7 @@ import { JobBoardEscrow } from '../../../shared/abi';
 export interface JobBoardJob {
   jobId: string;
   owner: string;
-  agentId: string;
+  agent: string; // Changed from agentId to agent address
   jobURI: string;
   jobHash: string;
   paymentToken: string;
@@ -60,18 +60,20 @@ export async function getJobBoardJobs(): Promise<JobBoardJob[]> {
 
     for (let i = 1; i <= totalJobs; i++) {
       const job = await jobBoardContract.jobs(i);
+      // Changed: agent is now an address, not an ID
+      const agentAddress = job.agent;
       const status = job.closed
         ? 'closed'
         : job.disputeOpen
           ? 'dispute'
-          : job.agentId === 0n
+          : agentAddress === ethers.ZeroAddress
             ? 'open'
             : 'awarded';
 
       jobs.push({
         jobId: i.toString(),
         owner: job.owner,
-        agentId: job.agentId.toString(),
+        agent: agentAddress, // Changed from agentId to agent address
         jobURI: job.jobURI,
         jobHash: job.jobHash,
         paymentToken: job.paymentToken,
