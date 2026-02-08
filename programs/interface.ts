@@ -20,7 +20,7 @@ export type ProgramContext = {
   output_hash: `0x${string}`;
   bundle_hash: `0x${string}`;
   bundle_uri: string;
-  bundle_version: '0.1' | '0.2';
+  bundle_version: '0.1' | '0.2' | '0.3';
   chain_id: number;
   contract_address: `0x${string}`;
   llm_provider: string;

@@ -46,6 +46,9 @@ function toModelRuns(responses: ModelResponse[]): ModelRun[] {
         latencyMs: response.metadata?.duration,
         tokensUsed: response.metadata?.tokensUsed,
         maxTokens: response.metadata?.maxTokens,
+        topP: response.metadata?.topP,
+        seed: response.metadata?.seed,
+        requestId: response.metadata?.requestId,
       }
     )
   );
@@ -123,7 +126,9 @@ export async function createEvidenceBundle({
   const finalScoreBps = toScoreBps(scoringResult.score);
   const bundleVersion = process.env.EVIDENCE_BUNDLE_VERSION;
   const resolvedBundleVersion =
-    bundleVersion === '0.1' || bundleVersion === '0.2' ? bundleVersion : undefined;
+    bundleVersion === '0.1' || bundleVersion === '0.2' || bundleVersion === '0.3'
+      ? bundleVersion
+      : undefined;
 
   const bundle = createBundle(
     taskId,

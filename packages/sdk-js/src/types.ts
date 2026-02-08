@@ -194,7 +194,7 @@ export interface VerificationReceipt {
   evidence: {
     bundle_hash: string;
     bundle_uri: string;
-    bundle_version: '0.1' | '0.2';
+    bundle_version: '0.1' | '0.2' | '0.3';
   };
   metering?: {
     llm_calls: number;

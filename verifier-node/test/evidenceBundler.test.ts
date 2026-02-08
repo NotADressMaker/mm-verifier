@@ -52,7 +52,7 @@ describe('Evidence bundler v0.2', () => {
     });
 
     expect(bundle.task_id).toBeDefined();
-    expect(bundle.version).toBe('1.0.0');
+    expect(bundle.version).toBe('1.1.0');
     expect(bundle.bundle_version).toBe('0.2');
     expect(bundle.created_at).toBeDefined();
     expect(bundle.model_runs.length).toBeGreaterThan(0);

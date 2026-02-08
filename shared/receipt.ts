@@ -10,6 +10,7 @@
 
 import { hashCanonical, canonicalize } from './canonicalJson';
 import { ProgramDefinitionWithLimits, computeProgramFingerprint } from './programs';
+import { VerifiedPlaintextStatement } from './types';
 
 // ============================================================================
 // Receipt Version
@@ -80,7 +81,7 @@ export interface VerificationReceipt {
   evidence: {
     bundle_hash: `0x${string}`;
     bundle_uri: string;
-    bundle_version: '0.1' | '0.2';
+    bundle_version: '0.1' | '0.2' | '0.3';
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -166,6 +167,9 @@ export interface VerificationReceipt {
   /** Structured, machine-readable explanation */
   explain: ReceiptExplain;
 
+  /** Signed statement for verified plaintext bundles (privacy mode) */
+  plaintext_verification?: VerifiedPlaintextStatement;
+
   // ─────────────────────────────────────────────────────────────────────────
   // ZK Proof (Future)
   // ─────────────────────────────────────────────────────────────────────────
@@ -214,6 +218,7 @@ export interface ReceiptExplain {
     agreement_rate: number;
     clusters?: Array<Record<string, unknown>>;
   };
+  plaintext_verification?: VerifiedPlaintextStatement;
   timings_ms?: {
     fetch?: number;
     program_run?: number;
@@ -245,6 +250,7 @@ const RECEIPT_HASH_FIELDS = [
   'model_commitments',
   'reasoning_trace',
   'explain',
+  'plaintext_verification',
   // Note: zk_proof is NOT included in hash (it proves the hash)
 ] as const;
 
@@ -297,7 +303,7 @@ export interface BuildReceiptParams {
   score_bps: number;
   bundle_hash: `0x${string}`;
   bundle_uri: string;
-  bundle_version?: '0.1' | '0.2';
+  bundle_version?: '0.1' | '0.2' | '0.3';
   llm_provider: string;
   llm_model: string;
   program?: ProgramDefinitionWithLimits & { program_id?: string };

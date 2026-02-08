@@ -1,6 +1,10 @@
-import { validateEvidenceBundleV1, validateReceiptV1 } from '../../shared/schemaValidation';
+import {
+  validateEvidenceBundlePayload,
+  validateEvidenceBundleV1,
+  validateReceiptV1,
+} from '../../shared/schemaValidation';
 
-const validBundle = {
+const validBundleV1 = {
   version: '1.0.0',
   task_id: 'task-1',
   bundle_version: '0.2',
@@ -55,6 +59,50 @@ const validBundle = {
   },
 };
 
+const validBundleV2 = {
+  ...validBundleV1,
+  version: '1.1.0',
+  bundle_version: '0.3',
+  replay: {
+    model_identity: {
+      model_name: 'gpt-4',
+      provider: 'openai',
+      model_version: '2024-01-01',
+      model_commitment_hash: '0x' + '77'.repeat(32),
+    },
+    invocation: {
+      temperature: 0.1,
+      top_p: 1,
+      max_tokens: 100,
+      seed: 42,
+      system_prompt_hash: '0x' + '88'.repeat(32),
+      safety_modes: ['default'],
+    },
+    transcript: {
+      canonicalization: {
+        newline: 'lf',
+        json: 'canonical',
+      },
+      messages: [
+        { role: 'user', content: 'Hello' },
+      ],
+      outputs: [
+        { content: 'World', timestamp: 1, request_id: 'req_1' },
+      ],
+    },
+    replay_recipe: {
+      provider: 'openai',
+      endpoint_id: 'https://api.openai.com/v1/chat/completions',
+      parameters: { temperature: 0.1 },
+      messages: [{ role: 'user', content: 'Hello' }],
+      replay_expected: {
+        prompt_hash: '0x' + '22'.repeat(32),
+        output_hash: '0x' + '44'.repeat(32),
+      },
+    },
+  },
+};
+
 const validReceipt = {
   version: '1.0.0',
   receipt_version: '1.0.0',
@@ -105,13 +153,18 @@ describe('Schema validation (verifier-node)', () => {
   });
 
   it('accepts valid evidence bundle', () => {
-    const result = validateEvidenceBundleV1(validBundle);
+    const result = validateEvidenceBundleV1(validBundleV1);
     expect(result.valid).toBe(true);
   });
 
   it('rejects bundle with wrong type', () => {
-    const invalid = { ...validBundle, final_score_bps: 'oops' };
+    const invalid = { ...validBundleV1, final_score_bps: 'oops' };
     const result = validateEvidenceBundleV1(invalid);
     expect(result.valid).toBe(false);
+  });
+
+  it('accepts valid v2 evidence bundle payload', () => {
+    const result = validateEvidenceBundlePayload(validBundleV2);
+    expect(result.valid).toBe(true);
   });
 });

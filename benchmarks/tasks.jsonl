@@ -1,0 +1,10 @@
+{"task_id":"task-001","prompt":"What is 2+2?","expected_answer":"4","category":"math"}
+{"task_id":"task-002","prompt":"What is the capital of France?","expected_answer":"Paris","category":"factual-qa"}
+{"task_id":"task-003","prompt":"Is the sky green?","expected_answer":"No","category":"factual-qa"}
+{"task_id":"task-004","prompt":"Compute 10/2.","expected_answer":"5","category":"math"}
+{"task_id":"task-005","prompt":"Name a primary color.","expected_answer":"Red","category":"general"}
+{"task_id":"task-006","prompt":"Does water boil at 100C at sea level?","expected_answer":"Yes","category":"factual-qa"}
+{"task_id":"task-007","prompt":"What is 3*7?","expected_answer":"21","category":"math"}
+{"task_id":"task-008","prompt":"Who wrote '1984'?","expected_answer":"George Orwell","category":"factual-qa"}
+{"task_id":"task-009","prompt":"What is the square root of 81?","expected_answer":"9","category":"math"}
+{"task_id":"task-010","prompt":"Is the sun a planet?","expected_answer":"No","category":"factual-qa"}

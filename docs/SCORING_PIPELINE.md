@@ -1067,6 +1067,19 @@ Model Responses:
 
 ---
 
+## Deterministic Checkers (Replayable Tasks)
+
+When tasks can be replayed without new LLM calls, the verifier applies deterministic checkers:
+
+- **Citation checker**: validates required citations exist per claim.
+- **Arithmetic checker**: recomputes inline arithmetic expressions and flags mismatches.
+- **Code execution checker (safe mode)**: executes Python snippets with timeouts, blocked imports, and no user-site packages.
+- **Policy checker**: applies simple disallowed-content rules.
+
+These checks emit structured results that populate `Receipt.explain.score_components` and `Receipt.explain.checks`.
+
+---
+
 ## Conclusion
 
 The MMV scoring pipeline is:

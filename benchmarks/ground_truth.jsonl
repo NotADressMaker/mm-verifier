@@ -1,0 +1,10 @@
+{"task_id":"task-001","expected_verdict":true,"category":"math"}
+{"task_id":"task-002","expected_verdict":true,"category":"factual-qa"}
+{"task_id":"task-003","expected_verdict":true,"category":"factual-qa"}
+{"task_id":"task-004","expected_verdict":false,"category":"math"}
+{"task_id":"task-005","expected_verdict":true,"category":"general"}
+{"task_id":"task-006","expected_verdict":true,"category":"factual-qa"}
+{"task_id":"task-007","expected_verdict":false,"category":"math"}
+{"task_id":"task-008","expected_verdict":true,"category":"factual-qa"}
+{"task_id":"task-009","expected_verdict":true,"category":"math"}
+{"task_id":"task-010","expected_verdict":false,"category":"factual-qa"}
