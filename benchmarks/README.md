@@ -19,6 +19,16 @@ The harness also captures **queue wait time** (backpressure) when concurrency is
 python benchmarks/run_benchmarks.py --tasks 50 --concurrency 10 --include-dispute --output benchmarks/sample_report.json
 ```
 
+## Calibration datasets
+
+The `tasks.jsonl`, `ground_truth.jsonl`, and `bundles/` directory provide a lightweight calibration dataset for score calibration and multi-LLM agreement reporting.
+
+Run the calibration harness:
+
+```bash
+mmv benchmark run --program factual-consensus@1.0.0 --bundles benchmarks/bundles/ --out out/
+```
+
 ### Common flags
 - `--tasks`: number of tasks to simulate
 - `--concurrency`: max concurrent tasks

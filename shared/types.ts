@@ -9,7 +9,7 @@
 
 export interface EvidenceBundleV01 {
   // Metadata
-  version: '1.0.0';
+  version: '1.0.0' | '1.1.0';
   task_id: number | string;
   bundle_version: '0.1';
   created_at: string;              // ISO 8601 timestamp
@@ -52,12 +52,100 @@ export interface EvidenceBundleV01 {
 // Evidence Bundle Structure (Specification v0.2)
 // ============================================================================
 
-export type EvidenceBundleVersion = '0.1' | '0.2';
+export type EvidenceBundleVersion = '0.1' | '0.2' | '0.3';
 
 export interface EvidenceBundleContent {
   content_type: 'text' | 'json';
   content_hash: `0x${string}`;
   content_uri?: string;
+}
+
+export interface ReplayModelIdentity {
+  model_name: string;
+  provider: string;
+  model_version?: string;
+  model_commitment_hash: `0x${string}`;
+}
+
+export interface ReplayInvocationParams {
+  temperature: number;
+  top_p?: number;
+  max_tokens?: number;
+  seed?: number;
+  system_prompt_hash?: `0x${string}`;
+  safety_modes?: string[];
+}
+
+export interface ReplayTranscriptMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content?: string;
+  content_hash?: `0x${string}`;
+  name?: string;
+}
+
+export interface ReplayTranscriptOutput {
+  content?: string;
+  content_hash?: `0x${string}`;
+  timestamp?: number;
+  request_id?: string;
+}
+
+export interface ReplayTranscript {
+  canonicalization: {
+    newline: 'lf';
+    json: 'canonical';
+  };
+  messages?: ReplayTranscriptMessage[];
+  outputs?: ReplayTranscriptOutput[];
+  message_hashes?: {
+    messages_hash?: `0x${string}`;
+    prompt_hash?: `0x${string}`;
+  };
+  output_hashes?: {
+    outputs_hash?: `0x${string}`;
+  };
+  timestamps?: {
+    started_at?: number;
+    finished_at?: number;
+  };
+  request_ids?: string[];
+  privacy_redacted?: boolean;
+}
+
+export interface ReplayRecipe {
+  provider: string;
+  endpoint_id?: string;
+  parameters: Record<string, unknown>;
+  messages: ReplayTranscriptMessage[];
+  replay_expected: {
+    prompt_hash: `0x${string}`;
+    output_hash: `0x${string}`;
+    transcript_hash?: `0x${string}`;
+  };
+}
+
+export interface EvidenceBundleReplay {
+  model_identity: ReplayModelIdentity;
+  invocation: ReplayInvocationParams;
+  transcript: ReplayTranscript;
+  replay_recipe: ReplayRecipe;
+}
+
+export interface BundleKeyEnvelope {
+  recipient_pubkey: string;
+  enc_key: string;
+  alg: string;
+  iv: string;
+  tag: string;
+  ephemeral_pubkey: string;
+}
+
+export interface VerifiedPlaintextStatement {
+  plaintext_commitment_hash: string;
+  signer: string;
+  signature: string;
+  signed_at: number;
+  statement: string;
 }
 
 export interface ProvenanceModelRun {
@@ -124,6 +212,16 @@ export interface EvidenceBundleV02 extends EvidenceBundleV01 {
   zk_proof?: ZKProofAttachment;
 }
 
+export interface EvidenceBundleV03 extends EvidenceBundleV02 {
+  bundle_version: '0.3';
+  replay: EvidenceBundleReplay;
+  privacy_mode?: boolean;
+  encrypted_payload_uri?: string;
+  encrypted_payload_hash?: `0x${string}`;
+  plaintext_commitment_hash?: `0x${string}`;
+  key_envelopes?: BundleKeyEnvelope[];
+}
+
 // Re-export transparency types
 export {
   ReasoningTraceStep,
@@ -143,7 +241,7 @@ export {
   hasZKProof,
 } from './transparency';
 
-export type EvidenceBundle = EvidenceBundleV01 | EvidenceBundleV02;
+export type EvidenceBundle = EvidenceBundleV01 | EvidenceBundleV02 | EvidenceBundleV03;
 
 // ============================================================================
 // Model Run
@@ -153,12 +251,15 @@ export interface ModelRun {
   provider: string;                // "openai" | "anthropic" | "google"
   model: string;                   // "gpt-4.1-mini" | "claude-3-opus"
   temperature: number;             // 0.0 - 2.0
+  top_p?: number;
   max_tokens?: number;             // Optional
+  seed?: number;
   raw_output: string;              // Full LLM response
   output_hash: string;             // "0x..." - keccak256 of raw_output
   timestamp?: number;              // Unix timestamp (seconds)
   latency_ms?: number;             // Request duration
   tokens_used?: number;            // Total tokens (prompt + completion)
+  request_id?: string;
 }
 
 // ============================================================================
@@ -694,6 +795,7 @@ export const CONSTANTS = {
   BUNDLE_VERSION: '0.1',
   BUNDLE_VERSION_V01: '0.1',
   BUNDLE_VERSION_V02: '0.2',
+  BUNDLE_VERSION_V03: '0.3',
   BUNDLE_VERSION_DEFAULT: '0.2',
   SOFTWARE_NAME: 'verifier-node',
 

@@ -294,7 +294,7 @@ function verifyBundleIntegrity(bundle: EvidenceBundle, expectedCid: string): boo
       }
     }
 
-    if (bundle.bundle_version === '0.2') {
+    if (bundle.bundle_version === '0.2' || bundle.bundle_version === '0.3') {
       const v02Fields = ['input', 'output', 'provenance', 'scoring_trace'];
       for (const field of v02Fields) {
         if (!(field in bundle)) {
@@ -302,6 +302,11 @@ function verifyBundleIntegrity(bundle: EvidenceBundle, expectedCid: string): boo
           return false;
         }
       }
+    }
+
+    if (bundle.bundle_version === '0.3' && !('replay' in bundle)) {
+      logger.warn('Bundle missing required replay metadata');
+      return false;
     }
 
     return true;

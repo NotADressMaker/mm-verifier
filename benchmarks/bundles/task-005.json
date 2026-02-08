@@ -1,0 +1,84 @@
+{
+  "version": "1.1.0",
+  "task_id": "task-005",
+  "bundle_version": "0.2",
+  "created_at": "2024-01-01T00:00:00Z",
+  "evaluator": {
+    "node_id": "node-benchmark",
+    "eth_address": "0x1111111111111111111111111111111111111111",
+    "software": {
+      "name": "verifier-node",
+      "ver": "0.1.0",
+      "commit": "abc123"
+    }
+  },
+  "prompt_hash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+  "rubric_hash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+  "model_runs": [
+    {
+      "provider": "openai",
+      "model": "gpt-4",
+      "temperature": 0.1,
+      "raw_output": "Red",
+      "output_hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-3-opus",
+      "temperature": 0.1,
+      "raw_output": "A primary color is red.",
+      "output_hash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  ],
+  "claims": [],
+  "metrics": {
+    "consensus": {
+      "agreement": 0.8,
+      "clusters": 1
+    },
+    "factuality": {
+      "supported_claim_ratio": 0.8
+    },
+    "citation_quality": {
+      "authority_score": 0.7
+    },
+    "bias": {
+      "sensitive_variance": 0
+    },
+    "stability": {
+      "reask_delta": 0.2
+    }
+  },
+  "final_score_bps": 7000,
+  "explanation": "Benchmark bundle.",
+  "signatures": {
+    "bundle_sig_eip712": "0x1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "input": {
+    "content_type": "text",
+    "content_hash": "0x5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "output": {
+    "content_type": "text",
+    "content_hash": "0x6666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "provenance": {
+    "model_runs": [
+      {
+        "provider": "openai",
+        "model": "gpt-4",
+        "prompt_hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+        "response_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "started_at": 1,
+        "finished_at": 2
+      }
+    ]
+  },
+  "scoring_trace": {
+    "rubric_hash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+    "score_bps": 7000,
+    "verdict": "mixed",
+    "breakdown": {},
+    "generated_at": 1
+  }
+}

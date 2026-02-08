@@ -7,6 +7,8 @@ import {
   EvidenceBundleVersion,
   EvidenceProvenance,
   EvidenceBundleV02,
+  EvidenceBundleV03,
+  EvidenceBundleReplay,
   ModelRun,
   Claim,
   Evidence,
@@ -102,6 +104,16 @@ type EvidenceBundleBuildOptions = {
   metering?: ExecutionMetering;
   /** Reasoning trace commitments (hash-based) */
   reasoningTrace?: ReasoningTraceCommitment;
+  /** Replay metadata for bundle version 0.3 */
+  replay?: EvidenceBundleReplay;
+  /** Privacy metadata for encrypted bundles */
+  privacy?: {
+    privacy_mode?: boolean;
+    encrypted_payload_uri?: string;
+    encrypted_payload_hash?: `0x${string}`;
+    plaintext_commitment_hash?: `0x${string}`;
+    key_envelopes?: EvidenceBundleV03['key_envelopes'];
+  };
 };
 
 function buildProvenanceModelRuns(
@@ -200,7 +212,7 @@ export function createEvidenceBundle(
   const softwareInfo = getSoftwareInfo();
 
   const bundle: Omit<EvidenceBundle, 'signatures'> = {
-    version: '1.0.0',
+    version: '1.1.0',
     task_id: taskId,
     bundle_version: bundleVersion,
     created_at: new Date().toISOString(),
@@ -222,7 +234,7 @@ export function createEvidenceBundle(
     explanation: explanation,
   };
 
-  if (bundleVersion === '0.2') {
+  if (bundleVersion === '0.2' || bundleVersion === '0.3') {
     const inputContentHash = options.inputContentHash ?? (promptHash as `0x${string}`);
     const outputContentHash =
       options.outputContentHash ??
@@ -258,7 +270,7 @@ export function createEvidenceBundle(
       reasoning_trace?: ReasoningTraceCommitment;
     } = {
       ...(bundle as EvidenceBundleV02),
-      bundle_version: '0.2',
+      bundle_version: bundleVersion,
       input: {
         content_type: options.inputContentType ?? 'text',
         content_hash: inputContentHash,
@@ -292,7 +304,26 @@ export function createEvidenceBundle(
       bundleV02.reasoning_trace = options.reasoningTrace;
     }
 
-    return bundleV02;
+    if (bundleVersion === '0.3') {
+      if (!options.replay) {
+        throw new Error('Replay metadata is required for bundle version 0.3');
+      }
+
+      const bundleV03: EvidenceBundleV03 = {
+        ...(bundleV02 as EvidenceBundleV03),
+        bundle_version: '0.3',
+        replay: options.replay,
+        privacy_mode: options.privacy?.privacy_mode,
+        encrypted_payload_uri: options.privacy?.encrypted_payload_uri,
+        encrypted_payload_hash: options.privacy?.encrypted_payload_hash,
+        plaintext_commitment_hash: options.privacy?.plaintext_commitment_hash,
+        key_envelopes: options.privacy?.key_envelopes,
+      };
+
+      return bundleV03;
+    }
+
+    return bundleV02 as EvidenceBundleV02;
   }
 
   return bundle;
@@ -415,6 +446,9 @@ export function createModelRun(
     timestamp?: number;
     latencyMs?: number;
     tokensUsed?: number;
+    topP?: number;
+    seed?: number;
+    requestId?: string;
   }
 ): ModelRun {
   const outputHash = ethers.keccak256(ethers.toUtf8Bytes(rawOutput));
@@ -423,12 +457,15 @@ export function createModelRun(
     provider,
     model,
     temperature,
+    top_p: metadata?.topP,
     raw_output: rawOutput,
     output_hash: outputHash,
     max_tokens: metadata?.maxTokens,
+    seed: metadata?.seed,
     timestamp: metadata?.timestamp ?? Math.floor(Date.now() / 1000),
     latency_ms: metadata?.latencyMs,
     tokens_used: metadata?.tokensUsed,
+    request_id: metadata?.requestId,
   };
 }
 
@@ -628,9 +665,9 @@ export function validateBundleStructure(bundle: any): { valid: boolean; errors: 
   const errors: string[] = [];
 
   // Check bundle version
-  if (![CONSTANTS.BUNDLE_VERSION_V01, CONSTANTS.BUNDLE_VERSION_V02].includes(bundle.bundle_version)) {
+  if (![CONSTANTS.BUNDLE_VERSION_V01, CONSTANTS.BUNDLE_VERSION_V02, CONSTANTS.BUNDLE_VERSION_V03].includes(bundle.bundle_version)) {
     errors.push(
-      `Invalid bundle version: ${bundle.bundle_version}, expected ${CONSTANTS.BUNDLE_VERSION_V01} or ${CONSTANTS.BUNDLE_VERSION_V02}`
+      `Invalid bundle version: ${bundle.bundle_version}, expected ${CONSTANTS.BUNDLE_VERSION_V01}, ${CONSTANTS.BUNDLE_VERSION_V02}, or ${CONSTANTS.BUNDLE_VERSION_V03}`
     );
   }
 
@@ -677,7 +714,7 @@ export function validateBundleStructure(bundle: any): { valid: boolean; errors: 
     errors.push('Missing or invalid EIP-712 signature');
   }
 
-  if (bundle.bundle_version === '0.2') {
+  if (bundle.bundle_version === '0.2' || bundle.bundle_version === '0.3') {
     if (!bundle.input?.content_hash?.startsWith('0x')) {
       errors.push('Missing or invalid input.content_hash');
     }
@@ -689,6 +726,12 @@ export function validateBundleStructure(bundle: any): { valid: boolean; errors: 
     }
     if (!bundle.scoring_trace?.rubric_hash?.startsWith('0x')) {
       errors.push('Missing scoring_trace.rubric_hash');
+    }
+  }
+
+  if (bundle.bundle_version === '0.3') {
+    if (!bundle.replay) {
+      errors.push('Missing replay metadata for bundle version 0.3');
     }
   }
 

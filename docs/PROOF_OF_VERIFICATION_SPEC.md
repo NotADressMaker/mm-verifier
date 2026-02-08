@@ -553,7 +553,20 @@ For sensitive verifications:
 - Submitter can selectively reveal to auditors during disputes
 - Evidence URIs can point to access-controlled storage
 
-### 6.3 Reasoning Trace Handling
+### 6.3 Replayability Metadata
+
+Evidence bundles can include a replay recipe and model commitment hash to detect silent model updates. Replay metadata records:
+
+- Model identity (provider, model name/version)
+- Deterministic transcript (messages, outputs, timestamps, request IDs)
+- Invocation parameters (temperature, top_p, max_tokens, seed)
+- Replay recipe with expected prompt/output hashes
+
+Canonicalization rules normalize newlines and JSON key ordering to ensure deterministic hashing across environments.
+
+**Limitations**: model commitment hashes rely on provider-reported metadata. They detect mismatches against the declared model/version/config, but cannot prove the provider did not serve a different model behind the scenes.
+
+### 6.4 Reasoning Trace Handling
 
 ```typescript
 interface ReasoningTracePrivacy {
