@@ -23,6 +23,7 @@ import { initializeJobBoardIndexer } from './services/jobBoardIndexer';
 import { initializeRedis } from './services/redis';
 import { setupWebSocket } from './services/websocket';
 import { renderJobBoardDashboard } from './views/jobBoardDashboard';
+import { isMockChainEnabled, isMockVerifierEnabled } from './utils/mockMode';
 
 dotenv.config({ path: '../.env' });
 
@@ -99,13 +100,17 @@ async function initialize() {
     await initializeRedis();
     logger.info('✅ Redis connected');
 
-    // Initialize blockchain connection
-    await initializeBlockchain();
-    logger.info('✅ Blockchain connected');
+    if (isMockVerifierEnabled() || isMockChainEnabled()) {
+      logger.warn('MOCK mode enabled: skipping blockchain and job board initialization');
+    } else {
+      // Initialize blockchain connection
+      await initializeBlockchain();
+      logger.info('✅ Blockchain connected');
 
-    // Initialize job board indexer
-    await initializeJobBoardIndexer();
-    logger.info('✅ Job board indexer initialized');
+      // Initialize job board indexer
+      await initializeJobBoardIndexer();
+      logger.info('✅ Job board indexer initialized');
+    }
 
     // Setup WebSocket handlers
     setupWebSocket(wss);

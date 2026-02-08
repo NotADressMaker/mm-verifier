@@ -79,6 +79,9 @@ services:
       API_PORT: 3000
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://verifier:${DB_PASSWORD:-changeme}@postgres:5432/mmverifier
+      MOCK_VERIFIER: ${MOCK_VERIFIER:-false}
+      MOCK_CHAIN: ${MOCK_CHAIN:-false}
+      MOCK_SCENARIO: ${MOCK_SCENARIO:-happy}
       ARBITRUM_SEPOLIA_RPC_URL: ${ARBITRUM_SEPOLIA_RPC_URL}
       PRIVATE_KEY: ${PRIVATE_KEY}
       MARKETPLACE_ADDRESS: ${MARKETPLACE_ADDRESS}
@@ -100,6 +103,8 @@ services:
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
       IPFS_API_URL: http://ipfs:5001
+      MOCK_VERIFIER: ${MOCK_VERIFIER:-false}
+      MOCK_SCENARIO: ${MOCK_SCENARIO:-happy}
       ARBITRUM_SEPOLIA_RPC_URL: ${ARBITRUM_SEPOLIA_RPC_URL}
       VERIFIER_PRIVATE_KEY: ${VERIFIER_PRIVATE_KEY}
       MARKETPLACE_ADDRESS: ${MARKETPLACE_ADDRESS}

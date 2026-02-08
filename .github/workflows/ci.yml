@@ -101,3 +101,71 @@ jobs:
         with:
           name: slither-results
           path: slither-results/**
+
+  dashboard:
+    name: Dashboard: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-18.x-dashboard-${{ hashFiles('apps/dashboard/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-18.x-dashboard-
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: apps/dashboard
+
+      - name: Build dashboard
+        run: npm run build
+        working-directory: apps/dashboard
+
+  e2e:
+    name: E2E: hello receipt
+    runs-on: ubuntu-latest
+    needs: [api]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+
+      - name: Cache npm (api)
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-18.x-api-${{ hashFiles('api/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-18.x-api-
+
+      - name: Cache npm (verifier)
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-18.x-verifier-${{ hashFiles('verifier-node/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-18.x-verifier-
+
+      - name: Install API dependencies
+        run: npm install
+        working-directory: api
+
+      - name: Install verifier node dependencies
+        run: npm install
+        working-directory: verifier-node
+
+      - name: Run hello receipt e2e
+        run: npm run test:e2e

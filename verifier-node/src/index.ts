@@ -3,6 +3,7 @@ import { logger } from './utils/logger';
 import { initializeBlockchain } from './services/blockchain';
 import { startJobProcessor } from './services/jobProcessor';
 import { registerAsVerifier } from './services/staking';
+import { startMockJobProcessor } from './services/mockJobProcessor';
 
 dotenv.config({ path: '../.env' });
 
@@ -10,20 +11,30 @@ async function main() {
   try {
     logger.info('🚀 Starting LLM Verifier Node...');
 
-    // Initialize blockchain connection
-    await initializeBlockchain();
-    logger.info('✅ Blockchain connected');
+    const mockMode = process.env.MOCK_VERIFIER === 'true';
+    if (mockMode) {
+      logger.warn('MOCK_VERIFIER enabled: skipping blockchain setup');
+    } else {
+      // Initialize blockchain connection
+      await initializeBlockchain();
+      logger.info('✅ Blockchain connected');
+    }
 
     // Register as verifier if not already registered
     const shouldRegister = process.env.AUTO_REGISTER_VERIFIER === 'true';
-    if (shouldRegister) {
+    if (!mockMode && shouldRegister) {
       await registerAsVerifier();
       logger.info('✅ Registered as verifier');
     }
 
     // Start job processor
-    await startJobProcessor();
-    logger.info('✅ Job processor started');
+    if (mockMode) {
+      await startMockJobProcessor();
+      logger.info('✅ Mock job processor started');
+    } else {
+      await startJobProcessor();
+      logger.info('✅ Job processor started');
+    }
 
     logger.info('🎉 Verifier node is running!');
     logger.info('Verifier address:', process.env.VERIFIER_PRIVATE_KEY ? 'configured' : 'NOT configured');
