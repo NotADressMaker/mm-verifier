@@ -4,8 +4,10 @@ import "@nomicfoundation/hardhat-verify";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 import * as dotenv from "dotenv";
+import path from "path";
 
-dotenv.config({ path: "../.env" });
+dotenv.config({ path: path.resolve(__dirname, "../.env.runtime") });
+dotenv.config({ path: path.resolve(__dirname, "../.env"), override: false });
 
 const config: HardhatUserConfig = {
   solidity: {

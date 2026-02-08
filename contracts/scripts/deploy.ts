@@ -1,7 +1,9 @@
 import { ethers } from "hardhat";
 import * as dotenv from "dotenv";
+import path from "path";
 
-dotenv.config({ path: "../.env" });
+dotenv.config({ path: path.resolve(__dirname, "../../.env.runtime") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env"), override: false });
 
 async function main() {
   console.log("Starting LLM Verifier deployment to Arbitrum...\n");
@@ -18,7 +20,7 @@ async function main() {
   // WETH addresses (Arbitrum One: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, Sepolia: 0x980B62Da83eFf3D4576C647993b0c1D7faf17c73)
   const WETH_ADDRESS = process.env.WETH_ADDRESS || "0x980B62Da83eFf3D4576C647993b0c1D7faf17c73";
 
-  // Bond amounts (in wei) - configurable via .env
+  // Bond amounts (in wei) - configurable via .env.runtime
   const EVAL_BOND = process.env.EVAL_BOND || ethers.parseEther("0.02"); // 0.02 WETH
   const DISPUTE_BOND = process.env.DISPUTE_BOND || ethers.parseEther("0.01"); // 0.01 WETH
   const AUDITOR_MIN_STAKE = process.env.AUDITOR_MIN_STAKE || ethers.parseEther("0.25"); // 0.25 WETH

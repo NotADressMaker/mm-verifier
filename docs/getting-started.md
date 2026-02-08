@@ -5,6 +5,7 @@ This is a “local-first” setup path to run MMV end-to-end: contracts (dev cha
 ## Prerequisites
 
 - Node.js 18+
+- npm (single package manager for this repo)
 - A local Ethereum dev environment (Hardhat/Foundry, depending on repo scripts)
 - Redis (used for the verification job queue)
 - API keys for any LLM providers you plan to use (OpenAI/Anthropic/Google), or run in mock mode where available
@@ -44,41 +45,26 @@ Follow the README instructions inside `examples/`.
 
 High-level steps:
 
-1. Configure environment variables:
-
-* Copy `.env.example` to `.env`
-* Add provider keys, RPC URLs, and Redis connection details
-
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Compile and deploy contracts (local chain or testnet):
+2. Start everything in mock mode (default):
 
 ```bash
-cd contracts
-npm install
-npx hardhat compile
-# Deploy command depends on scripts/network configuration
+./quickstart.sh
 ```
 
-4. Run the API:
+3. Switch to real providers + chain submit:
 
 ```bash
-cd api
-npm install
-npm run dev
+./quickstart.sh --real
 ```
 
-5. Run the verifier node (separate terminal):
-
-```bash
-cd verifier-node
-npm install
-npm run start
-```
+`quickstart.sh` writes a single runtime env file (`.env.runtime`). You can also edit `.env.runtime` directly
+to customize providers, RPC URLs, or contract addresses.
 
 ## Health check
 
@@ -86,6 +72,12 @@ npm run start
 * verifier node picks up queued jobs and submits commits/reveals
 * a verification call returns a receipt and an evidence bundle URI
 * if anything is missing, check `docs/KNOWN_GAPS.md` and `docs/INTEGRATION.md`
+
+Run a full environment sanity check with:
+
+```bash
+make doctor
+```
 
 ---
 

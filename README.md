@@ -29,11 +29,17 @@ Get verification working in your app with the SDK and example.
 Boot the full local stack (API, verifier node, dashboard, Redis) with:
 
 ```bash
-make dev
+./quickstart.sh
 ```
 
-By default, `make dev` runs the stack in **mock mode** (no keys required). See **Mock Mode** below
-for environment flags and scenarios.
+`quickstart.sh` writes a single runtime env file (`.env.runtime`) and starts the stack in **mock mode**
+by default (no keys required). To use real providers and onchain submit, run:
+
+```bash
+./quickstart.sh --real
+```
+
+You can also use `make dev` to start the same stack after configuring `.env.runtime`.
 
 ### 1. Install the SDK
 
@@ -114,7 +120,7 @@ See [docs/PROGRAMS.md](docs/PROGRAMS.md) for details on the built-in `factual-co
 
 ## Mock Mode (No Keys Required)
 
-Set these flags in your `.env` (or inline) to enable deterministic mock receipts:
+Set these flags in `.env.runtime` (or inline) to enable deterministic mock receipts:
 
 ```bash
 MOCK_VERIFIER=true
@@ -176,6 +182,7 @@ validates receipt and bundle schemas, and checks status transitions.
 ### Troubleshooting
 
 - **Ports**: API `3000`, Dashboard `5173`, Redis `6379`.
+- **Doctor**: `make doctor` runs a full environment sanity check (ports, env, Redis, RPC, health).
 - **Reset Redis**: `docker-compose down -v` (clears mock receipts and jobs).
 - **Mock scenarios**: set `MOCK_SCENARIO=dispute` to see dispute timeline events.
 
@@ -446,6 +453,7 @@ When the dashboard work begins, the intended experience includes:
 ### Prerequisites
 
 - Node.js 18+
+- npm (single package manager for this repo)
 - Foundry or Hardhat
 - Arbitrum Sepolia testnet ETH
 - API keys for LLM providers (OpenAI, Anthropic, Google)
@@ -460,28 +468,12 @@ cd MMV
 
 # Install dependencies (root + workspaces)
 npm install
-cd contracts && npm install
-cd ../api && npm install
-cd ../verifier-node && npm install
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys, RPC URLs, and Redis connection
+# Start everything in mock mode (default)
+./quickstart.sh
 
-# Compile contracts
-cd ../contracts
-npx hardhat compile
-
-# Deploy to Arbitrum Sepolia (requires funded deployer key)
-npx hardhat run scripts/deploy.ts --network arbitrum-sepolia
-
-# Start API server
-cd ../api
-npm run dev
-
-# Start verifier node (in another terminal)
-cd ../verifier-node
-npm run start
+# Switch to real providers + chain submit
+./quickstart.sh --real
 ```
 
 ## Configuration
@@ -501,9 +493,14 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_API_KEY=...
 
-# API
+# API (shared runtime env file: .env.runtime)
 API_PORT=3000
 DATABASE_URL=postgresql://...
+MOCK_VERIFIER=true
+MOCK_PROVIDERS=true
+PROVIDER_MODE=mock
+CHAIN_MODE=mock
+HASHED_ONLY_DEFAULT=true
 
 # Verifier Node
 VERIFIER_PRIVATE_KEY=your_verifier_wallet_private_key

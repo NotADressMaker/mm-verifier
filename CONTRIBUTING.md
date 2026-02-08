@@ -105,18 +105,18 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 2. Install dependencies:
    ```bash
-   npm run install:all
+   npm install
    ```
 
 3. Set up environment variables:
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   cp .env.example .env.runtime
+   # Edit .env.runtime with your configuration
    ```
 
 4. Start local services (Redis, PostgreSQL, IPFS):
    ```bash
-   docker-compose up -d redis postgres ipfs
+   docker-compose --env-file .env.runtime up -d redis postgres ipfs
    ```
 
 5. Deploy contracts to Arbitrum Sepolia:

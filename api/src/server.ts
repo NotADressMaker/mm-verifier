@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import rateLimit from 'express-rate-limit';
 import * as dotenv from 'dotenv';
+import path from 'path';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { requestContextMiddleware } from './middleware/requestContext';
@@ -27,7 +28,8 @@ import { renderJobBoardDashboard } from './views/jobBoardDashboard';
 import { isMockChainEnabled, isMockVerifierEnabled } from './utils/mockMode';
 import { apiMetrics } from './observability/metrics';
 
-dotenv.config({ path: '../.env' });
+dotenv.config({ path: path.resolve(__dirname, '../../.env.runtime') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
 
 const app: Application = express();
 const PORT = process.env.API_PORT || 3000;

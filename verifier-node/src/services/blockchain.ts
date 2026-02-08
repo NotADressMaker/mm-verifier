@@ -1,11 +1,13 @@
 import { ethers } from 'ethers';
 import * as dotenv from 'dotenv';
+import path from 'path';
 import { logger } from '../utils/logger';
 import { computeCommitHash } from '../../../shared/commitHash';
 import { getRpcUrl } from '../../../shared/env';
 import { VerifierMarketplace } from '../../../shared/abi';
 
-dotenv.config({ path: '../../.env' });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env.runtime') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env'), override: false });
 
 const MARKETPLACE_ABI = VerifierMarketplace.abi;
 

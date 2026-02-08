@@ -290,9 +290,9 @@ open https://faucet.arbitrum.io
 git clone https://github.com/michaelmannen3-oss/MMV.git
 cd MMV
 npm install
-cp .env.example .env
+cp .env.example .env.runtime
 ```
-**Edit `.env` with required variables**:
+**Edit `.env.runtime` with required variables**:
 ```env
 ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
 ARBITRUM_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc # optional legacy alias
@@ -356,7 +356,7 @@ curl http://localhost:8080/jobs/job_456/evidence
 
 ### Video Script Outline (2-3 minutes)
 1. Intro: “In 2 minutes we’ll verify an LLM response on Arbitrum.”
-2. Install & configure `.env`.
+2. Install & configure `.env.runtime`.
 3. Deploy a program via REST.
 4. Submit job and watch WebSocket updates.
 5. View evidence bundle and on-chain commitment.

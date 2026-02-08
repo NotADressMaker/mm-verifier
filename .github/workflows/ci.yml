@@ -6,17 +6,14 @@ concurrency:
 
 on:
   push:
-    branches: [ "main", "master", "claude/multi-llm-verifier-IDKkb" ]
+    branches: ["main", "master", "claude/multi-llm-verifier-IDKkb"]
   pull_request:
-    branches: [ "main", "master", "claude/multi-llm-verifier-IDKkb" ]
+    branches: ["main", "master", "claude/multi-llm-verifier-IDKkb"]
 
 jobs:
-  api:
-    name: API: lint, build, test
+  lint-typecheck:
+    name: Lint + Typecheck
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,41 +21,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-api-${{ hashFiles('api/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-${{ matrix.node-version }}-api-
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
-        working-directory: api
+        run: npm ci
 
-      - name: Lint (TypeScript / JS)
+      - name: Lint
         run: npm run lint
-        working-directory: api
 
-      - name: Build (if applicable)
-        run: npm run build
-        working-directory: api
+      - name: Typecheck
+        run: npm run typecheck
 
-      - name: Run tests
-        run: npm test
-        working-directory: api
-
-      - name: Upload test results (artifact)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs
-          path: test-results/**       # adjust to where your tests emit results
-
-  contracts:
-    name: Solidity: compile, solhint & slither
+  unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -67,73 +43,57 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18.x
-
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-18.x-contracts-${{ hashFiles('contracts/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-18.x-contracts-
-
-      - name: Install node deps (for solhint etc.)
-        run: npm install
-        working-directory: contracts
-
-      - name: Run Solhint (Solidity linter)
-        run: npx solhint 'contracts/**/*.sol'
-        working-directory: contracts
-
-      - name: Compile contracts (Hardhat example)
-        run: npm run compile
-        working-directory: contracts
-
-      - name: Run Slither (Docker container)
-        # Slither needs the built artifacts; the compile step above should create them.
-        run: |
-          mkdir -p slither-results
-          docker run --rm -v "${{ github.workspace }}":/src -w /src/contracts crytic/slither:latest slither . --json /src/slither-results/slither.json
-
-      - name: Upload slither results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: slither-results
-          path: slither-results/**
-
-  dashboard:
-    name: Dashboard: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18.x
-
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-18.x-dashboard-${{ hashFiles('apps/dashboard/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-18.x-dashboard-
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
-        working-directory: apps/dashboard
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+  contracts-tests:
+    name: Contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run contract tests
+        run: npm run contracts:test
+
+  dashboard-build:
+    name: Dashboard build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build dashboard
-        run: npm run build
-        working-directory: apps/dashboard
+        run: npm --prefix apps/dashboard run build
 
   e2e:
-    name: E2E: hello receipt
+    name: E2E
     runs-on: ubuntu-latest
-    needs: [api]
+    needs: [unit-tests]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -141,31 +101,30 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version-file: .nvmrc
+          cache: npm
 
-      - name: Cache npm (api)
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-18.x-api-${{ hashFiles('api/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-18.x-api-
-
-      - name: Cache npm (verifier)
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-18.x-verifier-${{ hashFiles('verifier-node/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-18.x-verifier-
-
-      - name: Install API dependencies
-        run: npm install
-        working-directory: api
-
-      - name: Install verifier node dependencies
-        run: npm install
-        working-directory: verifier-node
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run hello receipt e2e
         run: npm run test:e2e
+
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
