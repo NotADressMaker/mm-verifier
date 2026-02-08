@@ -1,0 +1,282 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EvidenceBundleV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "bundle_version",
+    "task_id",
+    "created_at",
+    "evaluator",
+    "prompt_hash",
+    "rubric_hash",
+    "model_runs",
+    "claims",
+    "metrics",
+    "final_score_bps",
+    "explanation",
+    "signatures"
+  ],
+  "properties": {
+    "version": { "const": "1.0.0" },
+    "task_id": { "oneOf": [{ "type": "string" }, { "type": "number" }] },
+    "bundle_version": { "type": "string", "enum": ["0.1", "0.2"] },
+    "created_at": { "type": "string", "minLength": 1 },
+    "evaluator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "eth_address", "software"],
+      "properties": {
+        "node_id": { "type": "string" },
+        "eth_address": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+        "software": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "ver", "commit"],
+          "properties": {
+            "name": { "type": "string" },
+            "ver": { "type": "string" },
+            "commit": { "type": "string" }
+          }
+        }
+      }
+    },
+    "prompt_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "rubric_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "model_runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "model", "temperature", "raw_output", "output_hash"],
+        "properties": {
+          "provider": { "type": "string" },
+          "model": { "type": "string" },
+          "temperature": { "type": "number" },
+          "max_tokens": { "type": "integer" },
+          "raw_output": { "type": "string" },
+          "output_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+          "timestamp": { "type": "integer" },
+          "latency_ms": { "type": "integer", "minimum": 0 },
+          "tokens_used": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim_id", "text", "type", "support", "contradictions"],
+        "properties": {
+          "claim_id": { "type": "string" },
+          "text": { "type": "string" },
+          "type": { "type": "string", "enum": ["factual", "numeric", "causal", "policy"] },
+          "support": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["url", "snippet", "quote_hash"],
+              "properties": {
+                "url": { "type": "string" },
+                "snippet": { "type": "string" },
+                "quote_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+                "authority": { "type": "number" },
+                "relevance": { "type": "number" },
+                "title": { "type": "string" },
+                "domain": { "type": "string" },
+                "retrieved_at": { "type": "integer" }
+              }
+            }
+          },
+          "contradictions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["url", "snippet", "quote_hash"],
+              "properties": {
+                "url": { "type": "string" },
+                "snippet": { "type": "string" },
+                "quote_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+                "authority": { "type": "number" },
+                "relevance": { "type": "number" },
+                "title": { "type": "string" },
+                "domain": { "type": "string" },
+                "retrieved_at": { "type": "integer" }
+              }
+            }
+          },
+          "confidence": { "type": "number" },
+          "entities": { "type": "array", "items": { "type": "string" } },
+          "temporal": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consensus", "factuality", "citation_quality", "bias", "stability"],
+      "properties": {
+        "consensus": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["agreement", "clusters"],
+          "properties": {
+            "agreement": { "type": "number" },
+            "clusters": { "type": "integer" },
+            "cluster_sizes": { "type": "array", "items": { "type": "integer" } },
+            "outliers": { "type": "integer" }
+          }
+        },
+        "factuality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["supported_claim_ratio"],
+          "properties": {
+            "supported_claim_ratio": { "type": "number" },
+            "total_claims": { "type": "integer" },
+            "verified_claims": { "type": "integer" },
+            "contradicted_claims": { "type": "integer" }
+          }
+        },
+        "citation_quality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["authority_score"],
+          "properties": {
+            "authority_score": { "type": "number" },
+            "source_count": { "type": "integer" },
+            "high_authority_ratio": { "type": "number" },
+            "citation_density": { "type": "number" }
+          }
+        },
+        "bias": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sensitive_variance"],
+          "properties": {
+            "sensitive_variance": { "type": "number" },
+            "political_lean": { "type": "number" },
+            "sentiment_variance": { "type": "number" }
+          }
+        },
+        "stability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reask_delta"],
+          "properties": {
+            "reask_delta": { "type": "number" },
+            "length_variance": { "type": "number" },
+            "token_variance": { "type": "number" }
+          }
+        }
+      }
+    },
+    "final_score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+    "explanation": { "type": "string", "maxLength": 4096 },
+    "signatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle_sig_eip712"],
+      "properties": {
+        "bundle_sig_eip712": { "type": "string", "pattern": "^0x[a-fA-F0-9]+$" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_type", "content_hash"],
+      "properties": {
+        "content_type": { "type": "string", "enum": ["text", "json"] },
+        "content_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+        "content_uri": { "type": "string" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_type", "content_hash"],
+      "properties": {
+        "content_type": { "type": "string", "enum": ["text", "json"] },
+        "content_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+        "content_uri": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_runs"],
+      "properties": {
+        "model_runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["provider", "model", "prompt_hash", "response_hash", "started_at", "finished_at"],
+            "properties": {
+              "provider": { "type": "string" },
+              "model": { "type": "string" },
+              "prompt_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+              "response_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+              "started_at": { "type": "integer" },
+              "finished_at": { "type": "integer" },
+              "latency_ms": { "type": "integer" },
+              "tokens_in": { "type": "integer" },
+              "tokens_out": { "type": "integer" },
+              "model_commitment_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+              "inference_config_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+            }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["uri"],
+            "properties": {
+              "uri": { "type": "string" },
+              "content_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+              "content_type": { "type": "string", "enum": ["text", "json"] },
+              "retrieved_at": { "type": "integer" }
+            }
+          }
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verifier_node": { "type": "string" },
+            "software_commit": { "type": "string" }
+          }
+        }
+      }
+    },
+    "scoring_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rubric_hash", "score_bps", "verdict", "breakdown", "generated_at"],
+      "properties": {
+        "rubric_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+        "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "verdict": { "type": "string", "enum": ["reliable", "mixed", "unreliable"] },
+        "breakdown": { "type": "object", "additionalProperties": true },
+        "weights": { "type": "object", "additionalProperties": true },
+        "reasoning_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+        "generated_at": { "type": "integer" }
+      }
+    },
+    "reasoning_trace": { "type": "object", "additionalProperties": true },
+    "zk_proof": { "type": "object", "additionalProperties": true }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "bundle_version": { "const": "0.2" } } },
+      "then": { "required": ["input", "output", "provenance", "scoring_trace"] }
+    }
+  ]
+}

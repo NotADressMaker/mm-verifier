@@ -1,168 +1,48 @@
-import { v4 as uuidv4 } from 'uuid';
-import {
-  ProgramDefinition,
-  ProgramIO,
-  ProgramStep,
-  ProgramStepType,
-} from '../../../shared/httpSchemas';
-import {
-  computeProgramFingerprint,
-  ProgramDefinitionWithLimits,
-  MeteringLimits,
-  DEFAULT_METERING_LIMITS,
-  generateProgramId,
-} from '../../../shared/programs';
+import { ProgramRegistry } from '../../../programs/registry';
+import { ProgramRecord } from '../../../programs/interface';
+import { logger } from '../utils/logger';
 
-export type VerificationProgram = ProgramDefinitionWithLimits;
-
-export interface ProgramRecord {
+export type ProgramSummary = {
   id: string;
-  fingerprint: string;
-  program: VerificationProgram;
-  createdAt: string;
+  version: string;
+  description: string;
+  hash: string;
+};
+
+const registry = new ProgramRegistry({
+  programsDir: process.env.PROGRAMS_DIR,
+  allowedPrograms: process.env.ALLOWED_PROGRAMS?.split(',').map((entry) => entry.trim()).filter(Boolean),
+  expectedProgramHashes: process.env.PROGRAM_HASHES ? JSON.parse(process.env.PROGRAM_HASHES) : undefined,
+  defaultProgram: process.env.DEFAULT_PROGRAM ?? 'factual-consensus@1.0.0',
+});
+
+try {
+  registry.loadPrograms();
+} catch (error: any) {
+  logger.error('Failed to load verification programs', { error: error.message });
 }
 
-const programRegistry = new Map<string, ProgramRecord>();
-
-export function validateVerificationProgram(program: any): { valid: boolean; message?: string } {
-  if (!program || typeof program !== 'object') {
-    return { valid: false, message: 'Program must be an object.' };
-  }
-
-  if (typeof program.name !== 'string' || program.name.trim().length === 0) {
-    return { valid: false, message: 'Program name is required.' };
-  }
-
-  if (typeof program.version !== 'string' || program.version.trim().length === 0) {
-    return { valid: false, message: 'Program version is required.' };
-  }
-
-  const validateIo = (io: ProgramIO, label: string) => {
-    if (!io || typeof io !== 'object') {
-      return `${label} entries must be objects.`;
-    }
-
-    if (typeof io.name !== 'string' || io.name.trim().length === 0) {
-      return `${label} name is required.`;
-    }
-
-    if (typeof io.type !== 'string' || io.type.trim().length === 0) {
-      return `${label} type is required.`;
-    }
-
-    if (io.description && typeof io.description !== 'string') {
-      return `${label} description must be a string.`;
-    }
-
-    if (io.required !== undefined && typeof io.required !== 'boolean') {
-      return `${label} required flag must be boolean.`;
-    }
-
-    return null;
-  };
-
-  if (program.inputs && !Array.isArray(program.inputs)) {
-    return { valid: false, message: 'Program inputs must be an array.' };
-  }
-
-  if (program.outputs && !Array.isArray(program.outputs)) {
-    return { valid: false, message: 'Program outputs must be an array.' };
-  }
-
-  for (const input of program.inputs || []) {
-    const error = validateIo(input, 'Input');
-    if (error) {
-      return { valid: false, message: error };
-    }
-  }
-
-  for (const output of program.outputs || []) {
-    const error = validateIo(output, 'Output');
-    if (error) {
-      return { valid: false, message: error };
-    }
-  }
-
-  if (!Array.isArray(program.steps) || program.steps.length === 0) {
-    return { valid: false, message: 'Program must include at least one step.' };
-  }
-
-  for (const step of program.steps) {
-    if (!step || typeof step !== 'object') {
-      return { valid: false, message: 'Each step must be an object.' };
-    }
-
-    const validTypes: ProgramStepType[] = [
-      'prompt',
-      'retrieve',
-      'cross-check',
-      'score',
-      'evidence',
-      'consensus',
-    ];
-
-    if (!validTypes.includes(step.type)) {
-      return { valid: false, message: `Invalid step type: ${step.type}` };
-    }
-
-    if (step.description && typeof step.description !== 'string') {
-      return { valid: false, message: 'Step description must be a string.' };
-    }
-
-    if (step.config && (typeof step.config !== 'object' || Array.isArray(step.config))) {
-      return { valid: false, message: 'Step config must be an object.' };
-    }
-  }
-
-  return { valid: true };
+export function listPrograms(): ProgramSummary[] {
+  return registry.listPrograms().map((program) => ({
+    id: program.id,
+    version: program.version,
+    description: program.description,
+    hash: program.hash,
+  }));
 }
 
-// Index by fingerprint for deduplication
-const fingerprintIndex = new Map<string, string>(); // fingerprint -> programId
-
-export function registerProgram(program: VerificationProgram): ProgramRecord {
-  // Compute deterministic fingerprint
-  const fingerprint = computeProgramFingerprint(program);
-
-  // Check if a program with this fingerprint already exists
-  const existingId = fingerprintIndex.get(fingerprint);
-  if (existingId) {
-    const existing = programRegistry.get(existingId);
-    if (existing) {
-      return existing;
-    }
-  }
-
-  // Generate ID from fingerprint for reproducibility
-  const id = generateProgramId(fingerprint);
-  const record: ProgramRecord = {
-    id,
-    fingerprint,
-    program,
-    createdAt: new Date().toISOString(),
-  };
-
-  programRegistry.set(id, record);
-  fingerprintIndex.set(fingerprint, id);
-  return record;
+export function getProgram(id: string, version?: string): ProgramRecord | undefined {
+  return registry.getProgram(id, version);
 }
 
-export function listPrograms(): ProgramRecord[] {
-  return Array.from(programRegistry.values());
+export function resolveProgram(id?: string, version?: string): ProgramRecord {
+  return registry.resolveProgram(id, version);
 }
 
-export function getProgram(programId: string): ProgramRecord | undefined {
-  return programRegistry.get(programId);
+export function verifyProgram(id: string, version: string): { valid: boolean; errors: string[] } {
+  return registry.verifyProgram(id, version);
 }
 
-export function getProgramByFingerprint(fingerprint: string): ProgramRecord | undefined {
-  const programId = fingerprintIndex.get(fingerprint);
-  if (!programId) {
-    return undefined;
-  }
-  return programRegistry.get(programId);
-}
-
-export function getDefaultMeteringLimits(): MeteringLimits {
-  return { ...DEFAULT_METERING_LIMITS };
+export function hashProgram(id: string, version: string): string {
+  return registry.hashProgram(id, version);
 }

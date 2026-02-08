@@ -60,6 +60,13 @@ export interface ProgramDefinition {
   steps: ProgramStep[];
 }
 
+export interface ProgramSummary {
+  id: string;
+  version: string;
+  description?: string;
+  hash: string;
+}
+
 export interface VerifyRequest {
   prompt: string;
   models: string[];
@@ -69,7 +76,7 @@ export interface VerifyRequest {
   reveal_deadline_seconds?: number;
   reward_pool?: number;
   program_id?: string;
-  program?: ProgramDefinition;
+  program_version?: string;
   idempotency_key?: string;
 }
 
@@ -82,13 +89,15 @@ export interface VerifyResponse {
   timings: TimingInfo;
   errors: VerifyError[];
   program_id?: string;
-  program?: ProgramDefinition;
+  program_version?: string;
+  program?: ProgramSummary;
 }
 
 export interface ProgramRecord {
-  program_id: string;
-  program: ProgramDefinition;
-  created_at: string;
+  id: string;
+  version: string;
+  description: string;
+  hash: string;
 }
 
 // ============================================================================
@@ -168,7 +177,8 @@ export interface OnChainVerifyResult {
  * Canonical verification receipt - proof of task completion
  */
 export interface VerificationReceipt {
-  receipt_version: '1.0';
+  version: '1.0.0';
+  receipt_version: '1.0.0';
   task_id: string;
   generated_at: number;
   input_hash: string;
@@ -177,10 +187,9 @@ export interface VerificationReceipt {
   verdict: boolean;
   worthy: boolean;
   program?: {
-    program_id: string;
-    fingerprint: string;
-    name: string;
+    id: string;
     version: string;
+    hash: string;
   };
   evidence: {
     bundle_hash: string;
@@ -225,6 +234,7 @@ export interface VerificationReceipt {
     trace_uri?: string;
     step_count: number;
   };
+  explain: ReceiptExplain;
   /** ZK proof for trustless verification */
   zk_proof?: {
     proof: string;
@@ -236,6 +246,39 @@ export interface VerificationReceipt {
       bundle_hash: string;
     };
     proof_system: string;
+  };
+}
+
+export interface ReceiptExplain {
+  version: '1.0.0';
+  score_components: Array<{
+    name: string;
+    score_bps: number;
+    weight_bps?: number;
+    notes?: string;
+  }>;
+  checks: Record<string, unknown>;
+  contradictions_found: Array<{
+    type: string;
+    severity: string;
+    summary: string;
+    evidence_refs: string[];
+  }>;
+  citation_checks: Array<{
+    claim: string;
+    sources: string[];
+    verdict: string;
+    notes?: string;
+  }>;
+  model_disagreement: {
+    models: string[];
+    agreement_rate: number;
+    clusters?: Array<Record<string, unknown>>;
+  };
+  timings_ms?: {
+    fetch?: number;
+    program_run?: number;
+    total?: number;
   };
 }
 
@@ -274,8 +317,10 @@ export interface VerifyOptions {
   models?: string[];
   /** Task type (default: 'factual-qa') */
   taskType?: string;
-  /** Program ID to use (default: built-in 'factual-consensus-v1') */
+  /** Program ID to use (default: built-in 'factual-consensus') */
   programId?: string;
+  /** Program version to use (default: '1.0.0') */
+  programVersion?: string;
   /** Timeout for waiting for finalization (default: 120000ms) */
   timeoutMs?: number;
   /** Poll interval when waiting for finalization (default: 3000ms) */

@@ -101,7 +101,7 @@ An independent operator that evaluates tasks. Verifiers usually participate thro
 
 ### Receipt
 
-A compact proof object that a verification occurred under specific rules. A receipt commonly includes `task_id`, `verdict` and `score_bps`, evidence `bundle_hash` and `bundle_uri`, `program_id`/`program_version`/fingerprint, and `chain_id`/`contract_address`. Apps store and display receipts; anyone can check the onchain anchor.
+A compact proof object that a verification occurred under specific rules. A receipt commonly includes `task_id`, `verdict` and `score_bps`, evidence `bundle_hash` and `bundle_uri`, `program_id`/`program_version`/hash, and `chain_id`/`contract_address`. Apps store and display receipts; anyone can check the onchain anchor.
 
 ### Evidence bundle
 

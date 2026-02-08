@@ -99,7 +99,7 @@ Every verification produces a compact `Receipt`:
 | `chain_id` | Blockchain chain ID |
 | `contract_address` | Verification contract address |
 
-See [docs/PROGRAMS.md](docs/PROGRAMS.md) for details on the built-in `factual-consensus-v1` program.
+See [docs/PROGRAMS.md](docs/PROGRAMS.md) for details on the built-in `factual-consensus` program.
 
 ## AI Accountability: Beyond Ethereum
 

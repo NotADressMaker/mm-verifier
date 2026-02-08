@@ -16,6 +16,7 @@ import { mmvRoutes } from './routes/mmv';
 import { verifyV1Routes } from './routes/v1/verify';
 import { programV1Routes } from './routes/v1/programs';
 import { tasksV1Routes } from './routes/v1/tasks';
+import { schemaV1Routes } from './routes/v1/schemas';
 import { validationRoutes } from './routes/validation';
 import { initializeBlockchain } from './services/blockchain';
 import { initializeJobBoardIndexer } from './services/jobBoardIndexer';
@@ -72,6 +73,7 @@ app.use('/api/validation', validationRoutes);
 app.use('/v1/verify', verifyV1Routes);
 app.use('/v1/programs', programV1Routes);
 app.use('/v1/tasks', tasksV1Routes);
+app.use('/v1', schemaV1Routes);
 
 app.get('/job-board', (_req, res) => {
   res.status(200).send(renderJobBoardDashboard());

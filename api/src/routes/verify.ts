@@ -1,15 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 import { submitVerificationJob } from '../services/blockchain';
 import { queueVerificationJob } from '../services/jobQueue';
-import {
-  getProgram,
-  registerProgram,
-  validateVerificationProgram,
-  VerificationProgram,
-} from '../services/programRegistry';
+import { resolveProgram } from '../services/programRegistry';
 import { CONSTANTS } from '../../../shared/types';
 import { normalizeUnixSeconds, resolveCommitDeadline, resolveRevealDeadline } from '../utils/time';
 import { formatTaskStatus } from '../utils/taskStatus';
@@ -26,7 +20,8 @@ router.post(
     body('prompt').isString().notEmpty().withMessage('Prompt is required'),
     body('models').isArray({ min: 1 }).withMessage('At least one model required'),
     body('models.*').isString().withMessage('Model names must be strings'),
-    body('taskType').isIn(['factual-qa', 'math-proof', 'policy-compliance', 'citation-check', 'general'])
+    body('taskType')
+      .isIn(['factual-qa', 'math-proof', 'policy-compliance', 'citation-check', 'general'])
       .withMessage('Invalid task type'),
     body('deadline').optional().isInt({ min: 1 }).withMessage('Deadline must be positive integer'),
     body('commitDeadlineSeconds')
@@ -39,13 +34,7 @@ router.post(
       .withMessage('Reveal deadline seconds must be positive integer'),
     body('rewardPool').optional().isNumeric().withMessage('Reward pool must be numeric'),
     body('programId').optional().isString().withMessage('Program ID must be a string'),
-    body('program').optional().custom((value) => {
-      const validation = validateVerificationProgram(value);
-      if (!validation.valid) {
-        throw new Error(validation.message || 'Invalid program');
-      }
-      return true;
-    }),
+    body('programVersion').optional().isString().withMessage('Program version must be a string'),
   ],
   async (req: Request, res: Response) => {
     const requestStart = Date.now();
@@ -65,7 +54,7 @@ router.post(
         revealDeadlineSeconds,
         rewardPool,
         programId,
-        program,
+        programVersion,
       }: {
         prompt: string;
         models: string[];
@@ -75,27 +64,23 @@ router.post(
         revealDeadlineSeconds?: number;
         rewardPool?: number;
         programId?: string;
-        program?: VerificationProgram;
+        programVersion?: string;
       } = req.body;
 
       let resolvedProgramId = programId;
-      let resolvedProgram: VerificationProgram | undefined = undefined;
+      let resolvedProgramVersion = programVersion;
+      let resolvedProgramHash: string | undefined;
 
-      if (program) {
-        const record = registerProgram(program);
+      try {
+        const record = resolveProgram(programId, programVersion);
         resolvedProgramId = record.id;
-        resolvedProgram = record.program;
-      }
-
-      if (resolvedProgramId) {
-        const record = getProgram(resolvedProgramId);
-        if (!record) {
-          return res.status(400).json({
-            error: 'Invalid program',
-            message: 'Program ID not found',
-          });
-        }
-        resolvedProgram = record.program;
+        resolvedProgramVersion = record.version;
+        resolvedProgramHash = record.hash;
+      } catch (error: any) {
+        return res.status(400).json({
+          error: 'Invalid program',
+          message: error.message || 'Program not found',
+        });
       }
 
       logger.info('Received verification request', {
@@ -103,6 +88,7 @@ router.post(
         taskType,
         promptLength: prompt.length,
         programId: resolvedProgramId,
+        programVersion: resolvedProgramVersion,
       });
 
       // Hash the prompt
@@ -161,7 +147,7 @@ router.post(
         taskType,
         deadline: commitDeadline,
         programId: resolvedProgramId,
-        program: resolvedProgram,
+        programVersion: resolvedProgramVersion,
       });
       logger.info('Timing: job enqueue', {
         jobId: taskId,
@@ -182,9 +168,12 @@ router.post(
         models,
         taskType,
         deadline: new Date(commitDeadline * 1000).toISOString(),
-        estimatedCompletion: new Date((revealDeadline) * 1000).toISOString(),
+        estimatedCompletion: new Date(revealDeadline * 1000).toISOString(),
         programId: resolvedProgramId,
-        program: resolvedProgram,
+        programVersion: resolvedProgramVersion,
+        program: resolvedProgramId
+          ? { id: resolvedProgramId, version: resolvedProgramVersion, hash: resolvedProgramHash }
+          : undefined,
       });
     } catch (error: any) {
       logger.error('Error submitting verification request:', error);
@@ -221,15 +210,16 @@ router.get('/:jobId', async (req: Request, res: Response) => {
       rubricHash: taskDetails.rubricHash,
       rewardPool: taskDetails.feePool.toString(),
       deadline: new Date(Number(taskDetails.commitDeadline) * 1000).toISOString(),
+      models: taskDetails.models,
+      taskType: taskDetails.taskType,
+      timestamp: new Date(Number(taskDetails.createdAt) * 1000).toISOString(),
     };
 
-    // Add result if completed
-    if (status === 'completed') {
+    if (status === 'finalized') {
       response.result = {
         score: Number(taskDetails.finalScoreBps),
-        verdict: getVerdict(Number(taskDetails.finalScoreBps)),
-        confidence: 0,
-        evaluations: [],
+        verdict: Number(taskDetails.finalScoreBps) >= CONSTANTS.MIXED_THRESHOLD,
+        finalScoreBps: Number(taskDetails.finalScoreBps),
       };
     }
 
@@ -242,31 +232,5 @@ router.get('/:jobId', async (req: Request, res: Response) => {
     });
   }
 });
-
-/**
- * Helper: Get verdict from score
- */
-function getVerdict(scoreBps: number): string {
-  if (scoreBps >= CONSTANTS.RELIABLE_THRESHOLD) return 'reliable';
-  if (scoreBps >= CONSTANTS.MIXED_THRESHOLD) return 'mixed';
-  return 'unreliable';
-}
-
-/**
- * Helper: Calculate confidence from evaluations
- */
-function calculateConfidence(evaluations: any[]): number {
-  if (evaluations.length === 0) return 0;
-
-  // Calculate standard deviation of scores
-  const scores = evaluations.map((e: any) => Number(e.score));
-  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / scores.length;
-  const stdDev = Math.sqrt(variance);
-
-  // Lower std dev = higher confidence
-  // Normalize to 0-1 range (assuming max std dev of 50)
-  return Math.max(0, 1 - stdDev / 50);
-}
 
 export { router as verifyRoutes };

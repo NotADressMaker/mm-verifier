@@ -17,17 +17,7 @@ export async function queueVerificationJob(jobData: {
   taskType: string;
   deadline: number;
   programId?: string;
-  program?: {
-    name: string;
-    version: string;
-    description?: string;
-    steps: Array<{
-      id?: string;
-      type: string;
-      description?: string;
-      config?: Record<string, unknown>;
-    }>;
-  };
+  programVersion?: string;
 }) {
   try {
     const job = await verificationQueue.add('verify', jobData, {

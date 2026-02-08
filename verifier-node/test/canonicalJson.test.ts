@@ -26,6 +26,7 @@ describe('canonical JSON hashing', () => {
 
   it('uses the same hash for evidence bundle content', () => {
     const bundle = {
+      version: '1.0.0',
       task_id: '0x' + '11'.repeat(32),
       bundle_version: '0.1',
       created_at: '2024-10-12T09:43:22Z',

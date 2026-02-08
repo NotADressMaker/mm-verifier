@@ -18,7 +18,7 @@ describe('verifyReceiptOnchain', () => {
     score_bps: 8500,
     bundle_hash: '0x' + '11'.repeat(32),
     bundle_uri: 'ipfs://QmTestBundle',
-    program_id: 'factual-consensus-v1',
+    program_id: 'factual-consensus',
     program_version: '1.0.0',
     chain_id: 421614,
     contract_address: '0x0000000000000000000000000000000000000000',
@@ -163,26 +163,8 @@ describe('verifyReceiptOnchain', () => {
 
 describe('FACTUAL_CONSENSUS_PROGRAM', () => {
   it('should have required fields', () => {
-    expect(FACTUAL_CONSENSUS_PROGRAM.program_id).toBe('factual-consensus-v1');
-    expect(FACTUAL_CONSENSUS_PROGRAM.name).toBe('factual-consensus');
+    expect(FACTUAL_CONSENSUS_PROGRAM.id).toBe('factual-consensus');
     expect(FACTUAL_CONSENSUS_PROGRAM.version).toBe('1.0.0');
-    expect(FACTUAL_CONSENSUS_PROGRAM.fingerprint).toMatch(/^0x[0-9a-f]{64}$/);
-  });
-
-  it('should have valid steps', () => {
-    expect(FACTUAL_CONSENSUS_PROGRAM.steps.length).toBeGreaterThan(0);
-
-    const stepTypes = FACTUAL_CONSENSUS_PROGRAM.steps.map((s) => s.type);
-    expect(stepTypes).toContain('prompt');
-    expect(stepTypes).toContain('cross-check');
-    expect(stepTypes).toContain('score');
-    expect(stepTypes).toContain('evidence');
-  });
-
-  it('should have defined inputs and outputs', () => {
-    expect(FACTUAL_CONSENSUS_PROGRAM.inputs).toBeDefined();
-    expect(FACTUAL_CONSENSUS_PROGRAM.inputs!.length).toBeGreaterThan(0);
-    expect(FACTUAL_CONSENSUS_PROGRAM.outputs).toBeDefined();
-    expect(FACTUAL_CONSENSUS_PROGRAM.outputs!.length).toBeGreaterThan(0);
+    expect(FACTUAL_CONSENSUS_PROGRAM.hash).toMatch(/^[0-9a-f]{64}$/);
   });
 });

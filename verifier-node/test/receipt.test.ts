@@ -14,7 +14,8 @@ import {
 
 describe('VerificationReceipt', () => {
   const sampleReceipt: VerificationReceipt = {
-    receipt_version: '1.0',
+    version: '1.0.0',
+    receipt_version: '1.0.0',
     task_id: '12345',
     generated_at: 1705320000,
     input_hash: '0x' + '11'.repeat(32) as `0x${string}`,
@@ -31,6 +32,17 @@ describe('VerificationReceipt', () => {
       llm_provider: 'openai',
       llm_model: 'gpt-4',
       verifier_node: 'node-1',
+    },
+    explain: {
+      version: '1.0.0',
+      score_components: [],
+      checks: {},
+      contradictions_found: [],
+      citation_checks: [],
+      model_disagreement: {
+        models: [],
+        agreement_rate: 0,
+      },
     },
   };
 
@@ -111,6 +123,7 @@ describe('VerificationReceipt', () => {
       });
 
       expect(receipt.receipt_version).toBe(RECEIPT_VERSION);
+      expect(receipt.version).toBe(RECEIPT_VERSION);
       expect(receipt.task_id).toBe('12345');
       expect(receipt.score_bps).toBe(8500);
       expect(receipt.verdict).toBe(true);
@@ -179,8 +192,8 @@ describe('VerificationReceipt', () => {
       });
 
       expect(receipt.program).toBeDefined();
-      expect(receipt.program?.name).toBe('test-program');
-      expect(receipt.program?.fingerprint).toMatch(/^0x[0-9a-f]{64}$/);
+      expect(receipt.program?.id).toMatch(/^prog_/);
+      expect(receipt.program?.hash).toMatch(/^[0-9a-f]{64}$/);
     });
 
     it('should include metering', () => {
@@ -328,6 +341,6 @@ describe('VerificationReceipt', () => {
 
 describe('Receipt Constants', () => {
   it('should have correct version', () => {
-    expect(RECEIPT_VERSION).toBe('1.0');
+    expect(RECEIPT_VERSION).toBe('1.0.0');
   });
 });

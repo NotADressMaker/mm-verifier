@@ -6,7 +6,7 @@
  */
 
 import { MMVClient, MMVClientOptions } from './client';
-import { Receipt, VerifyOptions, OnchainVerifyResult, ProgramDefinition } from './types';
+import { Receipt, VerifyOptions, OnchainVerifyResult, ProgramSummary } from './types';
 
 // ============================================================================
 // Configuration
@@ -48,80 +48,12 @@ let globalConfig: QuickstartConfig = {};
  *
  * Use this program for general factual Q&A verification.
  */
-export const FACTUAL_CONSENSUS_PROGRAM: ProgramDefinition & {
-  program_id: string;
-  fingerprint: string;
-} = {
-  program_id: 'factual-consensus-v1',
-  fingerprint: '0x7f8c9d0e1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d',
-  name: 'factual-consensus',
+export const FACTUAL_CONSENSUS_PROGRAM: ProgramSummary = {
+  id: 'factual-consensus',
   version: '1.0.0',
   description:
     'Multi-model consensus verification for factual claims. Queries multiple LLMs, extracts claims, cross-checks for consistency, and scores based on agreement.',
-  inputs: [
-    {
-      name: 'prompt',
-      type: 'string',
-      description: 'The prompt or LLM output to verify',
-      required: true,
-    },
-  ],
-  outputs: [
-    {
-      name: 'verdict',
-      type: 'boolean',
-      description: 'Whether the output passed verification (score >= 5000 bps)',
-    },
-    {
-      name: 'score_bps',
-      type: 'number',
-      description: 'Verification score in basis points (0-10000)',
-    },
-    {
-      name: 'evidence',
-      type: 'object',
-      description: 'Evidence bundle with claims, sources, and reasoning',
-    },
-  ],
-  steps: [
-    {
-      id: 'query',
-      type: 'prompt',
-      description: 'Query multiple LLMs with identical prompt',
-      config: {
-        temperature: 0.1,
-        max_tokens: 2048,
-      },
-    },
-    {
-      id: 'extract',
-      type: 'cross-check',
-      description: 'Extract atomic claims from each response',
-    },
-    {
-      id: 'consensus',
-      type: 'consensus',
-      description: 'Compare claims across models for agreement',
-      config: {
-        min_agreement: 0.66,
-        allow_partial: true,
-      },
-    },
-    {
-      id: 'score',
-      type: 'score',
-      description: 'Compute final score based on consensus metrics',
-      config: {
-        pass_threshold_bps: 5000,
-        worthy_threshold_bps: 8000,
-      },
-    },
-    {
-      id: 'bundle',
-      type: 'evidence',
-      description: 'Package all evidence into auditable bundle',
-    },
-  ],
+  hash: 'dd5cf58f1617af56192049a9fda1ca848ae00f5fa9df000d3ad2f0b3c6431f9c',
 };
 
 // ============================================================================

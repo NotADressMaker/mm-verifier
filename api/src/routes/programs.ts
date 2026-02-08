@@ -1,13 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { body, validationResult } from 'express-validator';
 import { logger } from '../utils/logger';
-import {
-  getProgram,
-  listPrograms,
-  registerProgram,
-  validateVerificationProgram,
-  VerificationProgram,
-} from '../services/programRegistry';
+import { getProgram, listPrograms } from '../services/programRegistry';
 
 const router = Router();
 
@@ -15,48 +8,12 @@ const router = Router();
  * POST /api/programs
  * Register a new verification program
  */
-router.post(
-  '/',
-  [
-    body('name').isString().notEmpty().withMessage('Program name is required'),
-    body('version').isString().notEmpty().withMessage('Program version is required'),
-    body('steps').isArray({ min: 1 }).withMessage('Program must include at least one step'),
-  ],
-  async (req: Request, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const program = req.body as VerificationProgram;
-      const validation = validateVerificationProgram(program);
-      if (!validation.valid) {
-        return res.status(400).json({ error: 'Invalid program', message: validation.message });
-      }
-
-      const record = registerProgram(program);
-
-      logger.info('Registered verification program', {
-        programId: record.id,
-        name: program.name,
-        version: program.version,
-      });
-
-      res.status(201).json({
-        programId: record.id,
-        program: record.program,
-        createdAt: record.createdAt,
-      });
-    } catch (error: any) {
-      logger.error('Error registering verification program:', error);
-      res.status(500).json({
-        error: 'Internal Server Error',
-        message: error.message,
-      });
-    }
-  }
-);
+router.post('/', async (_req: Request, res: Response) => {
+  res.status(400).json({
+    error: 'Invalid program',
+    message: 'Program registration is handled via filesystem plugins.',
+  });
+});
 
 /**
  * GET /api/programs
@@ -75,17 +32,30 @@ router.get('/', (req: Request, res: Response) => {
  * Fetch a specific verification program
  */
 router.get('/:programId', (req: Request, res: Response) => {
-  const { programId } = req.params;
-  const record = getProgram(programId);
+  try {
+    const { programId } = req.params;
+    const [id, version] = programId.split('@');
+    const record = getProgram(id, version);
 
-  if (!record) {
-    return res.status(404).json({
-      error: 'Not Found',
-      message: 'Program not found',
+    if (!record) {
+      return res.status(404).json({
+        error: 'Program not found',
+      });
+    }
+
+    res.status(200).json({
+      id: record.id,
+      version: record.version,
+      description: record.description,
+      hash: record.hash,
+    });
+  } catch (error: any) {
+    logger.error('Error fetching verification program', { error: error.message });
+    res.status(500).json({
+      error: 'Internal error',
+      message: error.message || 'Internal Server Error',
     });
   }
-
-  res.status(200).json(record);
 });
 
 export { router as programRoutes };

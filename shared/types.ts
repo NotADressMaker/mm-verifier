@@ -9,6 +9,7 @@
 
 export interface EvidenceBundleV01 {
   // Metadata
+  version: '1.0.0';
   task_id: number | string;
   bundle_version: '0.1';
   created_at: string;              // ISO 8601 timestamp

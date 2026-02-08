@@ -15,7 +15,8 @@ import { ProgramDefinitionWithLimits, computeProgramFingerprint } from './progra
 // Receipt Version
 // ============================================================================
 
-export const RECEIPT_VERSION = '1.0' as const;
+export const RECEIPT_VERSION = '1.0.0' as const;
+export const EXPLAIN_VERSION = '1.0.0' as const;
 
 // ============================================================================
 // Verification Receipt
@@ -25,6 +26,9 @@ export const RECEIPT_VERSION = '1.0' as const;
  * Canonical verification receipt schema
  */
 export interface VerificationReceipt {
+  /** Schema version for the receipt payload */
+  version: typeof RECEIPT_VERSION;
+
   /** Schema version for forward compatibility */
   receipt_version: typeof RECEIPT_VERSION;
 
@@ -63,10 +67,9 @@ export interface VerificationReceipt {
 
   /** Program used for verification (if any) */
   program?: {
-    program_id: string;
-    fingerprint: `0x${string}`;
-    name: string;
+    id: string;
     version: string;
+    hash: string;
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -157,6 +160,13 @@ export interface VerificationReceipt {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Explainability (Machine-readable)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Structured, machine-readable explanation */
+  explain: ReceiptExplain;
+
+  // ─────────────────────────────────────────────────────────────────────────
   // ZK Proof (Future)
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -175,6 +185,43 @@ export interface VerificationReceipt {
 }
 
 // ============================================================================
+// Explainability
+// ============================================================================
+
+export interface ReceiptExplain {
+  version: typeof EXPLAIN_VERSION;
+  score_components: Array<{
+    name: string;
+    score_bps: number;
+    weight_bps?: number;
+    notes?: string;
+  }>;
+  checks: Record<string, unknown>;
+  contradictions_found: Array<{
+    type: string;
+    severity: string;
+    summary: string;
+    evidence_refs: string[];
+  }>;
+  citation_checks: Array<{
+    claim: string;
+    sources: string[];
+    verdict: string;
+    notes?: string;
+  }>;
+  model_disagreement: {
+    models: string[];
+    agreement_rate: number;
+    clusters?: Array<Record<string, unknown>>;
+  };
+  timings_ms?: {
+    fetch?: number;
+    program_run?: number;
+    total?: number;
+  };
+}
+
+// ============================================================================
 // Receipt Hash Computation
 // ============================================================================
 
@@ -182,6 +229,7 @@ export interface VerificationReceipt {
  * Fields included in receipt hash (order matters for determinism)
  */
 const RECEIPT_HASH_FIELDS = [
+  'version',
   'receipt_version',
   'task_id',
   'generated_at',
@@ -196,6 +244,7 @@ const RECEIPT_HASH_FIELDS = [
   'provenance',
   'model_commitments',
   'reasoning_trace',
+  'explain',
   // Note: zk_proof is NOT included in hash (it proves the hash)
 ] as const;
 
@@ -252,10 +301,12 @@ export interface BuildReceiptParams {
   llm_provider: string;
   llm_model: string;
   program?: ProgramDefinitionWithLimits & { program_id?: string };
+  program_hash?: string;
   metering?: VerificationReceipt['metering'];
   verifier_node?: string;
   software_version?: string;
   worthy_threshold_bps?: number;
+  explain?: ReceiptExplain;
 }
 
 /**
@@ -264,8 +315,21 @@ export interface BuildReceiptParams {
 export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   const worthyThreshold = params.worthy_threshold_bps ?? 8000;
   const passThreshold = 5000;
+  const explain: ReceiptExplain =
+    params.explain ?? {
+      version: EXPLAIN_VERSION,
+      score_components: [],
+      checks: {},
+      contradictions_found: [],
+      citation_checks: [],
+      model_disagreement: {
+        models: [],
+        agreement_rate: 0,
+      },
+    };
 
   const receipt: VerificationReceipt = {
+    version: RECEIPT_VERSION,
     receipt_version: RECEIPT_VERSION,
     task_id: params.task_id,
     generated_at: Math.floor(Date.now() / 1000),
@@ -285,16 +349,16 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
       verifier_node: params.verifier_node,
       software_version: params.software_version,
     },
+    explain,
   };
 
   // Add program reference if provided
   if (params.program) {
     const fingerprint = computeProgramFingerprint(params.program);
     receipt.program = {
-      program_id: params.program.program_id ?? `prog_${fingerprint.slice(2, 10)}`,
-      fingerprint: fingerprint as `0x${string}`,
-      name: params.program.name,
+      id: params.program.program_id ?? `prog_${fingerprint.slice(2, 10)}`,
       version: params.program.version,
+      hash: params.program_hash ?? fingerprint.replace(/^0x/, ''),
     };
   }
 
@@ -352,10 +416,16 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
   }
 
   const r = receipt as Record<string, unknown>;
+  const receiptVersion = r.receipt_version as string | undefined;
+  const isLegacy = receiptVersion === '1.0';
 
   // Version check
-  if (r.receipt_version !== RECEIPT_VERSION) {
+  if (receiptVersion !== RECEIPT_VERSION && receiptVersion !== '1.0') {
     errors.push(`receipt_version must be "${RECEIPT_VERSION}"`);
+  }
+
+  if (!isLegacy && r.version !== RECEIPT_VERSION) {
+    errors.push(`version must be "${RECEIPT_VERSION}"`);
   }
 
   // Required fields
@@ -412,6 +482,25 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
     }
     if (typeof p.llm_model !== 'string') {
       errors.push('provenance.llm_model is required');
+    }
+  }
+
+  if (!isLegacy) {
+    if (!r.explain || typeof r.explain !== 'object') {
+      errors.push('explain is required');
+    }
+
+    if (r.program !== undefined) {
+      const program = r.program as Record<string, unknown>;
+      if (typeof program.id !== 'string') {
+        errors.push('program.id is required');
+      }
+      if (typeof program.version !== 'string') {
+        errors.push('program.version is required');
+      }
+      if (typeof program.hash !== 'string') {
+        errors.push('program.hash is required');
+      }
     }
   }
 

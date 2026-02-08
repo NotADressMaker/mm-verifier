@@ -1,5 +1,4 @@
 import {
-  ProgramDefinition,
   ProgramRecord,
   VerifyRequest,
   VerifyResponse,
@@ -18,7 +17,7 @@ import {
 // Default configuration
 const DEFAULT_CHAIN_ID = 421614; // Arbitrum Sepolia
 const DEFAULT_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000';
-const DEFAULT_PROGRAM_ID = 'factual-consensus-v1';
+const DEFAULT_PROGRAM_ID = 'factual-consensus';
 const DEFAULT_PROGRAM_VERSION = '1.0.0';
 
 export interface MMVClientOptions {
@@ -42,8 +41,8 @@ export interface VerifyWithProgramParams {
   prompt: string;
   models: string[];
   taskType: string;
-  program?: ProgramDefinition;
   programId?: string;
+  programVersion?: string;
   idempotencyKey?: string;
 }
 
@@ -85,6 +84,7 @@ export class MMVClient {
     const models = options.models ?? ['gpt-4', 'claude-3'];
     const taskType = options.taskType ?? 'factual-qa';
     const programId = options.programId ?? DEFAULT_PROGRAM_ID;
+    const programVersion = options.programVersion ?? DEFAULT_PROGRAM_VERSION;
     const timeoutMs = options.timeoutMs ?? 120000;
     const pollIntervalMs = options.pollIntervalMs ?? 3000;
 
@@ -94,6 +94,7 @@ export class MMVClient {
       models,
       taskType,
       programId,
+      programVersion,
     });
 
     // Wait for finalization
@@ -116,7 +117,7 @@ export class MMVClient {
       score_bps: receipt.score_bps,
       bundle_hash: receipt.evidence.bundle_hash,
       bundle_uri: receipt.evidence.bundle_uri,
-      program_id: receipt.program?.program_id ?? DEFAULT_PROGRAM_ID,
+      program_id: receipt.program?.id ?? DEFAULT_PROGRAM_ID,
       program_version: receipt.program?.version ?? DEFAULT_PROGRAM_VERSION,
       chain_id: receipt.chain_context?.chain_id ?? this.chainId,
       contract_address: receipt.chain_context?.contract_address ?? this.contractAddress,
@@ -137,16 +138,9 @@ export class MMVClient {
       prompt: params.prompt,
       models: params.models,
       task_type: params.taskType,
-      program: params.program,
       program_id: params.programId,
+      program_version: params.programVersion,
       idempotency_key: params.idempotencyKey,
-    });
-  }
-
-  async registerProgram(program: ProgramDefinition): Promise<ProgramRecord> {
-    return this.request<ProgramRecord>('/v1/programs', {
-      method: 'POST',
-      body: JSON.stringify(program),
     });
   }
 
