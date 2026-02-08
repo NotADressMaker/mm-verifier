@@ -195,6 +195,7 @@ For a complete analysis, see [docs/BLACK_BOX_TRANSPARENCY.md](docs/BLACK_BOX_TRA
 - **Verification Job Processor**: Scores responses and assembles evidence bundles.
 - **IPFS Evidence Uploads**: Stores evidence bundle URIs offchain.
 - **Smart Contract Marketplace**: Commit/reveal workflow with evidence hashes and URIs.
+- **Verifier Lifecycle + Disputes**: ETH staking, slashing, and bonded receipt challenges (see `docs/VERIFIER_LIFECYCLE.md`).
 - **API Endpoints**: `/api/verify` and `/api/programs` for job submission and program registration.
 
 ## Security & Threat Model
