@@ -158,6 +158,14 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
     uint256 public constant SUPPORT_REQUIRED_BPS = 7500; // 75% confidence requires support
     uint16 public constant MAX_BRANCHES_PER_BUNDLE = 20;
 
+    // Dispute windows and economic splits (configurable)
+    uint64 public challengeWindow = 7 days;
+    uint64 public responseWindow = 2 days;
+    uint16 public treasuryFeeBps = 500; // 5%
+    uint16 public jurorRewardBps = 2000; // 20%
+    address public treasury;
+    bool public useVrf = true;
+
     // Bond requirements (in wei)
     mapping(FaultType => uint256) public minChallengeBond;
     mapping(RoundLevel => uint256) public appealBondRequired;
@@ -170,6 +178,21 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
     mapping(RoundLevel => uint64) public voteWindows;
     mapping(RoundLevel => uint64) public appealWindows;
 
+    // Dispute metadata + response tracking
+    mapping(uint256 => bytes32) public disputeBundleHash;
+    mapping(uint256 => bytes32) public disputeBundleUriHash;
+    mapping(uint256 => bytes32) public disputeReceiptHash;
+    mapping(uint256 => bytes32) public disputeProgramHash;
+    mapping(uint256 => uint64) public challengeDeadline;
+    mapping(uint256 => uint64) public responseDeadline;
+    mapping(uint256 => bool) public hasResponded;
+    mapping(uint256 => bytes32) public responseHash;
+    mapping(uint256 => string) public responseURI;
+
+    // Audit metadata (off-chain reporting)
+    mapping(uint256 => mapping(uint8 => mapping(address => uint16))) public auditScoreBps;
+    mapping(uint256 => mapping(uint8 => mapping(address => bytes32))) public auditEvidenceHash;
+
     // Juror rewards (pull-based)
     mapping(address => uint256) public pendingRewards;
 
@@ -181,15 +204,31 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
     // ========================================================================
 
     event DisputeOpened(uint256 indexed disputeId, bytes32 indexed bundleId, address indexed challenger, FaultType faultType, uint256 bond, uint256 timestamp);
+    event DisputeOpenedDetailed(
+        uint256 indexed disputeId,
+        bytes32 indexed bundleId,
+        address indexed challenger,
+        address verifier,
+        uint256 bond,
+        uint64 challengeDeadline,
+        bytes32 bundleHash,
+        bytes32 receiptHash,
+        bytes32 programHash
+    );
+    event DisputeResponded(uint256 indexed disputeId, address indexed verifier, bytes32 responseHash, string responseURI, uint64 responseDeadline);
     event DefenseBondPosted(uint256 indexed disputeId, address indexed verifier, uint256 amount, uint256 timestamp);
     event RoundStarted(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, RoundPhase phase, uint256 timestamp);
     event VRFRequested(uint256 indexed disputeId, uint256 indexed requestId, RoundLevel level, uint32 jurySize, uint256 timestamp);
     event JurySelected(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, address[] jurors, uint256 timestamp);
+    event AuditorsAssigned(uint256 indexed disputeId, uint8 roundIndex, address[] auditors);
     event EvidenceSubmitted(uint256 indexed disputeId, bool forChallenger, bytes32 evidenceRoot, EvidenceTier maxTierClaimed, uint256 timestamp);
     event VotingStarted(uint256 indexed disputeId, uint64 voteDeadline, uint256 timestamp);
     event VoteCast(uint256 indexed disputeId, address indexed juror, Winner winner, uint256 timestamp);
+    event AuditSubmitted(uint256 indexed disputeId, address indexed auditor, Winner verdict, uint16 scoreBps, bytes32 evidenceHash);
     event RoundResolved(uint256 indexed disputeId, uint8 roundIndex, RoundLevel level, Winner winner, uint8 marginBps, bool fabricationProven, uint16 invalidBranchMedian, uint256 timestamp);
     event Appealed(uint256 indexed disputeId, address indexed appellant, RoundLevel newLevel, uint256 bond, uint256 timestamp);
+    event DisputeAppealed(uint256 indexed disputeId, address indexed appellant, RoundLevel newLevel, uint256 bond, uint256 timestamp);
+    event DisputeResolved(uint256 indexed disputeId, Winner outcome, uint256 slashedAmount, uint256 challengerPayout, uint256 verifierPayout, uint256 treasuryPayout);
     event DisputeFinalized(uint256 indexed disputeId, Winner finalWinner, uint256 challengerPayout, uint256 verifierPayout, uint256 timestamp);
     event RewardsAccumulated(uint256 indexed disputeId, address indexed juror, uint256 amount, uint256 timestamp);
     event RewardsClaimed(address indexed juror, uint256 amount, uint256 timestamp);
@@ -213,6 +252,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
         keyHash = _keyHash;
         subscriptionId = _subscriptionId;
+        treasury = msg.sender;
 
         // Default bond requirements (in WETH wei)
         minChallengeBond[FaultType.DISAGREEMENT] = 0.01 ether;
@@ -241,6 +281,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         appealWindows[RoundLevel.L1] = 2 hours;
         appealWindows[RoundLevel.L2] = 24 hours;
         appealWindows[RoundLevel.L3] = 24 hours;
+        appealWindows[RoundLevel.L0] = 2 hours;
     }
 
     // ========================================================================
@@ -262,32 +303,39 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         FaultType faultType,
         uint256 bondAmount
     ) external nonReentrant whenNotPaused returns (uint256 disputeId) {
-        require(bondAmount >= minChallengeBond[faultType], "Insufficient bond");
+        disputeId = _openDispute(
+            bundleId,
+            branchId,
+            faultType,
+            bondAmount,
+            false,
+            bytes32(0),
+            bytes32(0),
+            false
+        );
+    }
 
-        address verifier = bundleRegistry.getBundleOwner(bundleId);
-        require(verifier != address(0), "Bundle not found");
-        require(msg.sender != verifier, "Cannot dispute own bundle");
-
-        // Transfer WETH bond from challenger
-        require(WETH.transferFrom(msg.sender, address(this), bondAmount), "WETH transfer failed");
-
-        disputeId = nextDisputeId++;
-
-        disputes[disputeId] = Dispute({
-            status: DisputeStatus.OPEN,
-            bundleId: bundleId,
-            branchId: branchId,
-            faultType: faultType,
-            challenger: msg.sender,
-            verifier: verifier,
-            createdAt: block.timestamp,
-            challengeBond: bondAmount,
-            defenseBond: 0,
-            currentLevel: 0, // L0
-            roundIndex: 0
-        });
-
-        emit DisputeOpened(disputeId, bundleId, msg.sender, faultType, bondAmount, block.timestamp);
+    /**
+     * @notice Open a new dispute with required receipt/program hash metadata (WETH-based)
+     */
+    function openDisputeWithMetadata(
+        bytes32 bundleId,
+        uint32 branchId,
+        FaultType faultType,
+        uint256 bondAmount,
+        bytes32 receiptHash,
+        bytes32 programHash
+    ) external nonReentrant whenNotPaused returns (uint256 disputeId) {
+        disputeId = _openDispute(
+            bundleId,
+            branchId,
+            faultType,
+            bondAmount,
+            false,
+            receiptHash,
+            programHash,
+            true
+        );
     }
 
     /**
@@ -303,16 +351,75 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         uint32 branchId,
         FaultType faultType
     ) external payable nonReentrant whenNotPaused returns (uint256 disputeId) {
-        require(msg.value >= minChallengeBond[faultType], "Insufficient bond");
+        disputeId = _openDispute(
+            bundleId,
+            branchId,
+            faultType,
+            msg.value,
+            true,
+            bytes32(0),
+            bytes32(0),
+            false
+        );
+    }
+
+    /**
+     * @notice Open a new dispute with required receipt/program hash metadata (ETH-based)
+     */
+    function openDisputeWithETHAndMetadata(
+        bytes32 bundleId,
+        uint32 branchId,
+        FaultType faultType,
+        bytes32 receiptHash,
+        bytes32 programHash
+    ) external payable nonReentrant whenNotPaused returns (uint256 disputeId) {
+        disputeId = _openDispute(
+            bundleId,
+            branchId,
+            faultType,
+            msg.value,
+            true,
+            receiptHash,
+            programHash,
+            true
+        );
+    }
+
+    function _openDispute(
+        bytes32 bundleId,
+        uint32 branchId,
+        FaultType faultType,
+        uint256 bondAmount,
+        bool wrapEth,
+        bytes32 receiptHash,
+        bytes32 programHash,
+        bool requireMetadata
+    ) internal returns (uint256 disputeId) {
+        require(bondAmount >= minChallengeBond[faultType], "Insufficient bond");
 
         address verifier = bundleRegistry.getBundleOwner(bundleId);
         require(verifier != address(0), "Bundle not found");
         require(msg.sender != verifier, "Cannot dispute own bundle");
 
-        // Wrap ETH to WETH
-        WETH.deposit{value: msg.value}();
+        (, , uint64 submittedAt) = bundleRegistry.getBundleMeta(bundleId);
+        require(submittedAt > 0, "Bundle not found");
+        require(block.timestamp <= submittedAt + challengeWindow, "Challenge window closed");
 
-        uint256 bondAmount = msg.value;
+        (bytes32 bundleHash, string memory bundleURI, ) = bundleRegistry.getBundleEvidence(bundleId);
+        bytes32 bundleUriHash = keccak256(bytes(bundleURI));
+
+        if (requireMetadata) {
+            require(receiptHash != bytes32(0), "Receipt hash required");
+            require(programHash != bytes32(0), "Program hash required");
+        }
+
+        if (wrapEth) {
+            require(msg.value == bondAmount, "Bond mismatch");
+            WETH.deposit{value: bondAmount}();
+        } else {
+            require(WETH.transferFrom(msg.sender, address(this), bondAmount), "WETH transfer failed");
+        }
+
         disputeId = nextDisputeId++;
 
         disputes[disputeId] = Dispute({
@@ -329,7 +436,25 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
             roundIndex: 0
         });
 
+        disputeBundleHash[disputeId] = bundleHash;
+        disputeBundleUriHash[disputeId] = bundleUriHash;
+        disputeReceiptHash[disputeId] = receiptHash;
+        disputeProgramHash[disputeId] = programHash;
+        challengeDeadline[disputeId] = uint64(submittedAt + challengeWindow);
+        responseDeadline[disputeId] = uint64(block.timestamp + responseWindow);
+
         emit DisputeOpened(disputeId, bundleId, msg.sender, faultType, bondAmount, block.timestamp);
+        emit DisputeOpenedDetailed(
+            disputeId,
+            bundleId,
+            msg.sender,
+            verifier,
+            bondAmount,
+            challengeDeadline[disputeId],
+            bundleHash,
+            receiptHash,
+            programHash
+        );
     }
 
     /**
@@ -353,6 +478,60 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         emit DefenseBondPosted(disputeId, msg.sender, bondAmount, block.timestamp);
     }
 
+    /**
+     * @notice Verifier responds to dispute within response window
+     * @param disputeId Dispute ID
+     * @param responseEvidenceHash Hash of response evidence bundle
+     * @param responseEvidenceURI URI pointer for response evidence
+     */
+    function respondToDispute(
+        uint256 disputeId,
+        bytes32 responseEvidenceHash,
+        string calldata responseEvidenceURI
+    ) external nonReentrant whenNotPaused {
+        Dispute storage dispute = disputes[disputeId];
+        require(dispute.status == DisputeStatus.OPEN, "Not open");
+        require(msg.sender == dispute.verifier, "Only verifier");
+        require(block.timestamp <= responseDeadline[disputeId], "Response window closed");
+        require(!hasResponded[disputeId], "Already responded");
+        require(responseEvidenceHash != bytes32(0), "Response hash required");
+        require(bytes(responseEvidenceURI).length > 0, "Response URI required");
+
+        hasResponded[disputeId] = true;
+        responseHash[disputeId] = responseEvidenceHash;
+        responseURI[disputeId] = responseEvidenceURI;
+
+        emit DisputeResponded(
+            disputeId,
+            msg.sender,
+            responseEvidenceHash,
+            responseEvidenceURI,
+            responseDeadline[disputeId]
+        );
+    }
+
+    /**
+     * @notice Resolve dispute in favor of challenger if verifier does not respond in time
+     * @param disputeId Dispute ID
+     */
+    function resolveForNonResponse(uint256 disputeId) external nonReentrant whenNotPaused {
+        Dispute storage dispute = disputes[disputeId];
+        require(dispute.status == DisputeStatus.OPEN, "Not open");
+        require(!hasResponded[disputeId], "Already responded");
+        require(block.timestamp > responseDeadline[disputeId], "Response window open");
+
+        Round storage round = rounds[disputeId][0];
+        round.level = RoundLevel.L0;
+        round.phase = RoundPhase.RESOLVED;
+        round.winner = Winner.CHALLENGER;
+        round.marginBps = 100;
+        round.appealDeadline = uint64(block.timestamp + appealWindows[RoundLevel.L0]);
+
+        dispute.status = DisputeStatus.ROUND_RESOLVED;
+
+        emit RoundResolved(disputeId, 0, RoundLevel.L0, Winner.CHALLENGER, 100, false, 0, block.timestamp);
+    }
+
     // ========================================================================
     // B) L0 Auto-Check
     // ========================================================================
@@ -365,6 +544,10 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         Dispute storage dispute = disputes[disputeId];
         require(dispute.status == DisputeStatus.OPEN, "Not open");
         require(dispute.currentLevel == 0, "Not L0");
+        require(
+            hasResponded[disputeId] || block.timestamp > responseDeadline[disputeId],
+            "Awaiting response"
+        );
 
         Round storage round = rounds[disputeId][0];
         round.level = RoundLevel.L0;
@@ -462,6 +645,16 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
     function _requestJuryVRF(uint256 disputeId, uint8 roundIndex) internal {
         Round storage round = rounds[disputeId][roundIndex];
 
+        if (!useVrf) {
+            uint256[] memory randomWords = new uint256[](round.jurySize);
+            bytes32 seed = keccak256(abi.encodePacked(blockhash(block.number - 1), disputeId, roundIndex));
+            for (uint256 i = 0; i < round.jurySize; i++) {
+                randomWords[i] = uint256(keccak256(abi.encodePacked(seed, i)));
+            }
+            _assignJury(disputeId, roundIndex, randomWords);
+            return;
+        }
+
         uint256 requestId = vrfCoordinator.requestRandomWords(
             keyHash,
             subscriptionId,
@@ -500,6 +693,17 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
 
         require(round.phase == RoundPhase.SELECTING_JURY, "Wrong phase");
 
+        _assignJury(disputeId, roundIndex, randomWords);
+    }
+
+    function _assignJury(
+        uint256 disputeId,
+        uint8 roundIndex,
+        uint256[] memory randomWords
+    ) internal {
+        Dispute storage dispute = disputes[disputeId];
+        Round storage round = rounds[disputeId][roundIndex];
+
         // Select jurors
         address[] memory selectedJurors = _selectJurors(
             randomWords,
@@ -522,6 +726,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         }
 
         emit JurySelected(disputeId, roundIndex, round.level, selectedJurors, block.timestamp);
+        emit AuditorsAssigned(disputeId, roundIndex, selectedJurors);
     }
 
     /**
@@ -681,6 +886,8 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
 
         require(round.phase == RoundPhase.EVIDENCE, "Not evidence phase");
         require(block.timestamp <= round.evidenceDeadline, "Evidence deadline passed");
+        require(meta.evidenceRoot == disputeBundleHash[disputeId], "Evidence hash mismatch");
+        require(meta.ipfsCidHash == disputeBundleUriHash[disputeId], "Evidence URI mismatch");
 
         if (forChallenger) {
             require(msg.sender == dispute.challenger, "Only challenger");
@@ -720,6 +927,31 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
      * @param vote Juror vote
      */
     function castVote(uint256 disputeId, JurorVote calldata vote) external nonReentrant whenNotPaused {
+        _castVote(disputeId, vote);
+    }
+
+    /**
+     * @notice Cast vote with audit metadata for off-chain reporting
+     * @param disputeId Dispute ID
+     * @param vote Juror vote
+     * @param scoreBps Auditor score in basis points (0-10000)
+     * @param evidenceHash Hash of the evidence bundle reviewed
+     */
+    function submitAuditVote(
+        uint256 disputeId,
+        JurorVote calldata vote,
+        uint16 scoreBps,
+        bytes32 evidenceHash
+    ) external nonReentrant whenNotPaused {
+        _castVote(disputeId, vote);
+
+        auditScoreBps[disputeId][disputes[disputeId].roundIndex][msg.sender] = scoreBps;
+        auditEvidenceHash[disputeId][disputes[disputeId].roundIndex][msg.sender] = evidenceHash;
+
+        emit AuditSubmitted(disputeId, msg.sender, vote.winner, scoreBps, evidenceHash);
+    }
+
+    function _castVote(uint256 disputeId, JurorVote calldata vote) internal {
         Dispute storage dispute = disputes[disputeId];
         Round storage round = rounds[disputeId][dispute.roundIndex];
 
@@ -897,6 +1129,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         }
 
         emit Appealed(disputeId, msg.sender, nextLevel, bondAmount, block.timestamp);
+        emit DisputeAppealed(disputeId, msg.sender, nextLevel, bondAmount, block.timestamp);
 
         // Escalate to next level
         _escalateToNextLevel(disputeId);
@@ -921,7 +1154,12 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         round.finalized = true;
 
         // Compute payouts and slashing
-        (uint256 challengerPayout, uint256 verifierPayout) = _computePayouts(disputeId);
+        (
+            uint256 challengerPayout,
+            uint256 verifierPayout,
+            uint256 treasuryPayout,
+            uint256 slashedAmount
+        ) = _computePayouts(disputeId);
 
         // Distribute juror rewards (in WETH)
         _distributeJurorRewards(disputeId);
@@ -933,8 +1171,19 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         if (verifierPayout > 0) {
             require(WETH.transfer(dispute.verifier, verifierPayout), "WETH transfer failed");
         }
+        if (treasuryPayout > 0 && treasury != address(0)) {
+            require(WETH.transfer(treasury, treasuryPayout), "WETH transfer failed");
+        }
 
         emit DisputeFinalized(disputeId, round.winner, challengerPayout, verifierPayout, block.timestamp);
+        emit DisputeResolved(
+            disputeId,
+            round.winner,
+            slashedAmount,
+            challengerPayout,
+            verifierPayout,
+            treasuryPayout
+        );
     }
 
     /**
@@ -942,25 +1191,31 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
      */
     function _computePayouts(uint256 disputeId) internal view returns (
         uint256 challengerPayout,
-        uint256 verifierPayout
+        uint256 verifierPayout,
+        uint256 treasuryPayout,
+        uint256 slashedAmount
     ) {
         Dispute storage dispute = disputes[disputeId];
         Round storage round = rounds[disputeId][dispute.roundIndex];
 
         uint256 totalBond = dispute.challengeBond + dispute.defenseBond;
-        uint256 jurorReward = totalBond / 5; // 20% to jurors
-        uint256 remainder = totalBond - jurorReward;
+        uint256 jurorReward = (totalBond * jurorRewardBps) / 10_000;
+        treasuryPayout = (totalBond * treasuryFeeBps) / 10_000;
+        uint256 remainder = totalBond - jurorReward - treasuryPayout;
 
         if (round.winner == Winner.CHALLENGER) {
             challengerPayout = remainder;
             verifierPayout = 0;
+            slashedAmount = dispute.defenseBond;
         } else if (round.winner == Winner.VERIFIER) {
             challengerPayout = 0;
             verifierPayout = remainder;
+            slashedAmount = dispute.challengeBond;
         } else {
             // Tie: split equally
             challengerPayout = remainder / 2;
             verifierPayout = remainder / 2;
+            slashedAmount = 0;
         }
     }
 
@@ -974,7 +1229,7 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         Round storage round = rounds[disputeId][dispute.roundIndex];
 
         uint256 totalBond = dispute.challengeBond + dispute.defenseBond;
-        uint256 jurorReward = totalBond / 5; // 20% to jurors
+        uint256 jurorReward = (totalBond * jurorRewardBps) / 10_000;
 
         if (round.votesCast == 0) return;
 
@@ -1038,6 +1293,36 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
         humanExpertWeightMultiplier = multiplier;
     }
 
+    function setChallengeWindow(uint64 window) external onlyOwner {
+        require(window > 0, "Invalid window");
+        challengeWindow = window;
+    }
+
+    function setResponseWindow(uint64 window) external onlyOwner {
+        require(window > 0, "Invalid window");
+        responseWindow = window;
+    }
+
+    function setTreasury(address newTreasury) external onlyOwner {
+        require(newTreasury != address(0), "Invalid treasury");
+        treasury = newTreasury;
+    }
+
+    function setTreasuryFeeBps(uint16 bps) external onlyOwner {
+        require(bps <= 10_000, "Invalid fee");
+        require(bps + jurorRewardBps <= 10_000, "Fee too high");
+        treasuryFeeBps = bps;
+    }
+
+    function setJurorRewardBps(uint16 bps) external onlyOwner {
+        require(bps + treasuryFeeBps <= 10_000, "Fee too high");
+        jurorRewardBps = bps;
+    }
+
+    function setUseVrf(bool enabled) external onlyOwner {
+        useVrf = enabled;
+    }
+
     // ========================================================================
     // Emergency Functions
     // ========================================================================
@@ -1064,6 +1349,35 @@ contract DisputeLadder is Ownable, ReentrancyGuard, Pausable, VRFConsumerBaseV2 
 
     function getDispute(uint256 disputeId) external view returns (Dispute memory) {
         return disputes[disputeId];
+    }
+
+    function getDisputeMetadata(uint256 disputeId) external view returns (
+        bytes32 bundleHash,
+        bytes32 bundleUriHash,
+        bytes32 receiptHash,
+        bytes32 programHash,
+        uint64 challengeDeadlineTs,
+        uint64 responseDeadlineTs,
+        bool responded,
+        bytes32 responseEvidenceHash
+    ) {
+        return (
+            disputeBundleHash[disputeId],
+            disputeBundleUriHash[disputeId],
+            disputeReceiptHash[disputeId],
+            disputeProgramHash[disputeId],
+            challengeDeadline[disputeId],
+            responseDeadline[disputeId],
+            hasResponded[disputeId],
+            responseHash[disputeId]
+        );
+    }
+
+    function getDisputeResponse(uint256 disputeId) external view returns (
+        bytes32 responseEvidenceHash,
+        string memory responseEvidenceUri
+    ) {
+        return (responseHash[disputeId], responseURI[disputeId]);
     }
 
     function getRound(uint256 disputeId, uint8 roundIndex) external view returns (

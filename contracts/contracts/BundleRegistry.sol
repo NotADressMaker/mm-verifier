@@ -233,6 +233,15 @@ contract BundleRegistry is IBundleRegistry, Ownable, ReentrancyGuard {
         return (bundle.branchCount, bundle.branchesRoot, bundle.submittedAt);
     }
 
+    function getBundleEvidence(bytes32 bundleId) external view override returns (
+        bytes32 evidenceBundleHash,
+        string memory bundleURI,
+        uint64 submittedAt
+    ) {
+        BundleMeta storage bundle = bundles[bundleId];
+        return (bundle.evidenceBundleHash, bundle.bundleURI, bundle.submittedAt);
+    }
+
     function getBranchMeta(bytes32 bundleId, uint32 branchId) external view override returns (
         uint16 confidenceBps,
         bool requiresSupport
