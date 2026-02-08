@@ -2,6 +2,25 @@
 
 This document describes the on-chain dispute lifecycle, windows, evidence requirements, and payouts. The dispute system is implemented in `DisputeLadder.sol`.
 
+## Minimal Receipt Disputes (ReceiptDisputeManager)
+
+For lighter-weight deployments, the repo also ships a minimal dispute flow implemented by:
+
+- `VerifierRegistry.sol` (staking + reputation)
+- `ReceiptDisputeManager.sol` (bonded challenge + slashing)
+
+**Flow summary:**
+1. Verifier submits receipt hash + bundle hash.
+2. Challenger posts a bond within `disputeWindow`.
+3. Verifier responds with a bond within `responseWindow`.
+4. Owner resolves the dispute or challenger auto-wins on non-response.
+
+**Slashing outcomes:**
+- Challengers who prove incorrect receipts receive the verifier’s defense bond plus slashed stake.
+- Verifiers who successfully defend receive the challenger bond.
+
+See `docs/VERIFIER_LIFECYCLE.md` for full lifecycle + economics details.
+
 ## Lifecycle & Timelines
 
 **States** (simplified):
