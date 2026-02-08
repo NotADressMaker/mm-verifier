@@ -1,0 +1,5 @@
+{
+  "id": "fixture-program",
+  "version": "1.2.3",
+  "entrypoint": "index.js"
+}

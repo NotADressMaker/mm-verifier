@@ -3,12 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { logger } from '../../utils/logger';
 import { submitVerificationJob } from '../../services/blockchain';
 import { queueVerificationJob } from '../../services/jobQueue';
-import {
-  getProgram,
-  registerProgram,
-  validateVerificationProgram,
-  VerificationProgram,
-} from '../../services/programRegistry';
+import { resolveProgram } from '../../services/programRegistry';
 import { normalizeUnixSeconds, resolveCommitDeadline, resolveRevealDeadline } from '../../utils/time';
 import {
   VerifyResponse,
@@ -44,13 +39,7 @@ const requestValidators = [
     .withMessage('Reveal deadline seconds must be positive integer'),
   body('reward_pool').optional().isNumeric().withMessage('Reward pool must be numeric'),
   body('program_id').optional().isString().withMessage('Program ID must be a string'),
-  body('program').optional().custom((value) => {
-    const validation = validateVerificationProgram(value);
-    if (!validation.valid) {
-      throw new Error(validation.message || 'Invalid program');
-    }
-    return true;
-  }),
+  body('program_version').optional().isString().withMessage('Program version must be a string'),
   body('idempotency_key').optional().isString().withMessage('Idempotency key must be a string'),
 ];
 
@@ -64,7 +53,7 @@ function resolveRequest(body: any): VerifyRequest {
     reveal_deadline_seconds: body.reveal_deadline_seconds ?? body.revealDeadlineSeconds,
     reward_pool: body.reward_pool ?? body.rewardPool,
     program_id: body.program_id ?? body.programId,
-    program: body.program,
+    program_version: body.program_version ?? body.programVersion,
     idempotency_key: body.idempotency_key ?? body.idempotencyKey,
   };
 }
@@ -124,7 +113,7 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
       reveal_deadline_seconds,
       reward_pool,
       program_id,
-      program,
+      program_version,
     } = requestPayload;
 
     if (!prompt || !models?.length || !task_type) {
@@ -139,27 +128,23 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     }
 
     let resolvedProgramId = program_id;
-    let resolvedProgram: VerificationProgram | undefined = undefined;
+    let resolvedProgramVersion = program_version;
+    let resolvedProgramHash: string | undefined;
 
-    if (program) {
-      const record = registerProgram(program);
+    try {
+      const record = resolveProgram(program_id, program_version);
       resolvedProgramId = record.id;
-      resolvedProgram = record.program;
-    }
-
-    if (resolvedProgramId) {
-      const record = getProgram(resolvedProgramId);
-      if (!record) {
-        return res.status(400).json({
-          errors: [
-            {
-              code: 'INVALID_INPUT',
-              message: 'Program ID not found',
-            },
-          ],
-        });
-      }
-      resolvedProgram = record.program;
+      resolvedProgramVersion = record.version;
+      resolvedProgramHash = record.hash;
+    } catch (error: any) {
+      return res.status(400).json({
+        errors: [
+          {
+            code: 'INVALID_INPUT',
+            message: error.message || 'Program not found',
+          },
+        ],
+      });
     }
 
     logger.info('Received verification request', {
@@ -167,6 +152,7 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
       taskType: task_type,
       promptLength: prompt.length,
       programId: resolvedProgramId,
+      programVersion: resolvedProgramVersion,
     });
 
     const { ethers } = require('ethers');
@@ -217,7 +203,7 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
       taskType: task_type,
       deadline: commitDeadline,
       programId: resolvedProgramId,
-      program: resolvedProgram,
+      programVersion: resolvedProgramVersion,
     });
     const queueMs = Date.now() - queueStart;
 
@@ -237,7 +223,14 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
       }),
       errors: [],
       program_id: resolvedProgramId,
-      program: resolvedProgram,
+      program_version: resolvedProgramVersion,
+      program: resolvedProgramId
+        ? {
+            id: resolvedProgramId,
+            version: resolvedProgramVersion ?? 'unknown',
+            hash: resolvedProgramHash ?? '',
+          }
+        : undefined,
     };
 
     if (idempotencyKey) {

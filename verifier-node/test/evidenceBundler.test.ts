@@ -52,6 +52,7 @@ describe('Evidence bundler v0.2', () => {
     });
 
     expect(bundle.task_id).toBeDefined();
+    expect(bundle.version).toBe('1.0.0');
     expect(bundle.bundle_version).toBe('0.2');
     expect(bundle.created_at).toBeDefined();
     expect(bundle.model_runs.length).toBeGreaterThan(0);
@@ -77,6 +78,7 @@ describe('Evidence bundler v0.2', () => {
     const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as EvidenceBundle;
 
     expect(fixture.task_id).toMatch(/^0x/);
+    expect(fixture.version).toBe('1.0.0');
     expect(fixture.bundle_version).toBe('0.1');
     expect(fixture.created_at).toBeDefined();
     expect(fixture.evaluator?.eth_address).toMatch(/^0x/);

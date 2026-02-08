@@ -1,0 +1,234 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReceiptV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "receipt_version",
+    "task_id",
+    "generated_at",
+    "input_hash",
+    "output_hash",
+    "score_bps",
+    "verdict",
+    "worthy",
+    "program",
+    "evidence",
+    "provenance",
+    "explain"
+  ],
+  "properties": {
+    "version": { "const": "1.0.0" },
+    "receipt_version": { "const": "1.0.0" },
+    "task_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "generated_at": { "type": "integer", "minimum": 1 },
+    "input_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "output_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+    "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+    "verdict": { "type": "boolean" },
+    "worthy": { "type": "boolean" },
+    "program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "hash"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "version": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle_hash", "bundle_uri", "bundle_version"],
+      "properties": {
+        "bundle_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+        "bundle_uri": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "bundle_version": { "type": "string", "enum": ["0.1", "0.2"] }
+      }
+    },
+    "metering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["llm_calls", "total_tokens", "execution_ms"],
+      "properties": {
+        "llm_calls": { "type": "integer", "minimum": 0 },
+        "total_tokens": { "type": "integer", "minimum": 0 },
+        "execution_ms": { "type": "integer", "minimum": 0 },
+        "retrieval_calls": { "type": "integer", "minimum": 0 },
+        "bundle_size_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["llm_provider", "llm_model"],
+      "properties": {
+        "verifier_node": { "type": "string" },
+        "software_version": { "type": "string" },
+        "llm_provider": { "type": "string" },
+        "llm_model": { "type": "string" }
+      }
+    },
+    "chain_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chain_id", "contract_address", "finalized_at", "block_number", "tx_hash"],
+      "properties": {
+        "chain_id": { "type": "integer", "minimum": 1 },
+        "contract_address": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+        "finalized_at": { "type": "integer", "minimum": 1 },
+        "block_number": { "type": "integer", "minimum": 0 },
+        "tx_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signer", "signature", "signed_at"],
+      "properties": {
+        "signer": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+        "signature": { "type": "string", "pattern": "^0x[a-fA-F0-9]+$" },
+        "signed_at": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "model_commitments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "model", "model_commitment_hash", "inference_config_hash"],
+        "properties": {
+          "provider": { "type": "string" },
+          "model": { "type": "string" },
+          "model_commitment_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+          "inference_config_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+        }
+      }
+    },
+    "reasoning_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace_hash", "step_count"],
+      "properties": {
+        "trace_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+        "trace_uri": { "type": "string" },
+        "step_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "zk_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proof", "public_inputs", "proof_system"],
+      "properties": {
+        "proof": { "type": "string", "pattern": "^0x[a-fA-F0-9]+$" },
+        "public_inputs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input_hash", "output_hash", "model_commitment_hash", "score_bps", "bundle_hash"],
+          "properties": {
+            "input_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+            "output_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+            "model_commitment_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+            "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+            "bundle_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+          }
+        },
+        "proof_system": { "type": "string" }
+      }
+    },
+    "explain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "score_components",
+        "checks",
+        "contradictions_found",
+        "citation_checks",
+        "model_disagreement"
+      ],
+      "properties": {
+        "version": { "const": "1.0.0" },
+        "score_components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "score_bps"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+              "weight_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+              "notes": { "type": "string", "maxLength": 2048 }
+            }
+          }
+        },
+        "checks": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "citations": { "type": "object", "additionalProperties": true },
+            "contradictions": { "type": "object", "additionalProperties": true },
+            "disagreement": { "type": "object", "additionalProperties": true },
+            "policy": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "contradictions_found": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "severity", "summary", "evidence_refs"],
+            "properties": {
+              "type": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "severity": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "summary": { "type": "string", "minLength": 1, "maxLength": 2048 },
+              "evidence_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+            }
+          }
+        },
+        "citation_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["claim", "sources", "verdict"],
+            "properties": {
+              "claim": { "type": "string", "minLength": 1, "maxLength": 2048 },
+              "sources": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "verdict": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "notes": { "type": "string", "maxLength": 2048 }
+            }
+          }
+        },
+        "model_disagreement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["models", "agreement_rate"],
+          "properties": {
+            "models": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "agreement_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+            "clusters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "timings_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fetch": { "type": "integer", "minimum": 0 },
+            "program_run": { "type": "integer", "minimum": 0 },
+            "total": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

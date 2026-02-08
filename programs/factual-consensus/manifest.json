@@ -1,0 +1,5 @@
+{
+  "id": "factual-consensus",
+  "version": "1.0.0",
+  "entrypoint": "index.js"
+}

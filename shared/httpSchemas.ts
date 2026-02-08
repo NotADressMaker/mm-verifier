@@ -60,6 +60,13 @@ export interface ProgramDefinition {
   steps: ProgramStep[];
 }
 
+export interface ProgramSummary {
+  id: string;
+  version: string;
+  description?: string;
+  hash: string;
+}
+
 export interface VerifyRequest {
   prompt: string;
   models: string[];
@@ -69,7 +76,7 @@ export interface VerifyRequest {
   reveal_deadline_seconds?: number;
   reward_pool?: number;
   program_id?: string;
-  program?: ProgramDefinition;
+  program_version?: string;
   idempotency_key?: string;
 }
 
@@ -82,7 +89,8 @@ export interface VerifyResponse {
   timings: TimingInfo;
   errors: VerifyError[];
   program_id?: string;
-  program?: ProgramDefinition;
+  program_version?: string;
+  program?: ProgramSummary;
 }
 
 export const ProgramIOSchema = {
@@ -152,7 +160,7 @@ export const VerifyRequestSchema = {
     reveal_deadline_seconds: { type: 'integer', minimum: 1 },
     reward_pool: { type: 'number' },
     program_id: { type: 'string' },
-    program: ProgramDefinitionSchema,
+    program_version: { type: 'string' },
     idempotency_key: { type: 'string' },
   },
 } as const;
@@ -206,6 +214,17 @@ export const VerifyResponseSchema = {
       items: VerifyErrorSchema,
     },
     program_id: { type: 'string' },
-    program: ProgramDefinitionSchema,
+    program_version: { type: 'string' },
+    program: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['id', 'version', 'hash'],
+      properties: {
+        id: { type: 'string' },
+        version: { type: 'string' },
+        description: { type: 'string' },
+        hash: { type: 'string' },
+      },
+    },
   },
 } as const;

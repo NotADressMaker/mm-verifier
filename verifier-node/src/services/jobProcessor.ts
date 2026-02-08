@@ -21,8 +21,11 @@ import { toScoreBps } from '../utils/score';
 import {
   MeteringLimits,
   DEFAULT_METERING_LIMITS,
-  ProgramDefinitionWithLimits,
 } from '../../../shared/programs';
+import { programRegistry } from './programRegistry';
+import { validateEvidenceBundleV1 } from '../../../shared/schemaValidation';
+import { ProgramContext } from '../../../programs/interface';
+import { getChainIdFromEnv } from '../../../shared/env';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -48,18 +51,21 @@ export async function startJobProcessor() {
 
   // Process verification jobs
   jobQueue.process('verify', async (job) => {
-    const { jobId, prompt, promptHash, models, taskType, program } = job.data as {
+    const { jobId, prompt, promptHash, models, taskType, programId, programVersion } = job.data as {
       jobId: string;
       prompt: string;
       promptHash: string;
       models: string[];
       taskType: string;
-      program?: ProgramDefinitionWithLimits;
+      programId?: string;
+      programVersion?: string;
     };
     const jobStart = Date.now();
+    let queryDurationMs = 0;
+    let bundleDurationMs = 0;
 
     // Determine metering limits from program or use defaults
-    const meteringLimits: MeteringLimits = program?.limits ?? DEFAULT_METERING_LIMITS;
+    const meteringLimits: MeteringLimits = DEFAULT_METERING_LIMITS;
     let llmCallCount = 0;
     let totalTokens = 0;
     let retrievalCallCount = 0;
@@ -68,7 +74,8 @@ export async function startJobProcessor() {
       jobId,
       models,
       taskType,
-      hasProgram: !!program,
+      programId,
+      programVersion,
       meteringLimits,
     });
 
@@ -79,9 +86,10 @@ export async function startJobProcessor() {
       const responses = await queryMultipleModels(prompt, models);
       llmCallCount = responses.length;
       totalTokens = responses.reduce((sum, r) => sum + (r.tokens_used ?? 0), 0);
+      queryDurationMs = Date.now() - queryStart;
       logger.info('Timing: model queries', {
         jobId,
-        durationMs: Date.now() - queryStart,
+        durationMs: queryDurationMs,
       });
 
       logger.info('Model queries completed', {
@@ -121,10 +129,20 @@ export async function startJobProcessor() {
         wallet,
         marketplaceAddress,
       });
+      bundleDurationMs = Date.now() - bundleStart;
       logger.info('Timing: evidence bundle', {
         jobId,
-        durationMs: Date.now() - bundleStart,
+        durationMs: bundleDurationMs,
       });
+
+      const bundleValidation = validateEvidenceBundleV1(evidenceBundle);
+      if (!bundleValidation.valid) {
+        logger.error('Evidence bundle failed schema validation', {
+          jobId,
+          errors: bundleValidation.errors,
+        });
+        return;
+      }
 
       // Step 4: Upload evidence to IPFS
       logger.info('Uploading evidence to IPFS', { jobId });
@@ -165,6 +183,73 @@ export async function startJobProcessor() {
       }
 
       logger.info('Metering recorded', { jobId, metering });
+
+      const outputHash = evidenceBundle.model_runs[0]?.output_hash;
+      if (!outputHash) {
+        logger.error('Evidence bundle missing output hash', { jobId });
+        return;
+      }
+
+      const envChainId = getChainIdFromEnv();
+      const network = wallet.provider ? await wallet.provider.getNetwork() : undefined;
+      const chainId = envChainId ?? (network ? Number(network.chainId) : undefined);
+
+      if (!chainId) {
+        logger.error('Chain ID not available for program context', { jobId });
+        return;
+      }
+
+      let receipt;
+      const programRunStart = Date.now();
+      try {
+        const record = programRegistry.resolveProgram(programId, programVersion);
+        const context: ProgramContext = {
+          task_id: jobId,
+          input_hash: promptHash as `0x${string}`,
+          output_hash: outputHash as `0x${string}`,
+          bundle_hash: bundleHash as `0x${string}`,
+          bundle_uri: evidenceCid,
+          bundle_version: evidenceBundle.bundle_version,
+          chain_id: chainId,
+          contract_address: marketplaceAddress as `0x${string}`,
+          llm_provider: responses[0]?.provider ?? 'unknown',
+          llm_model: responses[0]?.model ?? 'unknown',
+          verifier_node: nodeId,
+          software_version: evidenceBundle.evaluator.software.ver,
+          program_hash: record.hash,
+          metering,
+          timings_ms: {
+            fetch: queryDurationMs,
+            total: Date.now() - jobStart,
+          },
+        };
+
+        receipt = await programRegistry.runProgram(
+          evidenceBundle,
+          context,
+          programId,
+          programVersion
+        );
+      } catch (error: any) {
+        logger.error('Program execution failed', { jobId, error: error.message });
+        return;
+      }
+
+      const programRunMs = Date.now() - programRunStart;
+      if (receipt.explain) {
+        receipt.explain.timings_ms = {
+          ...receipt.explain.timings_ms,
+          program_run: programRunMs,
+          total: receipt.explain.timings_ms?.total ?? Date.now() - jobStart,
+        };
+      }
+
+      logger.info('Program receipt generated', {
+        jobId,
+        programId: receipt.program?.id,
+        programVersion: receipt.program?.version,
+        programHash: receipt.program?.hash,
+      });
 
       // Step 5: Generate commitment
       const commitPrepStart = Date.now();

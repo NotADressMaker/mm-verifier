@@ -200,6 +200,7 @@ export function createEvidenceBundle(
   const softwareInfo = getSoftwareInfo();
 
   const bundle: Omit<EvidenceBundle, 'signatures'> = {
+    version: '1.0.0',
     task_id: taskId,
     bundle_version: bundleVersion,
     created_at: new Date().toISOString(),
@@ -583,6 +584,7 @@ export function deserializeBundle(json: string): EvidenceBundle {
 
     // Validate required fields
     const requiredFields = [
+      'version',
       'task_id',
       'bundle_version',
       'created_at',

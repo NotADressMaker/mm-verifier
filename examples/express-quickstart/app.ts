@@ -87,7 +87,7 @@ function generateMockReceipt(text: string): Receipt {
     score_bps: scoreBps,
     bundle_hash: hash as string,
     bundle_uri: `ipfs://Qm${taskId.slice(5)}`,
-    program_id: 'factual-consensus-v1',
+    program_id: 'factual-consensus',
     program_version: '1.0.0',
     chain_id: 421614,
     contract_address: '0x0000000000000000000000000000000000000000',
@@ -182,7 +182,7 @@ app.post('/verify', async (req: Request, res: Response) => {
           prompt: llmResponse,
           models: ['gpt-4', 'claude-3'],
           task_type: 'factual-qa',
-          program_id: 'factual-consensus-v1',
+          program_id: 'factual-consensus',
         }),
       });
 
