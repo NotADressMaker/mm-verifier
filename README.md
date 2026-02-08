@@ -140,6 +140,19 @@ For a complete analysis, see [docs/BLACK_BOX_TRANSPARENCY.md](docs/BLACK_BOX_TRA
 - **Smart Contract Marketplace**: Commit/reveal workflow with evidence hashes and URIs.
 - **API Endpoints**: `/api/verify` and `/api/programs` for job submission and program registration.
 
+## Security & Threat Model
+
+- [Threat Model](docs/security/threat-model.md)
+- [Security Status Matrix](docs/security/security-status.md)
+- [Dispute Workflow](docs/disputes.md)
+
+### Security Assumptions
+
+- **Chain finality:** Dispute windows assume Arbitrum finality with standard reorg depth.
+- **VRF / oracle assumptions:** Chainlink VRF randomness is trusted when enabled.
+- **Storage assumptions:** IPFS/Arweave/DB storage is integrity-checked via hashes but can be unavailable.
+- **Key management:** Verifiers and auditors must secure private keys and rotate if compromised.
+
 ## Programmable Verification Programs
 
 MMV exposes **verification programs**: reusable, versioned workflows that define how AI outputs should be checked (retrieve sources, cross-check models, score, and assemble evidence). These programs make the network behave like a programmable "world computer" for verification logic.

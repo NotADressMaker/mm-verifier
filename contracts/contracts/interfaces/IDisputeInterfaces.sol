@@ -28,6 +28,19 @@ interface IBundleRegistry {
     );
 
     /**
+     * @notice Get bundle evidence commitment and URI
+     * @param bundleId Bundle identifier
+     * @return evidenceBundleHash Hash of full evidence bundle (JSON)
+     * @return bundleURI IPFS/Arweave URI
+     * @return submittedAt Timestamp of submission
+     */
+    function getBundleEvidence(bytes32 bundleId) external view returns (
+        bytes32 evidenceBundleHash,
+        string memory bundleURI,
+        uint64 submittedAt
+    );
+
+    /**
      * @notice Get branch metadata
      * @param bundleId Bundle identifier
      * @param branchId Branch index (1-based)
