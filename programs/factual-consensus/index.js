@@ -106,6 +106,7 @@ const program = {
     const now = Math.floor(Date.now() / 1000);
 
     return {
+      schema_version: '1',
       version: '1.0.0',
       receipt_version: '1.0.0',
       task_id: context.task_id,

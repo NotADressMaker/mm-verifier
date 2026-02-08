@@ -17,6 +17,7 @@ const program = {
     min_model_runs: 1,
   },
   run: async (bundle, context) => ({
+    schema_version: '1',
     version: '1.0.0',
     receipt_version: '1.0.0',
     task_id: context.task_id,

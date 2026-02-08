@@ -1,6 +1,7 @@
 import { validateEvidenceBundleV1, validateReceiptV1 } from '../../shared/schemaValidation';
 
 const validBundle = {
+  schema_version: '1',
   version: '1.0.0',
   task_id: 'task-1',
   bundle_version: '0.2',
@@ -56,6 +57,7 @@ const validBundle = {
 };
 
 const validReceipt = {
+  schema_version: '1',
   version: '1.0.0',
   receipt_version: '1.0.0',
   task_id: 'task-1',

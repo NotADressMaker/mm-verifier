@@ -176,111 +176,9 @@ export interface OnChainVerifyResult {
 /**
  * Canonical verification receipt - proof of task completion
  */
-export interface VerificationReceipt {
-  version: '1.0.0';
-  receipt_version: '1.0.0';
-  task_id: string;
-  generated_at: number;
-  input_hash: string;
-  output_hash: string;
-  score_bps: number;
-  verdict: boolean;
-  worthy: boolean;
-  program?: {
-    id: string;
-    version: string;
-    hash: string;
-  };
-  evidence: {
-    bundle_hash: string;
-    bundle_uri: string;
-    bundle_version: '0.1' | '0.2' | '0.3';
-  };
-  metering?: {
-    llm_calls: number;
-    total_tokens: number;
-    execution_ms: number;
-    retrieval_calls?: number;
-    bundle_size_bytes?: number;
-  };
-  provenance: {
-    verifier_node?: string;
-    software_version?: string;
-    llm_provider: string;
-    llm_model: string;
-  };
-  chain_context?: {
-    chain_id: number;
-    contract_address: string;
-    finalized_at: number;
-    block_number: number;
-    tx_hash: string;
-  };
-  signature?: {
-    signer: string;
-    signature: string;
-    signed_at: number;
-  };
-  /** Model commitment hashes for accountability */
-  model_commitments?: Array<{
-    provider: string;
-    model: string;
-    model_commitment_hash: string;
-    inference_config_hash: string;
-  }>;
-  /** Reasoning trace commitments (hashes only) */
-  reasoning_trace?: {
-    trace_hash: string;
-    trace_uri?: string;
-    step_count: number;
-  };
-  explain: ReceiptExplain;
-  /** ZK proof for trustless verification */
-  zk_proof?: {
-    proof: string;
-    public_inputs: {
-      input_hash: string;
-      output_hash: string;
-      model_commitment_hash: string;
-      score_bps: number;
-      bundle_hash: string;
-    };
-    proof_system: string;
-  };
-}
+export type VerificationReceipt = SharedVerificationReceipt;
 
-export interface ReceiptExplain {
-  version: '1.0.0';
-  score_components: Array<{
-    name: string;
-    score_bps: number;
-    weight_bps?: number;
-    notes?: string;
-  }>;
-  checks: Record<string, unknown>;
-  contradictions_found: Array<{
-    type: string;
-    severity: string;
-    summary: string;
-    evidence_refs: string[];
-  }>;
-  citation_checks: Array<{
-    claim: string;
-    sources: string[];
-    verdict: string;
-    notes?: string;
-  }>;
-  model_disagreement: {
-    models: string[];
-    agreement_rate: number;
-    clusters?: Array<Record<string, unknown>>;
-  };
-  timings_ms?: {
-    fetch?: number;
-    program_run?: number;
-    total?: number;
-  };
-}
+export type ReceiptExplain = SharedReceiptExplain;
 
 /**
  * Response from getReceipt
@@ -340,3 +238,7 @@ export interface OnchainVerifyResult {
   };
   errors: string[];
 }
+import type {
+  ReceiptExplain as SharedReceiptExplain,
+  VerificationReceipt as SharedVerificationReceipt,
+} from '../../shared/schemaTypes';

@@ -10,6 +10,7 @@ function buildBundle(): EvidenceBundle {
   const responseHash = ('0x' + '44'.repeat(32)) as `0x${string}`;
 
   return {
+    schema_version: '1',
     version: '1.1.0',
     task_id: 'privacy-task',
     bundle_version: '0.2',

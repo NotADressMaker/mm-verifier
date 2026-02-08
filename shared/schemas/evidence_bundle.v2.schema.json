@@ -4,6 +4,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "schema_version",
     "version",
     "bundle_version",
     "task_id",
@@ -19,6 +20,7 @@
     "signatures"
   ],
   "properties": {
+    "schema_version": { "const": "1" },
     "version": { "const": "1.1.0" },
     "task_id": { "oneOf": [{ "type": "string" }, { "type": "number" }] },
     "bundle_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"] },

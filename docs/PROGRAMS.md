@@ -126,6 +126,7 @@ module.exports = {
     scoring_rubric: { pass_threshold_bps: 5000, worthy_threshold_bps: 8000 },
     run: async (bundle, context) => ({
       version: '1.0.0',
+      schema_version: '1',
       receipt_version: '1.0.0',
       task_id: context.task_id,
       generated_at: Math.floor(Date.now() / 1000),

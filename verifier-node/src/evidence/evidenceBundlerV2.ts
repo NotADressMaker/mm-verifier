@@ -212,6 +212,7 @@ export function createEvidenceBundle(
   const softwareInfo = getSoftwareInfo();
 
   const bundle: Omit<EvidenceBundle, 'signatures'> = {
+    schema_version: '1',
     version: '1.1.0',
     task_id: taskId,
     bundle_version: bundleVersion,
@@ -621,6 +622,7 @@ export function deserializeBundle(json: string): EvidenceBundle {
 
     // Validate required fields
     const requiredFields = [
+      'schema_version',
       'version',
       'task_id',
       'bundle_version',
@@ -663,6 +665,10 @@ export function deserializeBundle(json: string): EvidenceBundle {
  */
 export function validateBundleStructure(bundle: any): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
+
+  if (bundle.schema_version !== '1') {
+    errors.push(`Invalid schema_version: ${bundle.schema_version}, expected 1`);
+  }
 
   // Check bundle version
   if (![CONSTANTS.BUNDLE_VERSION_V01, CONSTANTS.BUNDLE_VERSION_V02, CONSTANTS.BUNDLE_VERSION_V03].includes(bundle.bundle_version)) {
