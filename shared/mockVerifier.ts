@@ -223,6 +223,35 @@ export function buildMockExplain(params: {
       scenario: params.scenario,
       schema_validated: true,
     },
+    checks_fired:
+      params.scenario === 'fail'
+        ? [
+            {
+              id: 'mock-contradiction',
+              severity: 'high',
+              summary: 'Mock contradiction triggered for fail scenario.',
+              claim_id: 'claim-1',
+            },
+          ]
+        : [],
+    uncertain_claims: [
+      {
+        claim_id: 'claim-1',
+        text: 'Mock claim verified',
+        confidence: params.scoreBps >= 5000 ? 0.9 : 0.4,
+        reason: params.scoreBps >= 5000 ? 'mock_confidence_high' : 'mock_confidence_low',
+      },
+    ],
+    score_adjustments: [
+      {
+        component: 'mock_consensus',
+        score_bps: params.scoreBps,
+        weight_bps: 10000,
+        contribution_bps: params.scoreBps,
+        direction: params.scoreBps >= 5000 ? 'up' : 'down',
+        reason: 'deterministic mock adjustment',
+      },
+    ],
     contradictions_found: contradictions,
     citation_checks: [
       {

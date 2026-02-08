@@ -47,6 +47,9 @@ const program = {
       version: '1.0.0',
       score_components: [],
       checks: {},
+      checks_fired: [],
+      uncertain_claims: [],
+      score_adjustments: [],
       contradictions_found: [],
       citation_checks: [],
       model_disagreement: {

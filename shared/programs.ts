@@ -84,6 +84,9 @@ const FINGERPRINT_FIELDS = [
   'inputs',
   'outputs',
   'steps',
+  'scoring',
+  'thresholds',
+  'receipt',
   'limits',
   'schema_version',
 ] as const;
@@ -111,6 +114,12 @@ function normalizeProgramForFingerprint(
       } else if (field === 'limits') {
         // Normalize limits: only include defined fields
         normalized.limits = normalizeLimits(value as MeteringLimits);
+      } else if (field === 'scoring') {
+        normalized.scoring = normalizeScoring(value as ProgramDefinition['scoring']);
+      } else if (field === 'thresholds') {
+        normalized.thresholds = normalizeThresholds(value as ProgramDefinition['thresholds']);
+      } else if (field === 'receipt') {
+        normalized.receipt = normalizeReceipt(value as ProgramDefinition['receipt']);
       } else {
         normalized[field] = value;
       }
@@ -179,6 +188,32 @@ function normalizeLimits(limits: MeteringLimits): Record<string, unknown> {
   }
 
   return normalized;
+}
+
+function normalizeScoring(scoring: ProgramDefinition['scoring']): Record<string, unknown> {
+  return {
+    method: scoring.method,
+    components: scoring.components.map((component) => ({
+      id: component.id,
+      description: component.description,
+      weight_bps: component.weight_bps,
+    })),
+  };
+}
+
+function normalizeThresholds(thresholds: ProgramDefinition['thresholds']): Record<string, unknown> {
+  return {
+    pass_bps: thresholds.pass_bps,
+    worthy_bps: thresholds.worthy_bps,
+  };
+}
+
+function normalizeReceipt(receipt: ProgramDefinition['receipt']): Record<string, unknown> {
+  return {
+    schema_version: receipt.schema_version,
+    receipt_version: receipt.receipt_version,
+    explain_version: receipt.explain_version,
+  };
 }
 
 /**
@@ -276,6 +311,70 @@ export function validateProgram(
           `steps[${i}].type must be one of: ${VALID_STEP_TYPES.join(', ')}`
         );
       }
+    }
+  }
+
+  // Scoring validation
+  if (!p.scoring || typeof p.scoring !== 'object') {
+    errors.push('scoring is required and must be an object');
+  } else {
+    const scoring = p.scoring as Record<string, unknown>;
+    if (scoring.method !== 'weighted_sum') {
+      errors.push('scoring.method must be "weighted_sum"');
+    }
+    if (!Array.isArray(scoring.components) || scoring.components.length === 0) {
+      errors.push('scoring.components must be a non-empty array');
+    } else {
+      scoring.components.forEach((component, index) => {
+        const value = component as Record<string, unknown>;
+        if (typeof value.id !== 'string' || value.id.length === 0) {
+          errors.push(`scoring.components[${index}].id is required`);
+        }
+        if (
+          typeof value.weight_bps !== 'number' ||
+          value.weight_bps < 0 ||
+          value.weight_bps > 10000
+        ) {
+          errors.push(`scoring.components[${index}].weight_bps must be between 0 and 10000`);
+        }
+      });
+    }
+  }
+
+  // Threshold validation
+  if (!p.thresholds || typeof p.thresholds !== 'object') {
+    errors.push('thresholds is required and must be an object');
+  } else {
+    const thresholds = p.thresholds as Record<string, unknown>;
+    if (
+      typeof thresholds.pass_bps !== 'number' ||
+      thresholds.pass_bps < 0 ||
+      thresholds.pass_bps > 10000
+    ) {
+      errors.push('thresholds.pass_bps must be between 0 and 10000');
+    }
+    if (
+      typeof thresholds.worthy_bps !== 'number' ||
+      thresholds.worthy_bps < 0 ||
+      thresholds.worthy_bps > 10000
+    ) {
+      errors.push('thresholds.worthy_bps must be between 0 and 10000');
+    }
+  }
+
+  // Receipt definition validation
+  if (!p.receipt || typeof p.receipt !== 'object') {
+    errors.push('receipt is required and must be an object');
+  } else {
+    const receipt = p.receipt as Record<string, unknown>;
+    if (receipt.schema_version !== '1') {
+      errors.push('receipt.schema_version must be "1"');
+    }
+    if (typeof receipt.receipt_version !== 'string' || receipt.receipt_version.length === 0) {
+      errors.push('receipt.receipt_version is required');
+    }
+    if (typeof receipt.explain_version !== 'string' || receipt.explain_version.length === 0) {
+      errors.push('receipt.explain_version is required');
     }
   }
 

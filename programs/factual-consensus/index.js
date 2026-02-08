@@ -10,6 +10,39 @@ function toBps(score) {
   return Math.round((normalized / 100) * 10000);
 }
 
+function toWeightBps(weight) {
+  if (typeof weight !== 'number' || Number.isNaN(weight)) return 0;
+  const normalized = Math.max(0, Math.min(1, weight));
+  return Math.round(normalized * 10000);
+}
+
+function buildScoreAdjustments(breakdown, weights) {
+  const components = [
+    'consistency',
+    'agreement',
+    'citation_quality',
+    'factual_accuracy',
+  ];
+
+  return components.map((component) => {
+    const score = breakdown[component] ?? 0;
+    const weight = weights[component] ?? 0;
+    const scoreBps = toBps(score);
+    const weightBps = toWeightBps(weight);
+    const contribution = Math.round(scoreBps * weight);
+    const direction = score >= 50 ? (score === 50 ? 'neutral' : 'up') : 'down';
+
+    return {
+      component,
+      score_bps: scoreBps,
+      weight_bps: weightBps || undefined,
+      contribution_bps: contribution || undefined,
+      direction,
+      reason: score >= 50 ? 'above-neutral' : 'below-neutral',
+    };
+  });
+}
+
 function buildExplain(bundle, context) {
   const breakdown = bundle.scoring_trace?.breakdown ?? {};
   const weights = bundle.scoring_trace?.weights ?? {};
@@ -47,6 +80,52 @@ function buildExplain(bundle, context) {
     };
   });
 
+  const checksFired = [];
+  const uncertainClaims = [];
+
+  for (const claim of bundle.claims ?? []) {
+    const supportCount = claim.support?.length ?? 0;
+    const contradictionCount = claim.contradictions?.length ?? 0;
+    const claimId = claim.claim_id ?? claim.text;
+
+    if (supportCount === 0 && contradictionCount === 0) {
+      checksFired.push({
+        id: `citation-missing:${claimId}`,
+        severity: 'low',
+        summary: `Missing citations for claim: ${claim.text}`,
+        claim_id: claimId,
+      });
+    }
+
+    if (contradictionCount > 0) {
+      checksFired.push({
+        id: `citation-contradiction:${claimId}`,
+        severity: 'medium',
+        summary: `Contradictory citations for claim: ${claim.text}`,
+        claim_id: claimId,
+      });
+    }
+
+    const confidence = claim.confidence;
+    if ((typeof confidence === 'number' && confidence < 0.6) || supportCount === 0) {
+      uncertainClaims.push({
+        claim_id: claimId,
+        text: claim.text,
+        confidence,
+        reason: typeof confidence === 'number' && confidence < 0.6 ? 'low_confidence' : 'insufficient_citations',
+      });
+    }
+  }
+
+  const agreementRate = bundle.metrics?.consensus?.agreement ?? 0;
+  if (agreementRate < 0.6) {
+    checksFired.push({
+      id: 'low-model-agreement',
+      severity: 'medium',
+      summary: `Model agreement rate below target: ${agreementRate}`,
+    });
+  }
+
   return {
     version: '1.0.0',
     score_components: components,
@@ -63,11 +142,14 @@ function buildExplain(bundle, context) {
       },
       policy: {},
     },
+    checks_fired: checksFired,
+    uncertain_claims: uncertainClaims,
+    score_adjustments: buildScoreAdjustments(breakdown, weights),
     contradictions_found: contradictionsFound,
     citation_checks: citationChecks,
     model_disagreement: {
       models: (bundle.model_runs ?? []).map((run) => `${run.provider}:${run.model}`),
-      agreement_rate: bundle.metrics?.consensus?.agreement ?? 0,
+      agreement_rate: agreementRate,
       clusters: bundle.metrics?.consensus?.cluster_sizes
         ? bundle.metrics.consensus.cluster_sizes.map((size, index) => ({
             cluster: index + 1,
