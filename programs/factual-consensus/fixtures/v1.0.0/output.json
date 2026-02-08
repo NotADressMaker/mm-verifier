@@ -54,6 +54,45 @@
         "weight_bps": 2000
       }
     ],
+    "score_components_detail": {
+      "coverage_bps": 5500,
+      "contradiction_penalty_bps": 500,
+      "citation_quality_bps": 6000,
+      "final_score_bps": 7600
+    },
+    "claim_summary": [
+      {
+        "cluster_id": "c1",
+        "canonical_text": "Earth orbits the Sun.",
+        "supported_by": [
+          "openai:gpt-4",
+          "anthropic:claude-3-sonnet"
+        ],
+        "contradicted_by": [],
+        "citations": [
+          {
+            "url": "https://example.com/astronomy"
+          }
+        ]
+      },
+      {
+        "cluster_id": "c2",
+        "canonical_text": "Pluto is a planet.",
+        "supported_by": [
+          "openai:gpt-4",
+          "anthropic:claude-3-sonnet"
+        ],
+        "contradicted_by": [
+          "https://example.com/iau"
+        ],
+        "severity": "MED",
+        "citations": []
+      }
+    ],
+    "highlights": [
+      "Contradictory citations for claim: Pluto is a planet.",
+      "Model agreement rate below target: 0.55"
+    ],
     "checks": {
       "citations": {
         "total_claims": 2,

@@ -23,13 +23,14 @@ export type MockJobRecord = {
   status: MockJobStatus;
   createdAt: string;
   updatedAt: string;
-  prompt: string;
+  prompt?: string;
   promptHash: string;
   models: string[];
   taskType: string;
   programId?: string;
   programVersion?: string;
   scenario: MockScenario;
+  storage_mode?: 'hashed-only' | 'encrypted';
   statusHistory: MockStatusEvent[];
   scoreBps?: number;
   verdict?: boolean;
@@ -218,6 +219,32 @@ export function buildMockExplain(params: {
         notes: 'Deterministic mock score for developer mode.',
       },
     ],
+    score_components_detail: {
+      coverage_bps: params.scoreBps,
+      contradiction_penalty_bps: params.scenario === 'fail' ? 2000 : 0,
+      citation_quality_bps: 6000,
+      final_score_bps: params.scoreBps,
+    },
+    claim_summary: [
+      {
+        cluster_id: 'mock-cluster-1',
+        canonical_text: 'mock verification summary',
+        supported_by: ['mock:mock-llm'],
+        contradicted_by: [],
+        citations: [
+          {
+            url: 'https://example.com/mock-source',
+            domain: 'example.com',
+            title: 'Mock Source',
+          },
+        ],
+      },
+    ],
+    highlights: [
+      params.scenario === 'fail'
+        ? 'Mock contradiction triggered for fail scenario.'
+        : 'Mock claims supported by deterministic sources.',
+    ],
     checks: {
       mock_mode: true,
       scenario: params.scenario,
@@ -345,6 +372,8 @@ export function buildMockJobRecord(params: {
   programId?: string;
   programVersion?: string;
   scenario: MockScenario;
+  includePrompt?: boolean;
+  storageMode?: 'hashed-only' | 'encrypted';
 }): MockJobRecord {
   const now = new Date().toISOString();
   return {
@@ -352,13 +381,14 @@ export function buildMockJobRecord(params: {
     status: 'queued',
     createdAt: now,
     updatedAt: now,
-    prompt: params.prompt,
+    prompt: params.includePrompt ? params.prompt : undefined,
     promptHash: params.promptHash,
     models: params.models,
     taskType: params.taskType,
     programId: params.programId,
     programVersion: params.programVersion,
     scenario: params.scenario,
+    storage_mode: params.storageMode,
     statusHistory: [{ status: 'queued', timestamp: now }],
   };
 }

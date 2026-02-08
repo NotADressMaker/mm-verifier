@@ -55,6 +55,37 @@ export async function uploadEvidenceToIPFS(
 }
 
 /**
+ * Upload encrypted evidence payload to IPFS
+ */
+export async function uploadEncryptedEvidenceToIPFS(
+  payload: Record<string, unknown>
+): Promise<string> {
+  try {
+    if (!ipfsClient) {
+      initializeIPFS();
+    }
+
+    if (!ipfsClient) {
+      throw new Error('IPFS client not available');
+    }
+
+    const payloadJson = JSON.stringify(payload, null, 2);
+    const result = await ipfsClient.add(payloadJson);
+    const cid = result.path;
+
+    logger.info('Encrypted evidence uploaded to IPFS', {
+      cid,
+      size: payloadJson.length,
+    });
+
+    return cid;
+  } catch (error: any) {
+    logger.error('Failed to upload encrypted evidence to IPFS:', error);
+    throw error;
+  }
+}
+
+/**
  * Retrieve evidence bundle from IPFS
  */
 export async function retrieveEvidenceFromIPFS(cid: string): Promise<EvidenceBundle> {

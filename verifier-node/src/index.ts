@@ -5,6 +5,7 @@ import { startJobProcessor } from './services/jobProcessor';
 import { registerAsVerifier } from './services/staking';
 import { startMockJobProcessor } from './services/mockJobProcessor';
 import { startMetricsServer } from './services/metricsServer';
+import { purgeEncryptedEvidence } from './evidence/evidenceStorage';
 
 dotenv.config({ path: '../.env' });
 
@@ -39,6 +40,20 @@ async function main() {
 
     const metricsPort = parseInt(process.env.METRICS_PORT || '9101', 10);
     startMetricsServer(metricsPort);
+
+    const retentionDays = Number.parseInt(process.env.RETENTION_DAYS || '7', 10);
+    if (Number.isFinite(retentionDays) && retentionDays > 0) {
+      const intervalMs = 12 * 60 * 60 * 1000;
+      setInterval(() => {
+        const result = purgeEncryptedEvidence({
+          older_than_ms: retentionDays * 24 * 60 * 60 * 1000,
+        });
+        if (result.removed > 0) {
+          logger.info('Purged encrypted evidence', result);
+        }
+      }, intervalMs);
+      logger.info('Evidence retention enabled', { retentionDays });
+    }
 
     logger.info('🎉 Verifier node is running!');
     logger.info('Verifier address:', process.env.VERIFIER_PRIVATE_KEY ? 'configured' : 'NOT configured');

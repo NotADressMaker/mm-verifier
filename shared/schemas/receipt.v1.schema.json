@@ -156,10 +156,13 @@
       "additionalProperties": false,
         "required": [
           "version",
-          "score_components",
-          "checks",
-          "checks_fired",
-          "uncertain_claims",
+        "score_components",
+        "score_components_detail",
+        "claim_summary",
+        "highlights",
+        "checks",
+        "checks_fired",
+        "uncertain_claims",
           "score_adjustments",
           "contradictions_found",
           "citation_checks",
@@ -180,6 +183,63 @@
               "notes": { "type": "string", "maxLength": 2048 }
             }
           }
+        },
+        "score_components_detail": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "coverage_bps",
+            "contradiction_penalty_bps",
+            "citation_quality_bps",
+            "final_score_bps"
+          ],
+          "properties": {
+            "coverage_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+            "contradiction_penalty_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+            "citation_quality_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+            "final_score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 }
+          }
+        },
+        "claim_summary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cluster_id", "canonical_text", "supported_by", "contradicted_by", "citations"],
+            "properties": {
+              "cluster_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "canonical_text": { "type": "string", "minLength": 1, "maxLength": 2048 },
+              "supported_by": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "contradicted_by": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["LOW", "MED", "HIGH"]
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["url"],
+                  "properties": {
+                    "url": { "type": "string", "minLength": 1 },
+                    "domain": { "type": "string" },
+                    "title": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "highlights": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
         },
         "checks": {
           "type": "object",

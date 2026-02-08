@@ -204,6 +204,25 @@ export interface ReceiptExplain {
     weight_bps?: number;
     notes?: string;
   }>;
+  score_components_detail: {
+    coverage_bps: number;
+    contradiction_penalty_bps: number;
+    citation_quality_bps: number;
+    final_score_bps: number;
+  };
+  claim_summary: Array<{
+    cluster_id: string;
+    canonical_text: string;
+    supported_by: string[];
+    contradicted_by: string[];
+    severity?: 'LOW' | 'MED' | 'HIGH';
+    citations: Array<{
+      url: string;
+      domain?: string;
+      title?: string;
+    }>;
+  }>;
+  highlights: string[];
   checks: Record<string, unknown>;
   checks_fired: Array<{
     id: string;
@@ -352,6 +371,14 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     params.explain ?? {
       version: EXPLAIN_VERSION,
       score_components: [],
+      score_components_detail: {
+        coverage_bps: 0,
+        contradiction_penalty_bps: 0,
+        citation_quality_bps: 0,
+        final_score_bps: 0,
+      },
+      claim_summary: [],
+      highlights: [],
       checks: {},
       checks_fired: [],
       uncertain_claims: [],

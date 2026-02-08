@@ -141,6 +141,44 @@ a {
   font-size: 12px;
 }
 
+.claim-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.claim-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: #f8fafc;
+}
+
+.claim-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.claim-text {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.claim-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  font-size: 14px;
+}
+
+.claim-severity {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
 .section-title {
   font-size: 14px;
   text-transform: uppercase;

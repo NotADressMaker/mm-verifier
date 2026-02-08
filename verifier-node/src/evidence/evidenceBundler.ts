@@ -22,7 +22,7 @@ import {
 } from './evidenceBundlerV2';
 import { getChainIdFromEnv } from '../../../shared/env';
 import { toScoreBps } from '../utils/score';
-import { buildClaimGraph, findContradictions } from '../../../shared/claim_graph';
+import { buildClaimGraphAnalysis } from '../../../shared/claim_graph';
 
 type BundleInputs = {
   taskId: string;
@@ -62,38 +62,33 @@ function toModelRuns(responses: ModelResponse[]): ModelRun[] {
 }
 
 function toClaims(responses: ModelResponse[]): Claim[] {
-  const graphs = responses.map((response) => buildClaimGraph(response.response));
-  const contradictions = graphs.flatMap((graph, index) =>
-    graphs.slice(index + 1).flatMap((other) => findContradictions(graph, other))
-  );
-  const contradictionMap = new Map<string, string[]>();
-  contradictions.forEach((edge) => {
-    contradictionMap.set(edge.from, [
-      ...(contradictionMap.get(edge.from) ?? []),
-      edge.evidence ?? 'contradiction',
-    ]);
-    contradictionMap.set(edge.to, [
-      ...(contradictionMap.get(edge.to) ?? []),
-      edge.evidence ?? 'contradiction',
-    ]);
+  const analysis = buildClaimGraphAnalysis({
+    responses: responses.map((response) => ({
+      model_id: `${response.provider}:${response.model}`,
+      text: response.response,
+    })),
   });
 
   const claims: Claim[] = [];
   let index = 0;
-  graphs.forEach((graph) => {
-    graph.nodes.forEach((node) => {
-      if (node.type !== 'claim') return;
-      const support = (node.citations ?? []).map((citation) =>
-        createEvidence(citation.url, node.text)
-      );
-      const contradictions = (contradictionMap.get(node.id) ?? []).map((evidence, i) =>
-        createEvidence(`internal://contradiction/${node.id}/${i}`, evidence)
-      );
-      claims.push(
-        createClaim(`c${index + 1}`, node.text, 'factual', support, contradictions)
-      );
-      index += 1;
-    });
+
+  analysis.claim_summary.forEach((summary) => {
+    const support = summary.citations.map((citation) =>
+      createEvidence(citation.url, summary.canonical_text, {
+        title: citation.title,
+        domain: citation.domain,
+      })
+    );
+    const contradictions = summary.contradicted_by.map((entry, entryIndex) =>
+      createEvidence(
+        `internal://contradiction/${summary.cluster_id}/${entryIndex}`,
+        `Contradiction reported for ${summary.canonical_text} (${entry})`
+      )
+    );
+    claims.push(
+      createClaim(`c${index + 1}`, summary.canonical_text, 'factual', support, contradictions)
+    );
+    index += 1;
   });
 
   if (claims.length === 0) {

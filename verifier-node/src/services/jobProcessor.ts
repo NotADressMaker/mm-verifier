@@ -9,7 +9,7 @@ import {
   checkMeteringLimits,
   ExecutionMetering,
 } from '../evidence/evidenceBundlerV2';
-import { uploadEvidenceToIPFS } from '../evidence/ipfsStorage';
+import { storeEncryptedEvidenceBundle } from '../evidence/evidenceStorage';
 import {
   commitEvaluation,
   revealEvaluation,
@@ -71,6 +71,7 @@ export async function startJobProcessor() {
       traceContext,
       requestId,
       enqueuedAt,
+      storeEvidence,
     } = job.data as {
       jobId: string;
       prompt: string;
@@ -82,6 +83,7 @@ export async function startJobProcessor() {
       traceContext?: TraceContext;
       requestId?: string;
       enqueuedAt?: number;
+      storeEvidence?: boolean;
     };
     return runWithLogContext(
       {
@@ -111,6 +113,10 @@ export async function startJobProcessor() {
           verifierMetrics.metrics.jobLatencyMs.labels('enqueue_to_start').observe(enqueueLatency);
         }
 
+        const hashedOnlyDefault = process.env.HASHED_ONLY_DEFAULT !== 'false';
+        const shouldStoreEvidence = typeof storeEvidence === 'boolean' ? storeEvidence : !hashedOnlyDefault;
+        const storageMode = shouldStoreEvidence ? 'encrypted' : 'hashed-only';
+
         logger.info('Processing verification job', {
           jobId,
           models,
@@ -118,6 +124,7 @@ export async function startJobProcessor() {
           programId,
           programVersion,
           meteringLimits,
+          storageMode,
         });
 
         const trace =
@@ -221,9 +228,17 @@ export async function startJobProcessor() {
           // Step 4: Upload evidence to IPFS
           logger.info('Uploading evidence to IPFS', { jobId });
           const uploadStart = Date.now();
-          const evidenceCid = await uploadEvidenceToIPFS(evidenceBundle);
           const { signatures, ...bundleWithoutSig } = evidenceBundle;
           const bundleHash = hashEvidenceBundle(bundleWithoutSig);
+          let evidenceCid = `hash-only://${bundleHash}`;
+
+          if (shouldStoreEvidence) {
+            const stored = await storeEncryptedEvidenceBundle({
+              bundle: evidenceBundle,
+              bundle_hash: bundleHash,
+            });
+            evidenceCid = stored.uri;
+          }
           logger.info('Timing: ipfs upload', {
             jobId,
             durationMs: Date.now() - uploadStart,
@@ -306,11 +321,11 @@ export async function startJobProcessor() {
             };
 
             receipt = await programRegistry.runProgram(
-              evidenceBundle,
-              context,
-              programId,
-              programVersion
-            );
+            evidenceBundle,
+            context,
+            programId,
+            programVersion
+          );
           } catch (error: any) {
             logger.error('Program execution failed', { jobId, error: error.message });
             endStage(trace, 'program scoring', 'error', {
@@ -331,29 +346,41 @@ export async function startJobProcessor() {
             receipt.explain.debug_trace_uri = `/api/jobs/${jobId}/trace`;
             receipt.explain.checks = {
               ...receipt.explain.checks,
-              claim_graph: scoringResult.claim_graph,
+              claim_graph: {
+                agreement_ratio: scoringResult.claim_graph.agreement_ratio,
+                contradiction_count: scoringResult.claim_graph.contradiction_count,
+                citation_coverage: scoringResult.claim_graph.citation_coverage,
+                total_claims: scoringResult.claim_graph.total_claims,
+              },
+              evidence_storage: {
+                mode: storageMode,
+                bundle_uri: evidenceCid,
+              },
             };
             receipt.explain.score_components = [
               ...receipt.explain.score_components,
               {
-                name: 'claim_graph_agreement',
-                score_bps: Math.round(scoringResult.claim_graph.agreement_ratio * 10000),
-                notes: 'Weighted agreement ratio derived from claim graphs.',
+                name: 'claim_coverage',
+                score_bps: scoringResult.claim_graph.score_components.coverage_bps,
+                notes: 'Coverage of core claims supported by a majority.',
               },
               {
-                name: 'claim_graph_citation_coverage',
-                score_bps: Math.round(scoringResult.claim_graph.citation_coverage * 10000),
-                notes: 'Citation coverage ratio across extracted claims.',
-              },
-              {
-                name: 'claim_graph_contradictions',
+                name: 'claim_contradictions',
                 score_bps: Math.max(
                   0,
-                  10000 - Math.round(scoringResult.claim_graph.contradiction_count * 100)
+                  10000 - scoringResult.claim_graph.score_components.contradiction_penalty_bps
                 ),
-                notes: 'Penalty derived from contradiction count.',
+                notes: 'Penalty based on contradiction severity.',
+              },
+              {
+                name: 'claim_citation_quality',
+                score_bps: scoringResult.claim_graph.score_components.citation_quality_bps,
+                notes: 'Citation density, overlap, and domain quality signals.',
               },
             ];
+            receipt.explain.claim_summary = scoringResult.claim_graph.claim_summary;
+            receipt.explain.score_components_detail = scoringResult.claim_graph.score_components;
+            receipt.explain.highlights = scoringResult.claim_graph.highlights;
           }
 
           logger.info('Program receipt generated', {

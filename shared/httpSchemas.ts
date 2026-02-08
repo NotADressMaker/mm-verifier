@@ -103,6 +103,7 @@ export interface VerifyRequest {
   program_id?: string;
   program_version?: string;
   idempotency_key?: string;
+  store_evidence?: boolean;
 }
 
 export interface VerifyResponse {
@@ -236,6 +237,7 @@ export const VerifyRequestSchema = {
     program_id: { type: 'string' },
     program_version: { type: 'string' },
     idempotency_key: { type: 'string' },
+    store_evidence: { type: 'boolean' },
   },
 } as const;
 

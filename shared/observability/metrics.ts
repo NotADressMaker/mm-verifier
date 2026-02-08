@@ -1,17 +1,37 @@
-import client from 'prom-client';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const client = require('prom-client') as {
+  Registry: new () => {
+    setDefaultLabels: (labels: Record<string, string>) => void;
+  };
+  collectDefaultMetrics: (params: { register: unknown }) => void;
+  Gauge: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { set: (value: number) => void } };
+  Histogram: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { observe: (value: number) => void } };
+  Counter: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { inc: (value?: number) => void } };
+};
+
+type Metric = {
+  labels: (...args: string[]) => {
+    set?: (value: number) => void;
+    observe?: (value: number) => void;
+    inc?: (value?: number) => void;
+  };
+  set?: (value: number) => void;
+  observe?: (value: number) => void;
+  inc?: (value?: number) => void;
+};
 
 export type MetricsRegistry = {
-  register: client.Registry;
+  register: { setDefaultLabels: (labels: Record<string, string>) => void };
   metrics: {
-    queueDepth: client.Gauge<string>;
-    activeJobs: client.Gauge<string>;
-    jobLatencyMs: client.Histogram<string>;
-    providerLatencyMs: client.Histogram<string>;
-    chainFinalityMs: client.Histogram<string>;
-    providerErrorsTotal: client.Counter<string>;
-    jobsFailedTotal: client.Counter<string>;
-    cacheHitsTotal: client.Counter<string>;
-    cacheMissesTotal: client.Counter<string>;
+    queueDepth: Metric;
+    activeJobs: Metric;
+    jobLatencyMs: Metric;
+    providerLatencyMs: Metric;
+    chainFinalityMs: Metric;
+    providerErrorsTotal: Metric;
+    jobsFailedTotal: Metric;
+    cacheHitsTotal: Metric;
+    cacheMissesTotal: Metric;
   };
 };
 

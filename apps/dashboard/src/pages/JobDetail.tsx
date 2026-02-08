@@ -4,6 +4,7 @@ import { DisputeEvent, EvidenceBundle, JobRecord, Receipt } from '../types';
 import ReceiptCard from '../components/ReceiptCard';
 import EvidenceViewer from '../components/EvidenceViewer';
 import DisputeTimeline from '../components/DisputeTimeline';
+import ClaimSummary from '../components/ClaimSummary';
 
 export default function JobDetail({ jobId }: { jobId: string }) {
   const [job, setJob] = useState<JobRecord | null>(null);
@@ -88,6 +89,7 @@ export default function JobDetail({ jobId }: { jobId: string }) {
       </div>
 
       <ReceiptCard receipt={receipt} />
+      <ClaimSummary receipt={receipt} />
       <EvidenceViewer bundle={bundle} receipt={receipt} />
       <DisputeTimeline events={disputes} />
     </div>

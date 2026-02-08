@@ -31,5 +31,7 @@ describe('claim graph scoring', () => {
     expect(result.claim_graph.agreement_ratio).toBeGreaterThan(0);
     expect(result.claim_graph.contradiction_count).toBeGreaterThan(0);
     expect(result.claim_graph.citation_coverage).toBeGreaterThan(0);
+    expect(result.claim_graph.score_components.coverage_bps).toBeGreaterThan(0);
+    expect(result.claim_graph.claim_summary.length).toBeGreaterThan(0);
   });
 });

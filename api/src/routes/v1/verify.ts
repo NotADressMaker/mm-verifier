@@ -44,6 +44,7 @@ const requestValidators = [
   body('program_id').optional().isString().withMessage('Program ID must be a string'),
   body('program_version').optional().isString().withMessage('Program version must be a string'),
   body('idempotency_key').optional().isString().withMessage('Idempotency key must be a string'),
+  body('store_evidence').optional().isBoolean().withMessage('store_evidence must be a boolean'),
 ];
 
 function resolveRequest(body: any): VerifyRequest {
@@ -58,6 +59,7 @@ function resolveRequest(body: any): VerifyRequest {
     program_id: body.program_id ?? body.programId,
     program_version: body.program_version ?? body.programVersion,
     idempotency_key: body.idempotency_key ?? body.idempotencyKey,
+    store_evidence: body.store_evidence ?? body.storeEvidence,
   };
 }
 
@@ -119,6 +121,12 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
       program_id,
       program_version,
     } = requestPayload;
+
+    const hashedOnlyDefault = process.env.HASHED_ONLY_DEFAULT !== 'false';
+    const shouldStoreEvidence =
+      typeof requestPayload.store_evidence === 'boolean'
+        ? requestPayload.store_evidence
+        : !hashedOnlyDefault;
 
     if (!prompt || !models?.length || !task_type) {
       return res.status(400).json({
@@ -215,20 +223,21 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     startStage(ingestTrace, 'enqueue', { queue: 'verification-jobs' });
 
     const queueStart = Date.now();
-    await queueVerificationJob({
-      jobId: taskId,
-      prompt,
-      promptHash,
-      models,
-      taskType: task_type,
-      deadline: commitDeadline,
-      programId: resolvedProgramId,
-      programVersion: resolvedProgramVersion,
-      requestId: traceContext?.request_id,
-      traceContext: traceContext
-        ? {
-            trace_id: traceContext.trace_id,
-            span_id: traceContext.span_id,
+      await queueVerificationJob({
+        jobId: taskId,
+        prompt,
+        promptHash,
+        models,
+        taskType: task_type,
+        deadline: commitDeadline,
+        programId: resolvedProgramId,
+        programVersion: resolvedProgramVersion,
+        storeEvidence: shouldStoreEvidence,
+        requestId: traceContext?.request_id,
+        traceContext: traceContext
+          ? {
+              trace_id: traceContext.trace_id,
+              span_id: traceContext.span_id,
             request_id: traceContext.request_id,
           }
         : undefined,

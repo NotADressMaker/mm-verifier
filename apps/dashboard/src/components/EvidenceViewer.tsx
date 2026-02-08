@@ -12,8 +12,22 @@ export default function EvidenceViewer({
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('prompt');
 
+  const bundleUri = receipt?.evidence?.bundle_uri || '';
+  const storageMode = bundleUri.startsWith('hash-only://')
+    ? 'hashed-only'
+    : bundleUri.startsWith('encrypted+')
+    ? 'encrypted'
+    : 'plaintext';
+
   if (!bundle) {
-    return <div className="card">Evidence bundle not available yet.</div>;
+    return (
+      <div className="card">
+        <h2>Evidence Bundle</h2>
+        <p>
+          Evidence bundle not available. Storage mode: <strong>{storageMode}</strong>.
+        </p>
+      </div>
+    );
   }
 
   const activeClaims = bundle.claims ?? [];

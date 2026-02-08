@@ -42,6 +42,7 @@ router.post(
     body('rewardPool').optional().isNumeric().withMessage('Reward pool must be numeric'),
     body('programId').optional().isString().withMessage('Program ID must be a string'),
     body('programVersion').optional().isString().withMessage('Program version must be a string'),
+    body('store_evidence').optional().isBoolean().withMessage('store_evidence must be a boolean'),
   ],
   async (req: Request, res: Response) => {
     const requestStart = Date.now();
@@ -63,6 +64,7 @@ router.post(
         rewardPool,
         programId,
         programVersion,
+        store_evidence,
       }: {
         prompt: string;
         models: string[];
@@ -73,6 +75,7 @@ router.post(
         rewardPool?: number;
         programId?: string;
         programVersion?: string;
+        store_evidence?: boolean;
       } = req.body;
 
       let resolvedProgramId = programId;
@@ -136,6 +139,10 @@ router.post(
         ethers.toUtf8Bytes(JSON.stringify({ taskType, models }))
       );
 
+      const hashedOnlyDefault = process.env.HASHED_ONLY_DEFAULT !== 'false';
+      const shouldStoreEvidence =
+        typeof store_evidence === 'boolean' ? store_evidence : !hashedOnlyDefault;
+
       let taskId: string;
       if (isMockVerifierEnabled()) {
         const mockId = hashUtf8(`${prompt}-${Date.now()}`).slice(2, 10);
@@ -149,6 +156,7 @@ router.post(
           programId: resolvedProgramId,
           programVersion: resolvedProgramVersion,
           scenario: getMockScenario(),
+          storeEvidence: shouldStoreEvidence,
         });
         logger.info('Mock verification job created', { jobId: taskId });
       } else {
@@ -191,6 +199,7 @@ router.post(
         deadline: commitDeadline,
         programId: resolvedProgramId,
         programVersion: resolvedProgramVersion,
+        storeEvidence: shouldStoreEvidence,
         requestId: traceContext?.request_id,
         traceContext: traceContext
           ? {

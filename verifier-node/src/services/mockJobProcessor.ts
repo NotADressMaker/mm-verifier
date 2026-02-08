@@ -14,6 +14,7 @@ import {
 } from '../../../shared/mockVerifier';
 import { hashUtf8 } from '../../../shared/canonicalJson';
 import { validateEvidenceBundlePayload, validateReceiptPayload } from '../../../shared/schemaValidation';
+import { encryptEvidenceBlob } from '../../../shared/evidenceEncryption';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -51,9 +52,15 @@ async function storeMockArtifacts(params: {
   receipt: unknown;
   bundle: unknown;
   disputes: unknown[];
+  encryptedEvidence?: unknown;
 }): Promise<void> {
   await redisClient.set(MOCK_REDIS_KEYS.receipt(params.jobId), JSON.stringify(params.receipt));
-  await redisClient.set(MOCK_REDIS_KEYS.bundle(params.jobId), JSON.stringify(params.bundle));
+  if (params.encryptedEvidence) {
+    await redisClient.set(
+      MOCK_REDIS_KEYS.bundle(params.jobId),
+      JSON.stringify(params.encryptedEvidence)
+    );
+  }
   await redisClient.set(MOCK_REDIS_KEYS.disputes(params.jobId), JSON.stringify(params.disputes));
 }
 
@@ -62,12 +69,13 @@ export async function startMockJobProcessor(): Promise<void> {
   logger.info('Mock job processor connected to Redis');
 
   jobQueue.process('verify', async (job) => {
-    const { jobId, prompt, promptHash, models, taskType } = job.data as {
+    const { jobId, prompt, promptHash, models, taskType, storeEvidence } = job.data as {
       jobId: string;
       prompt: string;
       promptHash: string;
       models: string[];
       taskType: string;
+      storeEvidence?: boolean;
     };
 
     const scenario = resolveMockScenario(process.env.MOCK_SCENARIO);
@@ -107,7 +115,9 @@ export async function startMockJobProcessor(): Promise<void> {
     }
 
     const bundleHash = computeMockBundleHash(bundle);
-    const bundleUri = `mock://bundle/${jobId}`;
+    const hashedOnlyDefault = process.env.HASHED_ONLY_DEFAULT !== 'false';
+    const shouldStoreEvidence = typeof storeEvidence === 'boolean' ? storeEvidence : !hashedOnlyDefault;
+    const bundleUri = shouldStoreEvidence ? `encrypted+mock://bundle/${jobId}` : `hash-only://${bundleHash}`;
     const outputHash = bundle.model_runs[0]?.output_hash as `0x${string}`;
 
     const receipt = buildMockReceipt({
@@ -133,11 +143,31 @@ export async function startMockJobProcessor(): Promise<void> {
 
     const disputes = buildMockDisputeEvents({ taskId: jobId, scenario });
 
+    let encryptedEvidence: Record<string, unknown> | undefined;
+    if (shouldStoreEvidence) {
+      const masterKey = process.env.EVIDENCE_MASTER_KEY_BASE64;
+      if (!masterKey) {
+        throw new Error('EVIDENCE_MASTER_KEY_BASE64 is required for encrypted evidence storage');
+      }
+      const blob = encryptEvidenceBlob({
+        plaintext: Buffer.from(JSON.stringify(bundle), 'utf8'),
+        master_key: Buffer.from(masterKey, 'base64'),
+        bundle_hash: bundleHash,
+        key_version: process.env.EVIDENCE_KEY_VERSION || 'v1',
+      });
+      encryptedEvidence = {
+        stored_at: Date.now(),
+        bundle_hash: bundleHash,
+        encryption: blob,
+      };
+    }
+
     await storeMockArtifacts({
       jobId,
       receipt,
       bundle,
       disputes,
+      encryptedEvidence,
     });
 
     const finalStatus: MockJobStatus = scenario === 'fail' ? 'failed' : 'completed';

@@ -126,9 +126,30 @@ function buildExplain(bundle, context) {
     });
   }
 
+  const claimSummary = (bundle.claims ?? []).map((claim) => ({
+    cluster_id: claim.claim_id ?? claim.text,
+    canonical_text: claim.text,
+    supported_by: (bundle.model_runs ?? []).map((run) => `${run.provider}:${run.model}`),
+    contradicted_by: claim.contradictions?.map((item) => item.url) ?? [],
+    severity: claim.contradictions && claim.contradictions.length > 0 ? 'MED' : undefined,
+    citations: (claim.support ?? []).map((item) => ({
+      url: item.url,
+      domain: item.domain,
+      title: item.title,
+    })),
+  }));
+
   return {
     version: '1.0.0',
     score_components: components,
+    score_components_detail: {
+      coverage_bps: toBps(breakdown.agreement ?? 0),
+      contradiction_penalty_bps: Math.min(10000, contradictionsFound.length * 500),
+      citation_quality_bps: toBps(breakdown.citation_quality ?? 0),
+      final_score_bps: toBps(bundle.final_score_bps / 100),
+    },
+    claim_summary: claimSummary,
+    highlights: checksFired.map((check) => check.summary).slice(0, 3),
     checks: {
       citations: {
         total_claims: bundle.claims?.length ?? 0,

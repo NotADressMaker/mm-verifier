@@ -6,6 +6,13 @@ export default function ReceiptCard({ receipt }: { receipt: Receipt | null }) {
     return <div className="card">No receipt available yet.</div>;
   }
 
+  const bundleUri = receipt.evidence?.bundle_uri || '';
+  const storageMode = bundleUri.startsWith('hash-only://')
+    ? 'hashed-only'
+    : bundleUri.startsWith('encrypted+')
+    ? 'encrypted'
+    : 'plaintext';
+
   return (
     <div className="card">
       <h2>Receipt Summary</h2>
@@ -19,6 +26,12 @@ export default function ReceiptCard({ receipt }: { receipt: Receipt | null }) {
         <div>
           <div className="section-title">Score</div>
           <strong>{(receipt.score_bps / 100).toFixed(2)}%</strong>
+        </div>
+        <div>
+          <div className="section-title">Evidence Stored</div>
+          <div className={`badge ${storageMode === 'encrypted' ? 'success' : 'warn'}`}>
+            {storageMode}
+          </div>
         </div>
         <div>
           <div className="section-title">Bundle Hash</div>
