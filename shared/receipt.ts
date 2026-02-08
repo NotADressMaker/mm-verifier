@@ -242,6 +242,8 @@ export interface ReceiptExplain {
     agreement_rate: number;
     clusters?: Array<Record<string, unknown>>;
   };
+  debug_trace_uri?: string;
+  debug_trace?: Record<string, unknown>;
   plaintext_verification?: VerifiedPlaintextStatement;
   timings_ms?: {
     fetch?: number;

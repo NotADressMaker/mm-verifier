@@ -279,6 +279,8 @@
             }
           }
         },
+        "debug_trace_uri": { "type": "string" },
+        "debug_trace": { "type": "object", "additionalProperties": true },
         "plaintext_verification": {
           "type": "object",
           "additionalProperties": false,

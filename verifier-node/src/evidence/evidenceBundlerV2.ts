@@ -443,13 +443,18 @@ export function createModelRun(
   temperature: number,
   rawOutput: string,
   metadata?: {
+    modelVersion?: string;
     maxTokens?: number;
     timestamp?: number;
     latencyMs?: number;
     tokensUsed?: number;
+    tokensIn?: number;
+    tokensOut?: number;
     topP?: number;
     seed?: number;
     requestId?: string;
+    providerRequestId?: string;
+    systemPromptHash?: string;
   }
 ): ModelRun {
   const outputHash = ethers.keccak256(ethers.toUtf8Bytes(rawOutput));
@@ -457,6 +462,7 @@ export function createModelRun(
   return {
     provider,
     model,
+    model_version: metadata?.modelVersion,
     temperature,
     top_p: metadata?.topP,
     raw_output: rawOutput,
@@ -466,7 +472,11 @@ export function createModelRun(
     timestamp: metadata?.timestamp ?? Math.floor(Date.now() / 1000),
     latency_ms: metadata?.latencyMs,
     tokens_used: metadata?.tokensUsed,
+    tokens_in: metadata?.tokensIn,
+    tokens_out: metadata?.tokensOut,
     request_id: metadata?.requestId,
+    provider_request_id: metadata?.providerRequestId,
+    system_prompt_hash: metadata?.systemPromptHash,
   };
 }
 

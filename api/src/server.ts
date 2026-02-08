@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import * as dotenv from 'dotenv';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
+import { requestContextMiddleware } from './middleware/requestContext';
 import { verifyRoutes } from './routes/verify';
 import { jobRoutes } from './routes/jobs';
 import { jobBoardRoutes } from './routes/jobBoard';
@@ -24,6 +25,7 @@ import { initializeRedis } from './services/redis';
 import { setupWebSocket } from './services/websocket';
 import { renderJobBoardDashboard } from './views/jobBoardDashboard';
 import { isMockChainEnabled, isMockVerifierEnabled } from './utils/mockMode';
+import { apiMetrics } from './observability/metrics';
 
 dotenv.config({ path: '../.env' });
 
@@ -45,6 +47,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(requestContextMiddleware);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -61,6 +64,12 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
+});
+
+// Metrics
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', apiMetrics.register.contentType);
+  res.status(200).send(await apiMetrics.register.metrics());
 });
 
 // API Routes

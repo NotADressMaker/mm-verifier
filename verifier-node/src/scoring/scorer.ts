@@ -2,7 +2,13 @@ import { ModelResponse } from '../llm-providers/modelRouter';
 import { logger } from '../utils/logger';
 import { extractClaims } from './claimExtractor';
 import { calculateConsistency } from './consistencyChecker';
-import { analyzeCitations } from './citationAnalyzer';
+import {
+  buildClaimGraph,
+  computeAgreementRatio,
+  computeCitationCoverage,
+  findContradictions,
+} from '../../../shared/claim_graph';
+import { getEffectiveWeight } from '../providers/trust';
 
 export interface ScoringResult {
   score: number; // 0-100
@@ -13,6 +19,12 @@ export interface ScoringResult {
     agreement: number;
     citationQuality: number;
     factualAccuracy: number;
+  };
+  claim_graph: {
+    agreement_ratio: number;
+    contradiction_count: number;
+    citation_coverage: number;
+    total_claims: number;
   };
   reasoning: string;
 }
@@ -37,11 +49,30 @@ export async function scoreVerification(
     // Calculate inter-model consistency
     const consistency = calculateConsistency(responses);
 
+    const claimGraphs = responses.map((response) => buildClaimGraph(response.response));
+    const providerWeights = responses.map((response) =>
+      getEffectiveWeight(response.provider, response.model)
+    );
+    const agreementRatio = computeAgreementRatio(claimGraphs, providerWeights);
+    const contradictions = claimGraphs.flatMap((graph, index) =>
+      claimGraphs
+        .slice(index + 1)
+        .flatMap((other) => findContradictions(graph, other))
+    );
+    const totalClaims = claimGraphs.reduce(
+      (sum, graph) => sum + graph.nodes.filter((node) => node.type === 'claim').length,
+      0
+    );
+
+    const citationCoverage =
+      claimGraphs.reduce((sum, graph) => sum + computeCitationCoverage(graph), 0) /
+      Math.max(1, claimGraphs.length);
+
     // Calculate agreement score
-    const agreement = calculateAgreement(responses);
+    const agreement = agreementRatio * 100;
 
     // Analyze citations (if applicable)
-    const citationQuality = analyzeCitations(responses);
+    const citationQuality = citationCoverage * 100;
 
     // Task-specific scoring
     let factualAccuracy = 0;
@@ -60,6 +91,11 @@ export async function scoreVerification(
         break;
       default:
         factualAccuracy = (consistency + agreement) / 2;
+    }
+
+    if (totalClaims > 0 && contradictions.length > 0) {
+      const contradictionPenalty = (contradictions.length / totalClaims) * 100;
+      factualAccuracy = Math.max(0, factualAccuracy - contradictionPenalty);
     }
 
     // Weighted scoring
@@ -121,6 +157,12 @@ export async function scoreVerification(
         agreement,
         citationQuality,
         factualAccuracy,
+      },
+      claim_graph: {
+        agreement_ratio: agreementRatio,
+        contradiction_count: contradictions.length,
+        citation_coverage: citationCoverage,
+        total_claims: totalClaims,
       },
       reasoning,
     };

@@ -1,5 +1,6 @@
 import { createClient } from 'redis';
 import { logger } from '../utils/logger';
+import { apiMetrics } from '../observability/metrics';
 
 let redisClient: ReturnType<typeof createClient>;
 
@@ -56,6 +57,11 @@ export async function cacheJobResult(jobId: string, result: any, ttl: number = 3
 export async function getCachedJobResult(jobId: string) {
   try {
     const cached = await redisClient.get(`job:${jobId}`);
+    if (cached) {
+      apiMetrics.metrics.cacheHitsTotal.labels('job').inc();
+    } else {
+      apiMetrics.metrics.cacheMissesTotal.labels('job').inc();
+    }
     return cached ? JSON.parse(cached) : null;
   } catch (error) {
     logger.error('Failed to get cached job result:', error);

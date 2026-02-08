@@ -4,6 +4,7 @@ import { initializeBlockchain } from './services/blockchain';
 import { startJobProcessor } from './services/jobProcessor';
 import { registerAsVerifier } from './services/staking';
 import { startMockJobProcessor } from './services/mockJobProcessor';
+import { startMetricsServer } from './services/metricsServer';
 
 dotenv.config({ path: '../.env' });
 
@@ -35,6 +36,9 @@ async function main() {
       await startJobProcessor();
       logger.info('✅ Job processor started');
     }
+
+    const metricsPort = parseInt(process.env.METRICS_PORT || '9101', 10);
+    startMetricsServer(metricsPort);
 
     logger.info('🎉 Verifier node is running!');
     logger.info('Verifier address:', process.env.VERIFIER_PRIVATE_KEY ? 'configured' : 'NOT configured');
