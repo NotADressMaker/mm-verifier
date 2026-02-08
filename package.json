@@ -14,8 +14,10 @@
     "test:api": "cd api && npm test",
     "test:verifier": "cd verifier-node && npm test",
     "test:sdk": "cd packages/sdk-js && npm test",
+    "test:e2e": "node --loader ./api/node_modules/ts-node/esm tests/e2e/hello_receipt.test.ts",
     "dev:api": "cd api && npm run dev",
     "dev:verifier": "cd verifier-node && npm run dev",
+    "dev:dashboard": "cd apps/dashboard && npm run dev",
     "deploy:sepolia": "cd contracts && npx hardhat run scripts/deploy.ts --network arbitrum-sepolia",
     "deploy:mainnet": "cd contracts && npx hardhat run scripts/deploy.ts --network arbitrum-one"
   },

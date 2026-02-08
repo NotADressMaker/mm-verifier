@@ -7,6 +7,10 @@ import { resolveProgram } from '../services/programRegistry';
 import { CONSTANTS } from '../../../shared/types';
 import { normalizeUnixSeconds, resolveCommitDeadline, resolveRevealDeadline } from '../utils/time';
 import { formatTaskStatus } from '../utils/taskStatus';
+import { createMockJob } from '../services/mockVerifier';
+import { getMockScenario, isMockVerifierEnabled } from '../utils/mockMode';
+import { hashUtf8 } from '../../../shared/canonicalJson';
+import { getMockJob, getMockReceipt } from '../services/mockVerifier';
 
 const router = Router();
 
@@ -120,22 +124,39 @@ router.post(
         ethers.toUtf8Bytes(JSON.stringify({ taskType, models }))
       );
 
-      // Submit task to blockchain
-      const submitStart = Date.now();
-      const taskId = await submitVerificationJob({
-        promptHash,
-        rubricHash,
-        commitDeadline,
-        revealDeadline,
-        disputeWindowSeconds,
-        minEvals,
-        maxEvals,
-        feePoolWei,
-      });
-      logger.info('Timing: blockchain submit', {
-        jobId: taskId,
-        durationMs: Date.now() - submitStart,
-      });
+      let taskId: string;
+      if (isMockVerifierEnabled()) {
+        const mockId = hashUtf8(`${prompt}-${Date.now()}`).slice(2, 10);
+        taskId = `mock_${mockId}`;
+        await createMockJob({
+          jobId: taskId,
+          prompt,
+          promptHash,
+          models,
+          taskType,
+          programId: resolvedProgramId,
+          programVersion: resolvedProgramVersion,
+          scenario: getMockScenario(),
+        });
+        logger.info('Mock verification job created', { jobId: taskId });
+      } else {
+        // Submit task to blockchain
+        const submitStart = Date.now();
+        taskId = await submitVerificationJob({
+          promptHash,
+          rubricHash,
+          commitDeadline,
+          revealDeadline,
+          disputeWindowSeconds,
+          minEvals,
+          maxEvals,
+          feePoolWei,
+        });
+        logger.info('Timing: blockchain submit', {
+          jobId: taskId,
+          durationMs: Date.now() - submitStart,
+        });
+      }
 
       // Queue job for verifier nodes
       const queueStart = Date.now();
@@ -163,7 +184,7 @@ router.post(
       // Return job info
       res.status(201).json({
         jobId: taskId,
-        status: 'pending',
+        status: isMockVerifierEnabled() ? 'queued' : 'pending',
         promptHash,
         models,
         taskType,
@@ -194,6 +215,40 @@ router.get('/:jobId', async (req: Request, res: Response) => {
     const { jobId } = req.params;
 
     logger.info('Fetching verification result', { jobId });
+
+    if (isMockVerifierEnabled()) {
+      const record = await getMockJob(jobId);
+      if (!record) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Mock job not found',
+        });
+      }
+
+      const receipt = await getMockReceipt(jobId);
+
+      const rubricHash = hashUtf8(JSON.stringify({ taskType: record.taskType, models: record.models }));
+
+      return res.status(200).json({
+        jobId,
+        status: record.status,
+        promptHash: record.promptHash,
+        rubricHash,
+        rewardPool: '0',
+        deadline: record.createdAt,
+        models: record.models,
+        taskType: record.taskType,
+        timestamp: record.createdAt,
+        result: receipt
+          ? {
+              score: record.scoreBps ?? 0,
+              verdict: record.verdict ?? false,
+              finalScoreBps: record.scoreBps ?? 0,
+              receipt,
+            }
+          : undefined,
+      });
+    }
 
     // Get job from blockchain
     const { getTaskDetails } = require('../services/blockchain');

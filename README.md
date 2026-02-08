@@ -24,6 +24,17 @@ When you ask an AI a question, the answer can sound confident and still be wrong
 
 Get verification working in your app with the SDK and example.
 
+### One-Command Dev Boot (Recommended)
+
+Boot the full local stack (API, verifier node, dashboard, Redis) with:
+
+```bash
+make dev
+```
+
+By default, `make dev` runs the stack in **mock mode** (no keys required). See **Mock Mode** below
+for environment flags and scenarios.
+
 ### 1. Install the SDK
 
 ```bash
@@ -100,6 +111,52 @@ Every verification produces a compact `Receipt`:
 | `contract_address` | Verification contract address |
 
 See [docs/PROGRAMS.md](docs/PROGRAMS.md) for details on the built-in `factual-consensus` program.
+
+## Mock Mode (No Keys Required)
+
+Set these flags in your `.env` (or inline) to enable deterministic mock receipts:
+
+```bash
+MOCK_VERIFIER=true
+MOCK_CHAIN=true
+MOCK_SCENARIO=happy   # happy | fail | dispute
+MOCK_VERIFIER_DELAY_MS=150
+```
+
+Mock mode still validates schemas, computes bundle hashes, and stores receipts/bundles in Redis.
+
+## Dashboard MVP
+
+The dashboard lives in `apps/dashboard` and provides:
+- Job list
+- Receipt viewer (pretty JSON + key fields)
+- Evidence bundle viewer (citations, contradictions, model outputs)
+- Dispute timeline (stub events in mock mode)
+
+Start it with:
+
+```bash
+cd apps/dashboard
+npm install
+npm run dev
+```
+
+Or run it as part of the stack with `make dev`.
+
+## Run the Hello Receipt E2E Test
+
+```bash
+npm run test:e2e
+```
+
+The test starts the API + verifier node in mock mode, posts a job, waits for completion,
+validates receipt and bundle schemas, and checks status transitions.
+
+### Troubleshooting
+
+- **Ports**: API `3000`, Dashboard `5173`, Redis `6379`.
+- **Reset Redis**: `docker-compose down -v` (clears mock receipts and jobs).
+- **Mock scenarios**: set `MOCK_SCENARIO=dispute` to see dispute timeline events.
 
 ## AI Accountability: Beyond Ethereum
 
@@ -340,13 +397,14 @@ Why Arbitrum:
 - **Researchers**: Benchmarking and model drift tracking
 - **End Users**: Simple "is this answer real?" verification
 
-## Roadmap: Frontend Dashboard (Planned)
+## Dashboard MVP (Now Included)
 
-No frontend dashboard is included in this repository yet. The UI described below is a future goal and is not implemented today.
+A lightweight dashboard is included under `apps/dashboard` with job list, receipt view,
+evidence viewer, and dispute timeline (mock-mode friendly).
 
 When the dashboard work begins, the intended experience includes:
 
-### Core Screens (Planned)
+### Core Screens (Included)
 
 - **Job Timeline**: Visual progression from submission → verification → dispute resolution.
 - **Confidence Breakdown**: Clear display of consensus score, variance across models, and any contradictions.
@@ -354,7 +412,7 @@ When the dashboard work begins, the intended experience includes:
 - **Dispute Status**: Clear badges for challenge tiers and auditor outcomes.
 - **Verifier Trust Signals**: At-a-glance stakes, slashing history, and audit success rate.
 
-### UX Principles (Planned)
+### UX Principles
 
 - **Clarity over cleverness**: Avoid jargon where possible; explain “verdict,” “confidence,” and “dispute” in plain language.
 - **Progressive disclosure**: Show the headline verdict first, then expand into evidence and audit trails.
@@ -564,7 +622,7 @@ For sensitive prompts:
 - [x] Multi-LLM integration
 - [x] API layer
 - [x] Verifier node
-- [ ] Frontend dashboard MVP (job status, evidence view, dispute status)
+- [x] Frontend dashboard MVP (job status, evidence view, dispute status)
 - [ ] Evidence bundle schema v1 (formal JSON schema + validation)
 
 ### Mid Term (3-6 months)

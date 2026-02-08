@@ -2,6 +2,14 @@ import { Router, Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import { getAllJobs } from '../services/blockchain';
 import { normalizeTaskStatusQuery, TASK_STATUS_LABELS } from '../utils/taskStatus';
+import { isMockVerifierEnabled } from '../utils/mockMode';
+import {
+  getMockBundle,
+  getMockDisputes,
+  getMockJob,
+  getMockReceipt,
+  listMockJobs,
+} from '../services/mockVerifier';
 
 const router = Router();
 
@@ -15,6 +23,23 @@ router.get('/', async (req: Request, res: Response) => {
     const normalizedStatus = normalizeTaskStatusQuery(status as string | undefined);
 
     logger.info('Fetching jobs', { status, normalizedStatus, limit, offset });
+
+    if (isMockVerifierEnabled()) {
+      const jobs = await listMockJobs();
+      const filtered = status
+        ? jobs.filter((job) => job.status === status)
+        : jobs;
+      const startIndex = Number(offset);
+      const endIndex = startIndex + Number(limit);
+      const paginatedJobs = filtered.slice(startIndex, endIndex);
+
+      return res.status(200).json({
+        total: filtered.length,
+        limit: Number(limit),
+        offset: Number(offset),
+        jobs: paginatedJobs,
+      });
+    }
 
     const jobs = await getAllJobs();
 
@@ -50,11 +75,15 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/stats', async (req: Request, res: Response) => {
   try {
-    const jobs = await getAllJobs();
+    const jobs = isMockVerifierEnabled() ? await listMockJobs() : await getAllJobs();
+
+    const statusLabels = isMockVerifierEnabled()
+      ? ['queued', 'running', 'completed', 'failed']
+      : TASK_STATUS_LABELS;
 
     const stats = {
       total: jobs.length,
-      byStatus: Object.fromEntries(TASK_STATUS_LABELS.map((label) => [label, 0])) as Record<string, number>,
+      byStatus: Object.fromEntries(statusLabels.map((label) => [label, 0])) as Record<string, number>,
       averageScore: 0,
       totalRewards: '0',
     };
@@ -71,11 +100,17 @@ router.get('/stats', async (req: Request, res: Response) => {
 
       // Calculate averages for completed jobs
       if (job.status === 'completed') {
-        totalScore += Number(job.consensusScore);
+        const score =
+          typeof job.consensusScore !== 'undefined'
+            ? Number(job.consensusScore)
+            : Number(job.scoreBps ?? 0);
+        totalScore += score;
         completedCount++;
       }
 
-      totalRewards += BigInt(job.rewardPool);
+      if (typeof job.rewardPool !== 'undefined') {
+        totalRewards += BigInt(job.rewardPool);
+      }
     }
 
     if (completedCount > 0) {
@@ -87,6 +122,127 @@ router.get('/stats', async (req: Request, res: Response) => {
     res.status(200).json(stats);
   } catch (error: any) {
     logger.error('Error fetching job stats:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/jobs/:jobId/receipt
+ */
+router.get('/:jobId/receipt', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!isMockVerifierEnabled()) {
+      return res.status(501).json({
+        error: 'Not Implemented',
+        message: 'Receipt retrieval is only available in mock mode',
+      });
+    }
+
+    const receipt = await getMockReceipt(jobId);
+    if (!receipt) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Receipt not found',
+      });
+    }
+
+    return res.status(200).json({ receipt });
+  } catch (error: any) {
+    logger.error('Error fetching receipt:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/jobs/:jobId/bundle
+ */
+router.get('/:jobId/bundle', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!isMockVerifierEnabled()) {
+      return res.status(501).json({
+        error: 'Not Implemented',
+        message: 'Bundle retrieval is only available in mock mode',
+      });
+    }
+
+    const bundle = await getMockBundle(jobId);
+    if (!bundle) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Bundle not found',
+      });
+    }
+
+    return res.status(200).json({ bundle });
+  } catch (error: any) {
+    logger.error('Error fetching bundle:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/jobs/:jobId/disputes
+ */
+router.get('/:jobId/disputes', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!isMockVerifierEnabled()) {
+      return res.status(501).json({
+        error: 'Not Implemented',
+        message: 'Dispute retrieval is only available in mock mode',
+      });
+    }
+
+    const disputes = await getMockDisputes(jobId);
+    return res.status(200).json({ disputes: disputes ?? [] });
+  } catch (error: any) {
+    logger.error('Error fetching disputes:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/jobs/:jobId
+ */
+router.get('/:jobId', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!isMockVerifierEnabled()) {
+      return res.status(501).json({
+        error: 'Not Implemented',
+        message: 'Job detail retrieval is only available in mock mode',
+      });
+    }
+
+    const job = await getMockJob(jobId);
+    if (!job) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Job not found',
+      });
+    }
+
+    return res.status(200).json({ job });
+  } catch (error: any) {
+    logger.error('Error fetching job:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message,
