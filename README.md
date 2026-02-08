@@ -132,6 +132,7 @@ The dashboard lives in `apps/dashboard` and provides:
 - Receipt viewer (pretty JSON + key fields)
 - Evidence bundle viewer (citations, contradictions, model outputs)
 - Dispute timeline (stub events in mock mode)
+- Debug trace view (`/jobs/:id/debug`)
 
 Start it with:
 
@@ -142,6 +143,26 @@ npm run dev
 ```
 
 Or run it as part of the stack with `make dev`.
+
+## Observability & Debug Traces
+
+* API metrics: `GET /metrics`
+* Verifier-node metrics: `GET /metrics` on port `9101` (configurable via `METRICS_PORT`)
+* Debug trace endpoint: `GET /api/jobs/:id/trace`
+
+See [docs/observability.md](docs/observability.md) for field definitions and Prometheus setup.
+
+## Provider Weights
+
+Provider trust weights can be configured via `PROVIDER_WEIGHTS`:
+
+```bash
+PROVIDER_WEIGHTS='{"openai:gpt-4.1":1.0,"anthropic:claude-3.5-sonnet":0.9}'
+```
+
+Weights dynamically down-shift when error rates spike or circuit breakers open.
+
+See [docs/providers.md](docs/providers.md) for full provider handling details.
 
 ## Run the Hello Receipt E2E Test
 

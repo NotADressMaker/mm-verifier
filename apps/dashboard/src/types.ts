@@ -27,3 +27,22 @@ export type DisputeEvent = {
   timestamp: string;
   summary: string;
 };
+
+export type DebugTraceStage = {
+  name: string;
+  start_ms: number;
+  end_ms?: number;
+  duration_ms?: number;
+  status: string;
+  outputs?: Record<string, unknown>;
+  error?: {
+    message: string;
+    code?: string;
+  };
+};
+
+export type DebugTrace = {
+  trace_id: string;
+  task_id: string;
+  stages: DebugTraceStage[];
+};

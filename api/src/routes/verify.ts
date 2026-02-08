@@ -11,6 +11,9 @@ import { createMockJob } from '../services/mockVerifier';
 import { getMockScenario, isMockVerifierEnabled } from '../utils/mockMode';
 import { hashUtf8 } from '../../../shared/canonicalJson';
 import { getMockJob, getMockReceipt } from '../services/mockVerifier';
+import { createDebugTrace, endStage, startStage } from '../../../shared/observability/debugTrace';
+import { storeDebugTrace } from '../services/debugTraceStore';
+import { TraceContext } from '../../../shared/observability/tracing';
 
 const router = Router();
 
@@ -42,6 +45,7 @@ router.post(
   ],
   async (req: Request, res: Response) => {
     const requestStart = Date.now();
+    const traceContext = (req as Request & { traceContext?: TraceContext }).traceContext;
     try {
       // Validate request
       const errors = validationResult(req);
@@ -98,6 +102,14 @@ router.post(
       // Hash the prompt
       const { ethers } = require('ethers');
       const promptHash = ethers.keccak256(ethers.toUtf8Bytes(prompt));
+
+      const ingestTrace = createDebugTrace('pending', traceContext?.trace_id);
+      startStage(ingestTrace, 'ingest/validate', {
+        models,
+        taskType,
+        program_id: resolvedProgramId,
+        program_version: resolvedProgramVersion,
+      });
 
       // Calculate deadline (default: 1 hour from now)
       const nowSeconds = Math.floor(Date.now() / 1000);
@@ -158,6 +170,16 @@ router.post(
         });
       }
 
+      ingestTrace.task_id = taskId;
+      endStage(ingestTrace, 'ingest/validate', 'ok', {
+        prompt_hash: promptHash,
+        task_id: taskId,
+      });
+
+      startStage(ingestTrace, 'enqueue', {
+        queue: 'verification-jobs',
+      });
+
       // Queue job for verifier nodes
       const queueStart = Date.now();
       await queueVerificationJob({
@@ -169,11 +191,26 @@ router.post(
         deadline: commitDeadline,
         programId: resolvedProgramId,
         programVersion: resolvedProgramVersion,
+        requestId: traceContext?.request_id,
+        traceContext: traceContext
+          ? {
+              trace_id: traceContext.trace_id,
+              span_id: traceContext.span_id,
+              request_id: traceContext.request_id,
+            }
+          : undefined,
+        enqueuedAt: Date.now(),
       });
       logger.info('Timing: job enqueue', {
         jobId: taskId,
         durationMs: Date.now() - queueStart,
       });
+
+      endStage(ingestTrace, 'enqueue', 'ok', {
+        duration_ms: Date.now() - queueStart,
+      });
+
+      await storeDebugTrace(taskId, ingestTrace);
 
       logger.info('Verification task submitted', { taskId });
       logger.info('Timing: api verify total', {

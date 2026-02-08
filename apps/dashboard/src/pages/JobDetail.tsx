@@ -63,7 +63,10 @@ export default function JobDetail({ jobId }: { jobId: string }) {
       <div className="header">
         <div>
           <h1>Job {jobId}</h1>
-          <a href="/">← Back to jobs</a>
+          <div className="header-links">
+            <a href="/">← Back to jobs</a>
+            <a href={`/jobs/${jobId}/debug`}>View debug trace</a>
+          </div>
         </div>
         {job && <span className="badge">{job.status}</span>}
       </div>

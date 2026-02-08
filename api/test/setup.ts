@@ -7,6 +7,8 @@
  * - Mock configurations
  */
 
+import { jest } from '@jest/globals';
+
 // Set test environment variables
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/mmverifier_test';

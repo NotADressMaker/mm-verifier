@@ -1,5 +1,6 @@
 import Queue from 'bull';
 import { logger } from '../utils/logger';
+import { apiMetrics } from '../observability/metrics';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -18,6 +19,13 @@ export async function queueVerificationJob(jobData: {
   deadline: number;
   programId?: string;
   programVersion?: string;
+  requestId?: string;
+  traceContext?: {
+    trace_id: string;
+    span_id: string;
+    request_id?: string;
+  };
+  enqueuedAt?: number;
 }) {
   try {
     const job = await verificationQueue.add('verify', jobData, {
@@ -34,6 +42,10 @@ export async function queueVerificationJob(jobData: {
       jobId: jobData.jobId,
       queueJobId: job.id,
     });
+
+    apiMetrics.metrics.queueDepth.labels('verification-jobs').set(
+      await verificationQueue.getWaitingCount()
+    );
 
     return job;
   } catch (error) {
@@ -67,3 +79,16 @@ verificationQueue.on('failed', (job, err) => {
 verificationQueue.on('error', (error) => {
   logger.error('Queue error:', error);
 });
+
+setInterval(async () => {
+  try {
+    const [waiting, active] = await Promise.all([
+      verificationQueue.getWaitingCount(),
+      verificationQueue.getActiveCount(),
+    ]);
+    apiMetrics.metrics.queueDepth.labels('verification-jobs').set(waiting);
+    apiMetrics.metrics.activeJobs.set(active);
+  } catch (error) {
+    logger.error('Failed to collect queue metrics', { error });
+  }
+}, 5000);

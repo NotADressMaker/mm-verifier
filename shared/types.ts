@@ -252,6 +252,7 @@ export type EvidenceBundle = EvidenceBundleV01 | EvidenceBundleV02 | EvidenceBun
 export interface ModelRun {
   provider: string;                // "openai" | "anthropic" | "google"
   model: string;                   // "gpt-4.1-mini" | "claude-3-opus"
+  model_version?: string;
   temperature: number;             // 0.0 - 2.0
   top_p?: number;
   max_tokens?: number;             // Optional
@@ -261,7 +262,11 @@ export interface ModelRun {
   timestamp?: number;              // Unix timestamp (seconds)
   latency_ms?: number;             // Request duration
   tokens_used?: number;            // Total tokens (prompt + completion)
+  tokens_in?: number;
+  tokens_out?: number;
   request_id?: string;
+  provider_request_id?: string;
+  system_prompt_hash?: string;
 }
 
 // ============================================================================

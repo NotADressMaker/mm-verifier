@@ -18,9 +18,11 @@ import {
   hashRubric,
   signEvidenceBundle,
   DEFAULT_RUBRIC,
+  createEvidence,
 } from './evidenceBundlerV2';
 import { getChainIdFromEnv } from '../../../shared/env';
 import { toScoreBps } from '../utils/score';
+import { buildClaimGraph, findContradictions } from '../../../shared/claim_graph';
 
 type BundleInputs = {
   taskId: string;
@@ -42,37 +44,87 @@ function toModelRuns(responses: ModelResponse[]): ModelRun[] {
       response.metadata?.temperature ?? 0,
       response.response,
       {
+        modelVersion: response.provider_call?.model_version,
         timestamp: response.timestamp ? Math.floor(response.timestamp / 1000) : undefined,
         latencyMs: response.metadata?.duration,
         tokensUsed: response.metadata?.tokensUsed,
+        tokensIn: response.provider_call?.tokens_in,
+        tokensOut: response.provider_call?.tokens_out,
         maxTokens: response.metadata?.maxTokens,
         topP: response.metadata?.topP,
         seed: response.metadata?.seed,
         requestId: response.metadata?.requestId,
+        providerRequestId: response.provider_call?.provider_request_id,
+        systemPromptHash: response.provider_call?.system_prompt_hash,
       }
     )
   );
 }
 
 function toClaims(responses: ModelResponse[]): Claim[] {
-  const claims = responses.flatMap((response) => extractClaims(response.response));
-  return claims.map((text, index) =>
-    createClaim(`c${index + 1}`, text, 'factual', [], [])
+  const graphs = responses.map((response) => buildClaimGraph(response.response));
+  const contradictions = graphs.flatMap((graph, index) =>
+    graphs.slice(index + 1).flatMap((other) => findContradictions(graph, other))
   );
+  const contradictionMap = new Map<string, string[]>();
+  contradictions.forEach((edge) => {
+    contradictionMap.set(edge.from, [
+      ...(contradictionMap.get(edge.from) ?? []),
+      edge.evidence ?? 'contradiction',
+    ]);
+    contradictionMap.set(edge.to, [
+      ...(contradictionMap.get(edge.to) ?? []),
+      edge.evidence ?? 'contradiction',
+    ]);
+  });
+
+  const claims: Claim[] = [];
+  let index = 0;
+  graphs.forEach((graph) => {
+    graph.nodes.forEach((node) => {
+      if (node.type !== 'claim') return;
+      const support = (node.citations ?? []).map((citation) =>
+        createEvidence(citation.url, node.text)
+      );
+      const contradictions = (contradictionMap.get(node.id) ?? []).map((evidence, i) =>
+        createEvidence(`internal://contradiction/${node.id}/${i}`, evidence)
+      );
+      claims.push(
+        createClaim(`c${index + 1}`, node.text, 'factual', support, contradictions)
+      );
+      index += 1;
+    });
+  });
+
+  if (claims.length === 0) {
+    const fallback = responses.flatMap((response) => extractClaims(response.response));
+    fallback.forEach((text) => {
+      claims.push(createClaim(`c${index + 1}`, text, 'factual', [], []));
+      index += 1;
+    });
+  }
+
+  return claims;
 }
 
 function toMetrics(responses: ModelResponse[], scoringResult: ScoringResult): Metrics {
-  const claimCount = responses.reduce(
-    (total, response) => total + extractClaims(response.response).length,
-    0
-  );
+  const claimCount =
+    scoringResult.claim_graph.total_claims ||
+    responses.reduce(
+      (total, response) => total + extractClaims(response.response).length,
+      0
+    );
   const normalized = (value: number) => Math.max(0, Math.min(1, value / 100));
   const supportedRatio = normalized(scoringResult.breakdown.factualAccuracy);
   const verifiedClaims = claimCount > 0 ? Math.round(claimCount * supportedRatio) : 0;
+  const contradictedClaims =
+    scoringResult.claim_graph.contradiction_count > 0
+      ? scoringResult.claim_graph.contradiction_count
+      : claimCount - verifiedClaims;
 
   return createMetrics(
     {
-      agreement: normalized(scoringResult.breakdown.consistency),
+      agreement: normalized(scoringResult.breakdown.agreement),
       clusters: responses.length ? 1 : 0,
       clusterSizes: responses.length ? [responses.length] : [],
       outliers: 0,
@@ -81,13 +133,13 @@ function toMetrics(responses: ModelResponse[], scoringResult: ScoringResult): Me
       supportedClaimRatio: supportedRatio,
       totalClaims: claimCount,
       verifiedClaims,
-      contradictedClaims: claimCount - verifiedClaims,
+      contradictedClaims,
     },
     {
       authorityScore: normalized(scoringResult.breakdown.citationQuality),
       sourceCount: undefined,
       highAuthorityRatio: undefined,
-      citationDensity: undefined,
+      citationDensity: scoringResult.claim_graph.citation_coverage,
     },
     {
       sensitiveVariance: 0,

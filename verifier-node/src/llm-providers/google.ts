@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '../utils/logger';
+import { ProviderCallResult, ProviderRequest } from '../../../shared/providers/interface';
+import { hashUtf8 } from '../../../shared/canonicalJson';
 
 let genAI: GoogleGenerativeAI;
 
@@ -20,26 +22,21 @@ export function initializeGoogle() {
  * Query Google model
  */
 export async function queryGoogle(
-  prompt: string,
-  model: string = 'gemini-pro'
-): Promise<{
-  response: string;
-  model: string;
-  timestamp: number;
-  metadata: any;
-}> {
+  request: ProviderRequest
+): Promise<ProviderCallResult> {
   try {
     if (!genAI) {
       initializeGoogle();
     }
 
-    logger.info('Querying Google', { model, promptLength: prompt.length });
+    const model = request.model ?? 'gemini-pro';
+    logger.info('Querying Google', { model, promptLength: request.prompt.length });
 
     const startTime = Date.now();
 
     const generativeModel = genAI.getGenerativeModel({ model });
 
-    const result = await generativeModel.generateContent(prompt);
+    const result = await generativeModel.generateContent(request.prompt);
     const response = result.response.text();
 
     const duration = Date.now() - startTime;
@@ -51,14 +48,21 @@ export async function queryGoogle(
     });
 
     return {
-      response,
-      model,
-      timestamp: Date.now(),
-      metadata: {
-        duration,
-        finishReason: result.response.candidates?.[0]?.finishReason,
-        safetyRatings: result.response.candidates?.[0]?.safetyRatings,
+      provider_id: 'google',
+      model_name: model,
+      latency_ms: duration,
+      temperature: request.temperature,
+      top_p: request.top_p,
+      max_tokens: request.max_tokens,
+      system_prompt_hash: request.system_prompt ? hashUtf8(request.system_prompt) : undefined,
+      request_id: request.request_id,
+      provider_request_id: result.response.candidates?.[0]?.index?.toString(),
+      raw_response: {
+        finish_reason: result.response.candidates?.[0]?.finishReason,
+        safety_ratings: result.response.candidates?.[0]?.safetyRatings,
       },
+      normalized_text: response.trim(),
+      status: 'ok',
     };
   } catch (error: any) {
     logger.error('Google query failed:', error);

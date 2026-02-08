@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { fetchJson } from './api';
 import JobTable from './components/JobTable';
 import JobDetail from './pages/JobDetail';
+import JobDebug from './pages/JobDebug';
 import { JobRecord } from './types';
 
 function useJobList() {
@@ -34,13 +35,23 @@ function useJobList() {
 
 export default function App() {
   const path = window.location.pathname;
-  const jobId = useMemo(() => {
+  const routeInfo = useMemo(() => {
     const parts = path.split('/').filter(Boolean);
-    return parts[0] === 'jobs' && parts[1] ? parts[1] : null;
+    if (parts[0] === 'jobs' && parts[1]) {
+      return {
+        jobId: parts[1],
+        debug: parts[2] === 'debug',
+      };
+    }
+    return null;
   }, [path]);
 
-  if (jobId) {
-    return <JobDetail jobId={jobId} />;
+  if (routeInfo?.jobId && routeInfo.debug) {
+    return <JobDebug jobId={routeInfo.jobId} />;
+  }
+
+  if (routeInfo?.jobId) {
+    return <JobDetail jobId={routeInfo.jobId} />;
   }
 
   const { jobs, error, loading } = useJobList();

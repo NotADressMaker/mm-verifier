@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { logger } from '../utils/logger';
+import { ProviderCallResult, ProviderRequest } from '../../../shared/providers/interface';
+import { hashUtf8 } from '../../../shared/canonicalJson';
 
 let openaiClient: OpenAI;
 
@@ -20,28 +22,28 @@ export function initializeOpenAI() {
  * Query OpenAI model
  */
 export async function queryOpenAI(
-  prompt: string,
-  model: string = 'gpt-4'
-): Promise<{
-  response: string;
-  model: string;
-  timestamp: number;
-  metadata: any;
-}> {
+  request: ProviderRequest
+): Promise<ProviderCallResult> {
   try {
     if (!openaiClient) {
       initializeOpenAI();
     }
 
-    logger.info('Querying OpenAI', { model, promptLength: prompt.length });
+    const model = request.model ?? 'gpt-4';
+    logger.info('Querying OpenAI', { model, promptLength: request.prompt.length });
 
     const startTime = Date.now();
 
     const completion = await openaiClient.chat.completions.create({
       model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1, // Low temperature for consistency
-      max_tokens: 2000,
+      messages: [
+        ...(request.system_prompt ? [{ role: 'system', content: request.system_prompt }] : []),
+        { role: 'user', content: request.prompt },
+      ],
+      temperature: request.temperature ?? 0.1,
+      max_tokens: request.max_tokens ?? 2000,
+      top_p: request.top_p,
+      seed: request.seed,
     });
 
     const duration = Date.now() - startTime;
@@ -56,16 +58,25 @@ export async function queryOpenAI(
     });
 
     return {
-      response,
-      model: completion.model,
-      timestamp: Date.now(),
-      metadata: {
-        finishReason: completion.choices[0].finish_reason,
-        tokensUsed: completion.usage?.total_tokens,
-        promptTokens: completion.usage?.prompt_tokens,
-        completionTokens: completion.usage?.completion_tokens,
-        duration,
+      provider_id: 'openai',
+      model_name: completion.model,
+      latency_ms: duration,
+      tokens_in: completion.usage?.prompt_tokens,
+      tokens_out: completion.usage?.completion_tokens,
+      temperature: request.temperature ?? 0.1,
+      top_p: request.top_p,
+      max_tokens: request.max_tokens ?? 2000,
+      seed: request.seed,
+      system_prompt_hash: request.system_prompt ? hashUtf8(request.system_prompt) : undefined,
+      request_id: request.request_id,
+      provider_request_id: completion.id,
+      raw_response: {
+        id: completion.id,
+        model: completion.model,
+        finish_reason: completion.choices[0].finish_reason,
       },
+      normalized_text: response.trim(),
+      status: 'ok',
     };
   } catch (error: any) {
     logger.error('OpenAI query failed:', error);

@@ -10,6 +10,7 @@ import {
   getMockReceipt,
   listMockJobs,
 } from '../services/mockVerifier';
+import { getDebugTrace } from '../services/debugTraceStore';
 
 const router = Router();
 
@@ -93,23 +94,24 @@ router.get('/stats', async (req: Request, res: Response) => {
     let totalRewards = BigInt(0);
 
     for (const job of jobs) {
+      const jobAny = job as any;
       // Count by status
-      if (job.status in stats.byStatus) {
-        stats.byStatus[job.status]++;
+      if (jobAny.status in stats.byStatus) {
+        stats.byStatus[jobAny.status]++;
       }
 
       // Calculate averages for completed jobs
-      if (job.status === 'completed') {
+      if (jobAny.status === 'completed') {
         const score =
-          typeof job.consensusScore !== 'undefined'
-            ? Number(job.consensusScore)
-            : Number(job.scoreBps ?? 0);
+          typeof jobAny.consensusScore !== 'undefined'
+            ? Number(jobAny.consensusScore)
+            : Number(jobAny.scoreBps ?? 0);
         totalScore += score;
         completedCount++;
       }
 
-      if (typeof job.rewardPool !== 'undefined') {
-        totalRewards += BigInt(job.rewardPool);
+      if (typeof jobAny.rewardPool !== 'undefined') {
+        totalRewards += BigInt(jobAny.rewardPool);
       }
     }
 
@@ -154,6 +156,29 @@ router.get('/:jobId/receipt', async (req: Request, res: Response) => {
     return res.status(200).json({ receipt });
   } catch (error: any) {
     logger.error('Error fetching receipt:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/jobs/:jobId/trace
+ */
+router.get('/:jobId/trace', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+    const trace = await getDebugTrace(jobId);
+    if (!trace) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Debug trace not found',
+      });
+    }
+    return res.status(200).json({ trace });
+  } catch (error: any) {
+    logger.error('Error fetching debug trace:', error);
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message,

@@ -8,6 +8,10 @@ import {
   ModelCommitmentData,
   InferenceConfig,
 } from '../../../shared/transparency';
+import { ProviderCallResult, ProviderRequest } from '../../../shared/providers/interface';
+import { executeProviderCall } from '../providers/providerControl';
+import { recordProviderError, recordProviderSuccess } from '../providers/trust';
+import { verifierMetrics } from '../observability/metrics';
 
 export interface ModelResponse {
   response: string;
@@ -17,6 +21,8 @@ export interface ModelResponse {
   metadata: any;
   /** Model commitment hashes for accountability */
   model_commitment?: ModelCommitment;
+  provider_call?: ProviderCallResult;
+  tokens_used?: number;
 }
 
 /**
@@ -55,29 +61,43 @@ export async function queryModel(
   logger.info('Routing query to model', { model });
 
   try {
-    let result: ModelResponse;
+    let result: ProviderCallResult;
     let provider: string;
+
+    const request: ProviderRequest = {
+      prompt,
+      model,
+      temperature: inferenceConfig?.temperature ?? DEFAULT_INFERENCE_CONFIG.temperature,
+      max_tokens: inferenceConfig?.max_tokens ?? DEFAULT_INFERENCE_CONFIG.max_tokens,
+    };
 
     // OpenAI models
     if (isValidOpenAIModel(model) || model.startsWith('gpt-')) {
-      const queryResult = await queryOpenAI(prompt, model);
       provider = 'openai';
-      result = { ...queryResult, provider };
+      result = await executeProviderCall(provider, model, () => queryOpenAI(request));
     }
     // Anthropic models
     else if (isValidAnthropicModel(model) || model.startsWith('claude-')) {
-      const queryResult = await queryAnthropic(prompt, model);
       provider = 'anthropic';
-      result = { ...queryResult, provider };
+      result = await executeProviderCall(provider, model, () => queryAnthropic(request));
     }
     // Google models
     else if (isValidGoogleModel(model) || model.startsWith('gemini-')) {
-      const queryResult = await queryGoogle(prompt, model);
       provider = 'google';
-      result = { ...queryResult, provider };
+      result = await executeProviderCall(provider, model, () => queryGoogle(request));
     } else {
       throw new Error(`Unknown model: ${model}`);
     }
+
+    if (result.status !== 'ok') {
+      recordProviderError(provider, model, result.error_type === 'circuit_open' ? 'hard' : 'soft');
+      throw new Error(result.error ?? `Provider ${provider} failed`);
+    }
+
+    recordProviderSuccess(provider, model);
+    verifierMetrics.metrics.providerLatencyMs
+      .labels(provider, model)
+      .observe(result.latency_ms);
 
     // Compute model commitment for accountability
     const commitment = computeModelRunCommitment(
@@ -85,7 +105,7 @@ export async function queryModel(
       model,
       inferenceConfig
     );
-    result.model_commitment = commitment;
+    result.model_commitment_hash = commitment.model_commitment_hash;
 
     logger.debug('Model commitment computed', {
       model,
@@ -93,7 +113,29 @@ export async function queryModel(
       commitmentHash: commitment.model_commitment_hash.slice(0, 18) + '...',
     });
 
-    return result;
+    return {
+      response: result.normalized_text,
+      model: result.model_name,
+      provider,
+      timestamp: Date.now(),
+      metadata: {
+        duration: result.latency_ms,
+        tokensUsed:
+          (result.tokens_in ?? 0) +
+          (result.tokens_out ?? 0),
+        promptTokens: result.tokens_in,
+        completionTokens: result.tokens_out,
+        temperature: result.temperature,
+        maxTokens: result.max_tokens,
+        topP: result.top_p,
+        seed: result.seed,
+        requestId: result.request_id,
+        retries: result.retries,
+      },
+      model_commitment: commitment,
+      provider_call: result,
+      tokens_used: (result.tokens_in ?? 0) + (result.tokens_out ?? 0),
+    };
   } catch (error: any) {
     logger.error('Model query failed:', { model, error: error.message });
     throw error;

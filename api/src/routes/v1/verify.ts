@@ -12,6 +12,9 @@ import {
 } from '../../../../shared/httpSchemas';
 import { CONSTANTS } from '../../../../shared/types';
 import { getIdempotencyRecord, setIdempotencyRecord } from '../../services/idempotency';
+import { createDebugTrace, endStage, startStage } from '../../../../shared/observability/debugTrace';
+import { storeDebugTrace } from '../../services/debugTraceStore';
+import { TraceContext } from '../../../../shared/observability/tracing';
 
 const router = Router();
 
@@ -80,6 +83,7 @@ function buildTimings(overrides?: Partial<TimingInfo>): TimingInfo {
  */
 router.post('/', requestValidators, async (req: Request, res: Response) => {
   const requestStart = Date.now();
+  const traceContext = (req as Request & { traceContext?: TraceContext }).traceContext;
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -158,6 +162,14 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     const { ethers } = require('ethers');
     const promptHash = ethers.keccak256(ethers.toUtf8Bytes(prompt));
 
+    const ingestTrace = createDebugTrace('pending', traceContext?.trace_id);
+    startStage(ingestTrace, 'ingest/validate', {
+      models,
+      taskType: task_type,
+      program_id: resolvedProgramId,
+      program_version: resolvedProgramVersion,
+    });
+
     const nowSeconds = Math.floor(Date.now() / 1000);
     const normalizedDeadline = deadline ? normalizeUnixSeconds(deadline, 'deadline') : undefined;
     const commitDeadline = resolveCommitDeadline({
@@ -194,6 +206,14 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     });
     const chainMs = Date.now() - submitStart;
 
+    ingestTrace.task_id = taskId;
+    endStage(ingestTrace, 'ingest/validate', 'ok', {
+      prompt_hash: promptHash,
+      task_id: taskId,
+    });
+
+    startStage(ingestTrace, 'enqueue', { queue: 'verification-jobs' });
+
     const queueStart = Date.now();
     await queueVerificationJob({
       jobId: taskId,
@@ -204,8 +224,20 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
       deadline: commitDeadline,
       programId: resolvedProgramId,
       programVersion: resolvedProgramVersion,
+      requestId: traceContext?.request_id,
+      traceContext: traceContext
+        ? {
+            trace_id: traceContext.trace_id,
+            span_id: traceContext.span_id,
+            request_id: traceContext.request_id,
+          }
+        : undefined,
+      enqueuedAt: Date.now(),
     });
     const queueMs = Date.now() - queueStart;
+
+    endStage(ingestTrace, 'enqueue', 'ok', { duration_ms: queueMs });
+    await storeDebugTrace(taskId, ingestTrace);
 
     const response: VerifyResponse = {
       task_id: taskId,
