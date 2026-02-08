@@ -20,6 +20,24 @@ describe('Program Fingerprinting', () => {
       { type: 'cross-check' },
       { type: 'score' },
     ],
+    scoring: {
+      method: 'weighted_sum',
+      components: [
+        { id: 'consistency', weight_bps: 4000 },
+        { id: 'agreement', weight_bps: 3000 },
+        { id: 'citation_quality', weight_bps: 2000 },
+        { id: 'factual_accuracy', weight_bps: 1000 },
+      ],
+    },
+    thresholds: {
+      pass_bps: 5000,
+      worthy_bps: 8000,
+    },
+    receipt: {
+      schema_version: '1',
+      receipt_version: '1.0.0',
+      explain_version: '1.0.0',
+    },
   };
 
   describe('computeProgramFingerprint', () => {
@@ -92,12 +110,24 @@ describe('Program Fingerprinting', () => {
         name: 'test',
         version: '1.0.0',
         steps: [{ type: 'prompt' as const }],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const program2 = {
         steps: [{ type: 'prompt' as const }],
         version: '1.0.0',
         name: 'test',
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const hash1 = computeProgramFingerprint(program1);
@@ -171,6 +201,12 @@ describe('Program Validation', () => {
         name: 'test',
         version: '1.0.0',
         steps: [{ type: 'prompt' }],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const result = validateProgram(program);
@@ -182,6 +218,12 @@ describe('Program Validation', () => {
       const program = {
         version: '1.0.0',
         steps: [{ type: 'prompt' }],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const result = validateProgram(program);
@@ -193,6 +235,12 @@ describe('Program Validation', () => {
       const program = {
         name: 'test',
         steps: [{ type: 'prompt' }],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const result = validateProgram(program);
@@ -205,6 +253,12 @@ describe('Program Validation', () => {
         name: 'test',
         version: '1.0.0',
         steps: [],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const result = validateProgram(program);
@@ -217,6 +271,12 @@ describe('Program Validation', () => {
         name: 'test',
         version: '1.0.0',
         steps: [{ type: 'invalid' }],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const result = validateProgram(program);
@@ -233,6 +293,12 @@ describe('Program Validation', () => {
           max_total_tokens: 1000,
           max_execution_ms: 30000,
         },
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const result = validateProgram(program);
@@ -245,6 +311,12 @@ describe('Program Validation', () => {
         name: 'test',
         version: '1.0.0',
         steps: [{ type: 'prompt' }],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       const result = validateProgram(program);
@@ -258,6 +330,12 @@ describe('Program Validation', () => {
         name: 'test',
         version: '1.0.0',
         steps: [{ type: 'prompt' }],
+        scoring: {
+          method: 'weighted_sum',
+          components: [{ id: 'consistency', weight_bps: 10000 }],
+        },
+        thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+        receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
       expect(isProgramDefinition(program)).toBe(true);

@@ -38,6 +38,9 @@ describe('VerificationReceipt', () => {
       version: '1.0.0',
       score_components: [],
       checks: {},
+      checks_fired: [],
+      uncertain_claims: [],
+      score_adjustments: [],
       contradictions_found: [],
       citation_checks: [],
       model_disagreement: {
@@ -189,6 +192,12 @@ describe('VerificationReceipt', () => {
           name: 'test-program',
           version: '1.0.0',
           steps: [{ type: 'prompt' }],
+          scoring: {
+            method: 'weighted_sum',
+            components: [{ id: 'consistency', weight_bps: 10000 }],
+          },
+          thresholds: { pass_bps: 5000, worthy_bps: 8000 },
+          receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
         },
       });
 

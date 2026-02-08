@@ -205,6 +205,26 @@ export interface ReceiptExplain {
     notes?: string;
   }>;
   checks: Record<string, unknown>;
+  checks_fired: Array<{
+    id: string;
+    severity: 'low' | 'medium' | 'high';
+    summary: string;
+    claim_id?: string;
+  }>;
+  uncertain_claims: Array<{
+    claim_id: string;
+    text: string;
+    confidence?: number;
+    reason: string;
+  }>;
+  score_adjustments: Array<{
+    component: string;
+    score_bps: number;
+    weight_bps?: number;
+    contribution_bps?: number;
+    direction: 'up' | 'down' | 'neutral';
+    reason?: string;
+  }>;
   contradictions_found: Array<{
     type: string;
     severity: string;
@@ -331,6 +351,9 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
       version: EXPLAIN_VERSION,
       score_components: [],
       checks: {},
+      checks_fired: [],
+      uncertain_claims: [],
+      score_adjustments: [],
       contradictions_found: [],
       citation_checks: [],
       model_disagreement: {

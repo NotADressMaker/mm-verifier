@@ -1,0 +1,138 @@
+{
+  "bundle": {
+    "schema_version": "1",
+    "version": "1.1.0",
+    "task_id": "task-001",
+    "bundle_version": "0.2",
+    "created_at": "2024-01-01T00:00:00Z",
+    "evaluator": {
+      "node_id": "node-test",
+      "eth_address": "0x1111111111111111111111111111111111111111",
+      "software": {
+        "name": "verifier-node",
+        "ver": "0.1.0",
+        "commit": "abc123"
+      }
+    },
+    "prompt_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "rubric_hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "model_runs": [],
+    "claims": [
+      {
+        "claim_id": "c1",
+        "text": "Earth orbits the Sun.",
+        "type": "factual",
+        "support": [
+          {
+            "url": "https://example.com/astronomy",
+            "snippet": "Earth revolves around the Sun.",
+            "quote_hash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        ],
+        "contradictions": [],
+        "confidence": 0.92
+      },
+      {
+        "claim_id": "c2",
+        "text": "Pluto is a planet.",
+        "type": "factual",
+        "support": [],
+        "contradictions": [
+          {
+            "url": "https://example.com/iau",
+            "snippet": "Pluto is classified as a dwarf planet.",
+            "quote_hash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ],
+        "confidence": 0.48
+      }
+    ],
+    "metrics": {
+      "consensus": {
+        "agreement": 0.55,
+        "clusters": 2,
+        "cluster_sizes": [1, 1]
+      },
+      "factuality": {
+        "supported_claim_ratio": 0.5,
+        "total_claims": 2,
+        "verified_claims": 1,
+        "contradicted_claims": 1
+      },
+      "citation_quality": {
+        "authority_score": 0.7,
+        "source_count": 2
+      },
+      "bias": {
+        "sensitive_variance": 0.1
+      },
+      "stability": {
+        "reask_delta": 0.2
+      }
+    },
+    "final_score_bps": 7600,
+    "explanation": "Mixed evidence for the provided claims.",
+    "signatures": {
+      "bundle_sig_eip712": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "input": {
+      "content_type": "text",
+      "content_hash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    "output": {
+      "content_type": "text",
+      "content_hash": "0xabababababababababababababababababababababababababababababababab"
+    },
+    "provenance": {
+      "model_runs": [
+        {
+          "provider": "openai",
+          "model": "gpt-4",
+          "prompt_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "response_hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "started_at": 1704067200,
+          "finished_at": 1704067205
+        },
+        {
+          "provider": "anthropic",
+          "model": "claude-3-sonnet",
+          "prompt_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "response_hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "started_at": 1704067201,
+          "finished_at": 1704067206
+        }
+      ]
+    },
+    "scoring_trace": {
+      "rubric_hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "score_bps": 7600,
+      "verdict": "mixed",
+      "breakdown": {
+        "consistency": 70,
+        "agreement": 55,
+        "citation_quality": 60,
+        "factual_accuracy": 80
+      },
+      "weights": {
+        "consistency": 0.3,
+        "agreement": 0.3,
+        "citation_quality": 0.2,
+        "factual_accuracy": 0.2
+      },
+      "generated_at": 1704067200
+    }
+  },
+  "context": {
+    "task_id": "task-001",
+    "input_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "output_hash": "0xabababababababababababababababababababababababababababababababab",
+    "bundle_hash": "0x9999999999999999999999999999999999999999999999999999999999999999",
+    "bundle_uri": "ipfs://bundle-fixture",
+    "bundle_version": "0.2",
+    "chain_id": 421614,
+    "contract_address": "0x1234567890abcdef1234567890abcdef12345678",
+    "llm_provider": "openai",
+    "llm_model": "gpt-4",
+    "program_hash": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+  }
+}

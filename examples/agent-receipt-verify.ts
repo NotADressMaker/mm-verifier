@@ -49,6 +49,24 @@ const agentProgram: ProgramDefinitionWithLimits = {
       description: 'Score the verification result',
     },
   ],
+  scoring: {
+    method: 'weighted_sum',
+    components: [
+      { id: 'consistency', weight_bps: 4000 },
+      { id: 'agreement', weight_bps: 3000 },
+      { id: 'citation_quality', weight_bps: 2000 },
+      { id: 'factual_accuracy', weight_bps: 1000 },
+    ],
+  },
+  thresholds: {
+    pass_bps: 5000,
+    worthy_bps: 8000,
+  },
+  receipt: {
+    schema_version: '1',
+    receipt_version: '1.0.0',
+    explain_version: '1.0.0',
+  },
   limits: {
     max_llm_calls: 5,
     max_total_tokens: 50000,

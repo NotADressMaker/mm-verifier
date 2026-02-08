@@ -51,6 +51,28 @@ export interface ProgramIO {
   required?: boolean;
 }
 
+export interface ProgramScoringComponent {
+  id: string;
+  description?: string;
+  weight_bps: number;
+}
+
+export interface ProgramScoringDefinition {
+  method: 'weighted_sum';
+  components: ProgramScoringComponent[];
+}
+
+export interface ProgramThresholds {
+  pass_bps: number;
+  worthy_bps: number;
+}
+
+export interface ProgramReceiptDefinition {
+  schema_version: '1';
+  receipt_version: string;
+  explain_version: string;
+}
+
 export interface ProgramDefinition {
   name: string;
   version: string;
@@ -58,6 +80,9 @@ export interface ProgramDefinition {
   inputs?: ProgramIO[];
   outputs?: ProgramIO[];
   steps: ProgramStep[];
+  scoring: ProgramScoringDefinition;
+  thresholds: ProgramThresholds;
+  receipt: ProgramReceiptDefinition;
 }
 
 export interface ProgramSummary {

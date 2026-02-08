@@ -51,6 +51,28 @@ export interface ProgramIO {
   required?: boolean;
 }
 
+export interface ProgramScoringComponent {
+  id: string;
+  description?: string;
+  weight_bps: number;
+}
+
+export interface ProgramScoringDefinition {
+  method: 'weighted_sum';
+  components: ProgramScoringComponent[];
+}
+
+export interface ProgramThresholds {
+  pass_bps: number;
+  worthy_bps: number;
+}
+
+export interface ProgramReceiptDefinition {
+  schema_version: '1';
+  receipt_version: string;
+  explain_version: string;
+}
+
 export interface ProgramDefinition {
   name: string;
   version: string;
@@ -58,6 +80,9 @@ export interface ProgramDefinition {
   inputs?: ProgramIO[];
   outputs?: ProgramIO[];
   steps: ProgramStep[];
+  scoring: ProgramScoringDefinition;
+  thresholds: ProgramThresholds;
+  receipt: ProgramReceiptDefinition;
 }
 
 export interface ProgramSummary {
@@ -120,10 +145,56 @@ export const ProgramStepSchema = {
   },
 } as const;
 
+export const ProgramScoringComponentSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['id', 'weight_bps'],
+  properties: {
+    id: { type: 'string' },
+    description: { type: 'string' },
+    weight_bps: { type: 'integer', minimum: 0, maximum: 10000 },
+  },
+} as const;
+
+export const ProgramScoringSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['method', 'components'],
+  properties: {
+    method: { type: 'string', enum: ['weighted_sum'] },
+    components: {
+      type: 'array',
+      minItems: 1,
+      items: ProgramScoringComponentSchema,
+    },
+  },
+} as const;
+
+export const ProgramThresholdsSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['pass_bps', 'worthy_bps'],
+  properties: {
+    pass_bps: { type: 'integer', minimum: 0, maximum: 10000 },
+    worthy_bps: { type: 'integer', minimum: 0, maximum: 10000 },
+  },
+} as const;
+
+export const ProgramReceiptSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['schema_version', 'receipt_version', 'explain_version'],
+  properties: {
+    schema_version: { type: 'string', enum: ['1'] },
+    receipt_version: { type: 'string' },
+    explain_version: { type: 'string' },
+  },
+} as const;
+
 export const ProgramDefinitionSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['name', 'version', 'steps'],
+  required: ['name', 'version', 'steps', 'scoring', 'thresholds', 'receipt'],
   properties: {
     name: { type: 'string' },
     version: { type: 'string' },
@@ -141,6 +212,9 @@ export const ProgramDefinitionSchema = {
       minItems: 1,
       items: ProgramStepSchema,
     },
+    scoring: ProgramScoringSchema,
+    thresholds: ProgramThresholdsSchema,
+    receipt: ProgramReceiptSchema,
   },
 } as const;
 

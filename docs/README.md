@@ -45,6 +45,9 @@ ReceiptV1 is the canonical artifact emitted by verification programs. It is vers
     "version": "1.0.0",
     "score_components": [],
     "checks": {},
+    "checks_fired": [],
+    "uncertain_claims": [],
+    "score_adjustments": [],
     "contradictions_found": [],
     "citation_checks": [],
     "model_disagreement": {
@@ -72,6 +75,9 @@ The `explain` object is stable, machine-readable, and versioned.
 
 - `score_components`: Array of named score components with optional weights
 - `checks`: Extensible namespace for checks (`citations`, `contradictions`, `disagreement`, `policy`)
+- `checks_fired`: Summary list of checks that triggered during verification
+- `uncertain_claims`: Claim-level uncertainty list with reasons
+- `score_adjustments`: Component-level score contributions and direction
 - `contradictions_found`: Structured contradictions list
 - `citation_checks`: Per-claim citation verdicts
 - `model_disagreement`: Agreement rates and clusters

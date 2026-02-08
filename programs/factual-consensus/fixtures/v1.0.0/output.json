@@ -1,0 +1,170 @@
+{
+  "schema_version": "1",
+  "version": "1.0.0",
+  "receipt_version": "1.0.0",
+  "task_id": "task-001",
+  "generated_at": 1704067200,
+  "input_hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "output_hash": "0xabababababababababababababababababababababababababababababababab",
+  "score_bps": 7600,
+  "verdict": true,
+  "worthy": false,
+  "program": {
+    "id": "factual-consensus",
+    "version": "1.0.0",
+    "hash": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+  },
+  "evidence": {
+    "bundle_hash": "0x9999999999999999999999999999999999999999999999999999999999999999",
+    "bundle_uri": "ipfs://bundle-fixture",
+    "bundle_version": "0.2"
+  },
+  "provenance": {
+    "llm_provider": "openai",
+    "llm_model": "gpt-4"
+  },
+  "chain_context": {
+    "chain_id": 421614,
+    "contract_address": "0x1234567890abcdef1234567890abcdef12345678",
+    "finalized_at": 1704067200,
+    "block_number": 0,
+    "tx_hash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "explain": {
+    "version": "1.0.0",
+    "score_components": [
+      {
+        "name": "consistency",
+        "score_bps": 7000,
+        "weight_bps": 3000
+      },
+      {
+        "name": "agreement",
+        "score_bps": 5500,
+        "weight_bps": 3000
+      },
+      {
+        "name": "citation_quality",
+        "score_bps": 6000,
+        "weight_bps": 2000
+      },
+      {
+        "name": "factual_accuracy",
+        "score_bps": 8000,
+        "weight_bps": 2000
+      }
+    ],
+    "checks": {
+      "citations": {
+        "total_claims": 2,
+        "checked_claims": 2
+      },
+      "contradictions": {
+        "contradictions_found": 1
+      },
+      "disagreement": {
+        "agreement_rate": 0.55
+      },
+      "policy": {}
+    },
+    "checks_fired": [
+      {
+        "id": "citation-contradiction:c2",
+        "severity": "medium",
+        "summary": "Contradictory citations for claim: Pluto is a planet.",
+        "claim_id": "c2"
+      },
+      {
+        "id": "low-model-agreement",
+        "severity": "medium",
+        "summary": "Model agreement rate below target: 0.55"
+      }
+    ],
+    "uncertain_claims": [
+      {
+        "claim_id": "c2",
+        "text": "Pluto is a planet.",
+        "confidence": 0.48,
+        "reason": "low_confidence"
+      }
+    ],
+    "score_adjustments": [
+      {
+        "component": "consistency",
+        "score_bps": 7000,
+        "weight_bps": 3000,
+        "contribution_bps": 2100,
+        "direction": "up",
+        "reason": "above-neutral"
+      },
+      {
+        "component": "agreement",
+        "score_bps": 5500,
+        "weight_bps": 3000,
+        "contribution_bps": 1650,
+        "direction": "up",
+        "reason": "above-neutral"
+      },
+      {
+        "component": "citation_quality",
+        "score_bps": 6000,
+        "weight_bps": 2000,
+        "contribution_bps": 1200,
+        "direction": "up",
+        "reason": "above-neutral"
+      },
+      {
+        "component": "factual_accuracy",
+        "score_bps": 8000,
+        "weight_bps": 2000,
+        "contribution_bps": 1600,
+        "direction": "up",
+        "reason": "above-neutral"
+      }
+    ],
+    "contradictions_found": [
+      {
+        "type": "claim-contradiction",
+        "severity": "medium",
+        "summary": "Contradictions found for claim: Pluto is a planet.",
+        "evidence_refs": [
+          "https://example.com/iau"
+        ]
+      }
+    ],
+    "citation_checks": [
+      {
+        "claim": "Earth orbits the Sun.",
+        "sources": [
+          "https://example.com/astronomy"
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim": "Pluto is a planet.",
+        "sources": [
+          "https://example.com/iau"
+        ],
+        "verdict": "unsupported",
+        "notes": "No supporting citations found."
+      }
+    ],
+    "model_disagreement": {
+      "models": [
+        "openai:gpt-4",
+        "anthropic:claude-3-sonnet"
+      ],
+      "agreement_rate": 0.55,
+      "clusters": [
+        {
+          "cluster": 1,
+          "size": 1
+        },
+        {
+          "cluster": 2,
+          "size": 1
+        }
+      ]
+    }
+  }
+}

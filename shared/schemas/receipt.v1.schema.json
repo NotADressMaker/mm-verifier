@@ -154,14 +154,17 @@
     "explain": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "version",
-        "score_components",
-        "checks",
-        "contradictions_found",
-        "citation_checks",
-        "model_disagreement"
-      ],
+        "required": [
+          "version",
+          "score_components",
+          "checks",
+          "checks_fired",
+          "uncertain_claims",
+          "score_adjustments",
+          "contradictions_found",
+          "citation_checks",
+          "model_disagreement"
+        ],
       "properties": {
         "version": { "const": "1.0.0" },
         "score_components": {
@@ -186,6 +189,50 @@
             "contradictions": { "type": "object", "additionalProperties": true },
             "disagreement": { "type": "object", "additionalProperties": true },
             "policy": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "checks_fired": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "severity", "summary"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+              "summary": { "type": "string", "minLength": 1, "maxLength": 2048 },
+              "claim_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+            }
+          }
+        },
+        "uncertain_claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["claim_id", "text", "reason"],
+            "properties": {
+              "claim_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "text": { "type": "string", "minLength": 1, "maxLength": 2048 },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "reason": { "type": "string", "minLength": 1, "maxLength": 256 }
+            }
+          }
+        },
+        "score_adjustments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["component", "score_bps", "direction"],
+            "properties": {
+              "component": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+              "weight_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+              "contribution_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+              "direction": { "type": "string", "enum": ["up", "down", "neutral"] },
+              "reason": { "type": "string", "maxLength": 2048 }
+            }
           }
         },
         "contradictions_found": {

@@ -1,0 +1,67 @@
+{
+  "name": "Factual Consensus",
+  "version": "1.0.0",
+  "description": "Multi-model consensus verification for factual claims.",
+  "inputs": [
+    {
+      "name": "evidence_bundle",
+      "type": "EvidenceBundle",
+      "description": "Normalized evidence bundle with claims, metrics, and model runs.",
+      "required": true
+    },
+    {
+      "name": "program_context",
+      "type": "ProgramContext",
+      "description": "Execution context including hashes, provenance, and chain metadata.",
+      "required": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "verification_receipt",
+      "type": "VerificationReceipt",
+      "description": "Canonical receipt containing score, verdict, and explainability.",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "id": "claims",
+      "type": "evidence",
+      "description": "Extract and normalize claims from the evidence bundle."
+    },
+    {
+      "id": "consensus",
+      "type": "consensus",
+      "description": "Assess cross-model agreement and contradictions."
+    },
+    {
+      "id": "scoring",
+      "type": "score",
+      "description": "Combine component scores into a final basis-point score."
+    },
+    {
+      "id": "receipt",
+      "type": "evidence",
+      "description": "Emit a verification receipt with explainability metadata."
+    }
+  ],
+  "scoring": {
+    "method": "weighted_sum",
+    "components": [
+      { "id": "consistency", "description": "Internal consistency of claims.", "weight_bps": 3000 },
+      { "id": "agreement", "description": "Cross-model agreement score.", "weight_bps": 3000 },
+      { "id": "citation_quality", "description": "Citation quality and coverage.", "weight_bps": 2000 },
+      { "id": "factual_accuracy", "description": "Claim-level factual accuracy.", "weight_bps": 2000 }
+    ]
+  },
+  "thresholds": {
+    "pass_bps": 5000,
+    "worthy_bps": 8000
+  },
+  "receipt": {
+    "schema_version": "1",
+    "receipt_version": "1.0.0",
+    "explain_version": "1.0.0"
+  }
+}

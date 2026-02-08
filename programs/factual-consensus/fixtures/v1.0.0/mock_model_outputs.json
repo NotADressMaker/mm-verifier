@@ -1,0 +1,16 @@
+[
+  {
+    "provider": "openai",
+    "model": "gpt-4",
+    "temperature": 0.2,
+    "raw_output": "Answer A",
+    "output_hash": "0x1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  {
+    "provider": "anthropic",
+    "model": "claude-3-sonnet",
+    "temperature": 0.2,
+    "raw_output": "Answer B",
+    "output_hash": "0x2222222222222222222222222222222222222222222222222222222222222222"
+  }
+]
