@@ -19,6 +19,7 @@ export async function queueVerificationJob(jobData: {
   deadline: number;
   programId?: string;
   programVersion?: string;
+  storeEvidence?: boolean;
   requestId?: string;
   traceContext?: {
     trace_id: string;
@@ -43,7 +44,7 @@ export async function queueVerificationJob(jobData: {
       queueJobId: job.id,
     });
 
-    apiMetrics.metrics.queueDepth.labels('verification-jobs').set(
+    apiMetrics.metrics.queueDepth.labels('verification-jobs').set?.(
       await verificationQueue.getWaitingCount()
     );
 
@@ -86,8 +87,8 @@ setInterval(async () => {
       verificationQueue.getWaitingCount(),
       verificationQueue.getActiveCount(),
     ]);
-    apiMetrics.metrics.queueDepth.labels('verification-jobs').set(waiting);
-    apiMetrics.metrics.activeJobs.set(active);
+    apiMetrics.metrics.queueDepth.labels('verification-jobs').set?.(waiting);
+    apiMetrics.metrics.activeJobs.set?.(active);
   } catch (error) {
     logger.error('Failed to collect queue metrics', { error });
   }

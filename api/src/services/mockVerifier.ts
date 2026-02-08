@@ -17,9 +17,18 @@ export async function createMockJob(params: {
   programId?: string;
   programVersion?: string;
   scenario: MockJobRecord['scenario'];
+  storeEvidence?: boolean;
 }): Promise<MockJobRecord> {
   const client = getRedisClient();
-  const record = buildMockJobRecord(params);
+  const allowPlaintext = process.env.ALLOW_PLAINTEXT_STORAGE === 'true';
+  const hashedOnlyDefault = process.env.HASHED_ONLY_DEFAULT !== 'false';
+  const shouldStoreEvidence =
+    typeof params.storeEvidence === 'boolean' ? params.storeEvidence : !hashedOnlyDefault;
+  const record = buildMockJobRecord({
+    ...params,
+    includePrompt: allowPlaintext && shouldStoreEvidence,
+    storageMode: shouldStoreEvidence ? 'encrypted' : 'hashed-only',
+  });
 
   await client.set(MOCK_REDIS_KEYS.job(params.jobId), JSON.stringify(record));
   await client.rPush(MOCK_REDIS_KEYS.jobs, params.jobId);

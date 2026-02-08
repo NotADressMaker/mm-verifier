@@ -1,0 +1,16 @@
+{
+  "responses": [
+    {
+      "model_id": "openai:gpt-4",
+      "text": "The Eiffel Tower is in Paris. It was completed in 1889. Source: https://www.toureiffel.paris/en."
+    },
+    {
+      "model_id": "anthropic:claude-3",
+      "text": "The Eiffel Tower is in Paris. It opened in 1889. [1] https://www.toureiffel.paris/en"
+    },
+    {
+      "model_id": "google:gemini-pro",
+      "text": "The Eiffel Tower is not in Paris. It was completed in 1899. Source: https://example.com/alt"
+    }
+  ]
+}

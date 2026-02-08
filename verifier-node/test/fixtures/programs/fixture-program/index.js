@@ -46,6 +46,14 @@ const program = {
     explain: {
       version: '1.0.0',
       score_components: [],
+      score_components_detail: {
+        coverage_bps: 0,
+        contradiction_penalty_bps: 0,
+        citation_quality_bps: 0,
+        final_score_bps: 0,
+      },
+      claim_summary: [],
+      highlights: [],
       checks: {},
       checks_fired: [],
       uncertain_claims: [],

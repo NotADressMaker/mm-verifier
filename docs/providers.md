@@ -57,27 +57,30 @@ Weights are dynamically down-weighted when error rates spike or circuit breakers
 
 ## Claim Graph
 
-The Claim Graph lives in `shared/claim_graph`:
+The Claim Graph lives in `shared/claim_graph` and operates at the claim level:
 
-* Nodes represent atomic claims and citation references.
-* Edges represent citations and contradictions.
+* Claims: atomic assertions with optional subject–predicate–object fields.
+* Citations: extracted URLs with domain metadata.
+* Support edges: which models support which claims.
+* Contradiction edges: negation or numeric conflicts across aligned claims.
 
 Deterministic extraction rules:
 
-1. Split text into sentences.
-2. Create claim nodes from each sentence.
-3. Detect URLs as citations.
-4. Apply simple subject/predicate/object parsing for “X is/has/causes Y”.
+1. Split text into sentences/clauses.
+2. Extract atomic claims (SPO when possible, otherwise sentence-level text).
+3. Detect URLs, bracketed citations, and “Source:” lines.
+4. Attach citations to the nearest claim by position.
 
 Limitations: this MVP uses heuristic parsing (no LLM dependency) and may treat whole
 sentences as claims when extraction is ambiguous.
 
 ## Claim Graph scoring
 
-The verifier-node builds claim graphs per provider response to compute:
+The verifier-node builds a claim-level graph across model responses to compute:
 
-* agreement ratio (weighted by provider trust)
-* contradiction count
-* citation coverage
+* claim coverage (core claims supported by a majority)
+* contradiction penalty (severity-weighted, core claims penalized more)
+* citation quality (presence, overlap, and domain heuristics)
 
-These are surfaced in receipt explainability payloads and debug traces.
+These are surfaced in receipt explainability payloads and debug traces, including a
+per-claim summary and highlights describing score drivers.

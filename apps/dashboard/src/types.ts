@@ -5,7 +5,7 @@ export type JobRecord = {
   status: string;
   createdAt: string;
   updatedAt: string;
-  prompt: string;
+  prompt?: string;
   promptHash: string;
   models: string[];
   taskType: string;
@@ -14,6 +14,7 @@ export type JobRecord = {
   statusHistory?: Array<{ status: string; timestamp: string }>;
   scoreBps?: number;
   verdict?: boolean;
+  storage_mode?: 'hashed-only' | 'encrypted';
 };
 
 export type Receipt = VerificationReceipt;

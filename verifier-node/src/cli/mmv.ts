@@ -1,6 +1,7 @@
 import { runAuditorCli } from './auditor';
 import { encryptBundleCli, decryptBundleCli } from './privacy';
 import { runBenchmarkCli } from './benchmark';
+import { runAdminCli } from './admin';
 
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -25,9 +26,12 @@ async function main() {
       process.exit(1);
       break;
     }
+    case 'admin':
+      await runAdminCli(rest);
+      break;
     default:
       process.stderr.write(
-        'Usage: mmv <auditor|encrypt-bundle|decrypt-bundle|benchmark> [args]\n'
+        'Usage: mmv <auditor|encrypt-bundle|decrypt-bundle|benchmark|admin> [args]\n'
       );
       process.exit(1);
   }

@@ -632,9 +632,12 @@ function challengeResult(
 ## Privacy Mode
 
 For sensitive prompts:
-- Encrypted offchain storage
+- Hashed-only storage by default (no plaintext prompts/outputs persisted)
+- Encrypted evidence bundles at rest when `store_evidence: true`
 - Onchain commitments only
 - ZK proofs for scoring verification (future)
+
+See [docs/privacy.md](docs/privacy.md) for the full data minimization and retention policy.
 
 ## Development Roadmap
 

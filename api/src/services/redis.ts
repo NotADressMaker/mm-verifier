@@ -58,9 +58,9 @@ export async function getCachedJobResult(jobId: string) {
   try {
     const cached = await redisClient.get(`job:${jobId}`);
     if (cached) {
-      apiMetrics.metrics.cacheHitsTotal.labels('job').inc();
+      apiMetrics.metrics.cacheHitsTotal.labels('job').inc?.();
     } else {
-      apiMetrics.metrics.cacheMissesTotal.labels('job').inc();
+      apiMetrics.metrics.cacheMissesTotal.labels('job').inc?.();
     }
     return cached ? JSON.parse(cached) : null;
   } catch (error) {

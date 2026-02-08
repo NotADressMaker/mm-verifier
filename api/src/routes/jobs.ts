@@ -200,6 +200,21 @@ router.get('/:jobId/bundle', async (req: Request, res: Response) => {
       });
     }
 
+    const job = await getMockJob(jobId);
+    if (job?.storage_mode === 'hashed-only') {
+      return res.status(404).json({
+        error: 'Not Stored',
+        message: 'Evidence stored in hashed-only mode',
+      });
+    }
+
+    if (job?.storage_mode === 'encrypted') {
+      return res.status(404).json({
+        error: 'Not Stored',
+        message: 'Evidence stored encrypted; plaintext retrieval is disabled',
+      });
+    }
+
     const bundle = await getMockBundle(jobId);
     if (!bundle) {
       return res.status(404).json({
