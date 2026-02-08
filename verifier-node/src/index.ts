@@ -1,4 +1,5 @@
 import * as dotenv from 'dotenv';
+import path from 'path';
 import { logger } from './utils/logger';
 import { initializeBlockchain } from './services/blockchain';
 import { startJobProcessor } from './services/jobProcessor';
@@ -7,7 +8,8 @@ import { startMockJobProcessor } from './services/mockJobProcessor';
 import { startMetricsServer } from './services/metricsServer';
 import { purgeEncryptedEvidence } from './evidence/evidenceStorage';
 
-dotenv.config({ path: '../.env' });
+dotenv.config({ path: path.resolve(__dirname, '../../.env.runtime') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
 
 async function main() {
   try {

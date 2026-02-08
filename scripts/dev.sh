@@ -4,28 +4,31 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if [[ -f .env ]]; then
+if [[ -f .env.runtime ]]; then
   set -a
-  source .env
+  source .env.runtime
   set +a
 fi
 
+DOCKER_ENV_FILE="${DOCKER_ENV_FILE:-.env.runtime}"
+
 MOCK_VERIFIER="${MOCK_VERIFIER:-true}"
 MOCK_CHAIN="${MOCK_CHAIN:-true}"
+CHAIN_MODE="${CHAIN_MODE:-${MOCK_CHAIN:-true}}"
 MOCK_SCENARIO="${MOCK_SCENARIO:-happy}"
 MOCK_VERIFIER_DELAY_MS="${MOCK_VERIFIER_DELAY_MS:-150}"
 
 services=(redis)
 if [[ "$MOCK_VERIFIER" != "true" ]]; then
   services+=(postgres ipfs)
-  if [[ "$MOCK_CHAIN" != "true" ]]; then
+  if [[ "$CHAIN_MODE" == "local" ]]; then
     services+=(hardhat)
   fi
 fi
 
 if [[ "${#services[@]}" -gt 0 ]]; then
   echo "Starting infrastructure: ${services[*]}"
-  docker-compose up -d "${services[@]}"
+  docker-compose --env-file "$DOCKER_ENV_FILE" up -d "${services[@]}"
 fi
 
 pids=()
@@ -40,6 +43,7 @@ run_with_prefix() {
 
 export MOCK_VERIFIER
 export MOCK_CHAIN
+export CHAIN_MODE
 export MOCK_SCENARIO
 export MOCK_VERIFIER_DELAY_MS
 
