@@ -274,6 +274,8 @@ function verifyBundleIntegrity(bundle: EvidenceBundle, expectedCid: string): boo
     // In production, would verify CID matches content hash
     // For now, just check bundle has required fields
     const requiredFields = [
+      'schema_version',
+      'version',
       'task_id',
       'bundle_version',
       'created_at',

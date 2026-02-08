@@ -18,6 +18,7 @@ import { VerifiedPlaintextStatement } from './types';
 
 export const RECEIPT_VERSION = '1.0.0' as const;
 export const EXPLAIN_VERSION = '1.0.0' as const;
+export const RECEIPT_SCHEMA_VERSION = '1' as const;
 
 // ============================================================================
 // Verification Receipt
@@ -27,6 +28,9 @@ export const EXPLAIN_VERSION = '1.0.0' as const;
  * Canonical verification receipt schema
  */
 export interface VerificationReceipt {
+  /** Schema version for compatibility checks */
+  schema_version: typeof RECEIPT_SCHEMA_VERSION;
+
   /** Schema version for the receipt payload */
   version: typeof RECEIPT_VERSION;
 
@@ -234,6 +238,7 @@ export interface ReceiptExplain {
  * Fields included in receipt hash (order matters for determinism)
  */
 const RECEIPT_HASH_FIELDS = [
+  'schema_version',
   'version',
   'receipt_version',
   'task_id',
@@ -335,6 +340,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     };
 
   const receipt: VerificationReceipt = {
+    schema_version: RECEIPT_SCHEMA_VERSION,
     version: RECEIPT_VERSION,
     receipt_version: RECEIPT_VERSION,
     task_id: params.task_id,
@@ -432,6 +438,10 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
 
   if (!isLegacy && r.version !== RECEIPT_VERSION) {
     errors.push(`version must be "${RECEIPT_VERSION}"`);
+  }
+
+  if (!isLegacy && r.schema_version !== RECEIPT_SCHEMA_VERSION) {
+    errors.push(`schema_version must be "${RECEIPT_SCHEMA_VERSION}"`);
   }
 
   // Required fields

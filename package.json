@@ -41,6 +41,7 @@
     "api",
     "verifier-node",
     "shared",
+    "packages/receipt-verifier",
     "packages/sdk-js"
   ],
   "devDependencies": {

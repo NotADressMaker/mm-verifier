@@ -160,7 +160,8 @@ export function buildMockEvidenceBundle(params: {
   const claims = buildMockClaims(output);
 
   return {
-    version: '1.1.0',
+    schema_version: '1',
+    version: '1.0.0',
     task_id: params.taskId,
     bundle_version: '0.1',
     created_at: new Date().toISOString(),

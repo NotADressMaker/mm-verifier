@@ -22,6 +22,7 @@ function buildReplayBundle(): EvidenceBundle {
   const systemPromptHash = ('0x' + '88'.repeat(32)) as `0x${string}`;
 
   return {
+    schema_version: '1',
     version: '1.1.0',
     task_id: 'task-replay',
     bundle_version: '0.3',

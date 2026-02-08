@@ -14,6 +14,7 @@ import {
 
 describe('VerificationReceipt', () => {
   const sampleReceipt: VerificationReceipt = {
+    schema_version: '1',
     version: '1.0.0',
     receipt_version: '1.0.0',
     task_id: '12345',

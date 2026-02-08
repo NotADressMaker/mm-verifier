@@ -9,9 +9,10 @@
 
 export interface EvidenceBundleV01 {
   // Metadata
-  version: '1.0.0' | '1.1.0';
+  schema_version: '1';
+  version: '1.0.0';
   task_id: number | string;
-  bundle_version: '0.1';
+  bundle_version: '0.1' | '0.2';
   created_at: string;              // ISO 8601 timestamp
 
   // Evaluator information
@@ -201,6 +202,7 @@ export interface ScoringTrace {
 }
 
 export interface EvidenceBundleV02 extends EvidenceBundleV01 {
+  version: '1.1.0';
   bundle_version: '0.2';
   input: EvidenceBundleContent;
   output: EvidenceBundleContent;

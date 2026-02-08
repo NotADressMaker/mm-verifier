@@ -4,6 +4,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "schema_version",
     "version",
     "receipt_version",
     "task_id",
@@ -13,12 +14,12 @@
     "score_bps",
     "verdict",
     "worthy",
-    "program",
     "evidence",
     "provenance",
     "explain"
   ],
   "properties": {
+    "schema_version": { "const": "1" },
     "version": { "const": "1.0.0" },
     "receipt_version": { "const": "1.0.0" },
     "task_id": { "type": "string", "minLength": 1, "maxLength": 128 },
