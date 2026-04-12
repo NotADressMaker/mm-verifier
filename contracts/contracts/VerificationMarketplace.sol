@@ -6,6 +6,7 @@ import "./libraries/VerifierTypes.sol";
 import "./libraries/VerifierHash.sol";
 import "./interfaces/IVerifierMining.sol";
 import "./interfaces/IVerifierRewards.sol";
+import "./interfaces/IStakingManager.sol";
 import "./interfaces/ITruthChain.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -30,11 +31,15 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     uint256 public disputeBond;       // WETH posted to open dispute
     uint256 public protocolFeeBps = 500; // 5%
     uint256 public nonRevealSlashBps = 10_000; // 100%
+    uint16 public disputeSlashThresholdBps = 500; // 5%
+    uint256 public stakeLockAmount = 0.1 ether;
 
     address public miningContract;
     address public rewardsDistributor;
     address public truthChain;
+    address public stakingManager;
     bool public truthChainEnabled;
+    bool public stakingEnforced;
 
     enum TaskState { Open, Reveal, Provisional, Disputed, Resolved }
 
@@ -45,6 +50,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         uint16 scoreBps;        // 0..10000
         bytes32 bundleHash;     // hash of bundle json/cbor
         string bundleURI;       // optional ipfs/arweave
+        uint256 lockedStakeAmount; // optional ETH stake lock via StakingManager
     }
 
     struct Task {
@@ -120,6 +126,8 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     event MiningContractSet(address indexed miningContract);
     event RewardsDistributorSet(address indexed rewardsDistributor);
     event NonRevealSlashed(uint256 indexed taskId, address indexed evaluator, uint256 slashedAmount);
+    event StakeManagerSet(address indexed stakingManager, bool enforced, uint256 lockAmount, uint16 disputeSlashThresholdBps);
+    event EvaluatorStakeSlashed(uint256 indexed taskId, address indexed evaluator, uint256 slashedAmount, uint256 scoreDiffBps);
     event ReputationUpdated(
         address indexed verifier,
         uint256 totalEvals,
@@ -162,6 +170,20 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
     function setTruthChain(address _truthChain, bool _enabled) external onlyOwner {
         truthChain = _truthChain;
         truthChainEnabled = _enabled;
+    }
+
+    function setStakingManager(
+        address _stakingManager,
+        bool _enforced,
+        uint256 _lockAmount,
+        uint16 _disputeSlashThresholdBps
+    ) external onlyOwner {
+        require(_disputeSlashThresholdBps <= 10_000, "threshold too high");
+        stakingManager = _stakingManager;
+        stakingEnforced = _enforced;
+        stakeLockAmount = _lockAmount;
+        disputeSlashThresholdBps = _disputeSlashThresholdBps;
+        emit StakeManagerSet(_stakingManager, _enforced, _lockAmount, _disputeSlashThresholdBps);
     }
 
     function getTaskMeta(uint256 taskId)
@@ -262,6 +284,19 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         require(t.evaluators.length < t.maxEvals, "max evals");
         Evaluation storage e = t.evals[msg.sender];
         require(!e.committed, "already committed");
+
+        if (stakingManager != address(0)) {
+            if (stakingEnforced) {
+                require(
+                    IStakingManager(stakingManager).hasVerifierStake(msg.sender),
+                    "verifier stake required"
+                );
+            }
+            if (stakeLockAmount > 0) {
+                IStakingManager(stakingManager).lockStake(msg.sender, stakeLockAmount, bytes32(taskId));
+                e.lockedStakeAmount = stakeLockAmount;
+            }
+        }
 
         // post evaluator bond
         WETH.transferFrom(msg.sender, address(this), evalBond);
@@ -444,6 +479,32 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
         uint256 n = t.evaluators.length;
         uint16 finalScore = t.finalScoreBps;
+
+        for (uint256 i = 0; i < n; i++) {
+            address ev = t.evaluators[i];
+            Evaluation storage e = t.evals[ev];
+            uint256 lockedAmount = e.lockedStakeAmount;
+            if (stakingManager == address(0) || lockedAmount == 0) continue;
+
+            uint256 remainingToUnlock = lockedAmount;
+            if (disputed && e.revealed) {
+                uint256 diff = e.scoreBps > finalScore ? (e.scoreBps - finalScore) : (finalScore - e.scoreBps);
+                if (diff > disputeSlashThresholdBps) {
+                    uint256 slashedAmount = IStakingManager(stakingManager).slash(ev, "DISPUTE_INCORRECT_EVAL");
+                    if (slashedAmount >= remainingToUnlock) {
+                        remainingToUnlock = 0;
+                    } else {
+                        remainingToUnlock -= slashedAmount;
+                    }
+                    emit EvaluatorStakeSlashed(taskId, ev, slashedAmount, diff);
+                }
+            }
+
+            if (remainingToUnlock > 0) {
+                IStakingManager(stakingManager).unlockStake(ev, remainingToUnlock, bytes32(taskId));
+            }
+            e.lockedStakeAmount = 0;
+        }
 
         // pay evaluators: equal split among revealers + small "accuracy bonus"
         // bonus: within 250 bps of final score gets +20% share weight
