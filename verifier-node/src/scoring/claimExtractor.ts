@@ -7,20 +7,21 @@ import { logger } from '../utils/logger';
 export function extractClaims(text: string): string[] {
   const claims: string[] = [];
 
-  // Split by sentences
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  // Split by sentences while preserving punctuation for intent checks
+  const sentences = text.match(/[^.!?]+[.!?]?/g) ?? [];
 
   for (const sentence of sentences) {
     const trimmed = sentence.trim();
+    const normalized = trimmed.replace(/[.!?]+$/, '').trim();
 
     // Filter out questions, commands, and very short sentences
     if (
-      trimmed.length > 20 &&
+      normalized.length > 20 &&
       !trimmed.endsWith('?') &&
-      !trimmed.match(/^(please|let|try|consider)/i)
+      !normalized.match(/^(please|let|try|consider)\b/i)
     ) {
       // This is likely a factual claim
-      claims.push(trimmed);
+      claims.push(normalized);
     }
   }
 
@@ -53,8 +54,8 @@ export function compareClaims(claims1: string[], claims2: string[]): number {
  * Check if two claims are similar
  */
 function claimsSimilar(claim1: string, claim2: string): boolean {
-  const words1 = new Set(claim1.toLowerCase().split(/\s+/));
-  const words2 = new Set(claim2.toLowerCase().split(/\s+/));
+  const words1 = new Set(tokenizeClaim(claim1));
+  const words2 = new Set(tokenizeClaim(claim2));
 
   const intersection = new Set([...words1].filter((x) => words2.has(x)));
   const union = new Set([...words1, ...words2]);
@@ -62,4 +63,12 @@ function claimsSimilar(claim1: string, claim2: string): boolean {
   const similarity = intersection.size / union.size;
 
   return similarity > 0.5;
+}
+
+function tokenizeClaim(claim: string): string[] {
+  return claim
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.replace(/^[^\w]+|[^\w]+$/g, ''))
+    .filter((token) => token.length > 0);
 }
