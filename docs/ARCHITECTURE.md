@@ -58,19 +58,19 @@ MMV is a decentralized marketplace for verifying AI model outputs with economic 
 - Quick resolution for invalid submissions
 
 **Tier 1 - Auditor Review**:
-- VRF-selected committee (3 auditors)
+- VRF-selected committee (default: 5 auditors / L1)
 - Majority vote determines outcome
 - 3-day voting period
 
 **Tier 2+ - Appeals**:
-- Larger committee (5+ auditors)
-- Escalating stakes (doubles each tier)
+- Larger fixed committees (default: 15 auditors / L2, 51 auditors / L3)
+- Fixed appeal bonds by tier (default: 0.05 / 0.10 / 0.20 WETH)
 - Makes griefing expensive
 
 **Economics**:
-- Challenger wins: Gets 60% of slashed stake
-- Auditors: Get 40% of slashed stake
-- Verifier wins: Gets challenger's stake
+- Jurors collectively receive 20% of dispute economics
+- Winner side (challenger or verifier) receives 80%
+- VerifierMarketplace can optionally lock and slash verifier stake on disputed inaccurate evaluations when `StakingManager` integration is enabled
 
 ### 2. API Layer (TypeScript/Express)
 

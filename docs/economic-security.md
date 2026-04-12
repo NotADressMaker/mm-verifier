@@ -46,7 +46,7 @@ Honest behavior should be a best response when the **expected penalty of lying**
 
 **Expected loss from lying**  
 `E[loss] ≥ p_detect * σ * s + p_detect * (foregone rewards)`  
-In the current contracts, **evaluation bonds are returned at finalize regardless of accuracy** in `VerifierMarketplace`, so `σ*s` only applies if stake slashing is wired in (see “Known Gaps”). As of now, honest incentives are primarily driven by:
+In the current contracts, `VerifierMarketplace` still returns evaluation bonds at finalize, but it can now optionally integrate with `StakingManager` to lock verifier stake at commit and slash disputed inaccurate evaluations at resolution. If that integration is disabled, `σ*s` does not apply and honest incentives are primarily driven by:
 - **Reward upside** (accuracy bonuses around the median).
 - **Dispute bonds** and juror penalties, when disputes are opened in `DisputeLadder`.
 
@@ -149,4 +149,5 @@ The script prints:
 
 ## Notes on current implementation
 
-- `VerifierMarketplace` currently returns evaluation bonds even for inaccurate evaluations; slashing is not yet wired into disputes. This makes dispute bonds and reward incentives the primary on-chain deterrents for dishonest behavior. See `docs/KNOWN_GAPS.md` for mismatches and follow-ups.
+- `VerifierMarketplace` returns evaluation bonds even for inaccurate evaluations, but can additionally enforce stake lock + dispute-time slashing via `setStakingManager(...)`.
+- If staking integration is disabled, dispute bonds and reward incentives remain the primary on-chain deterrents for dishonest behavior.
