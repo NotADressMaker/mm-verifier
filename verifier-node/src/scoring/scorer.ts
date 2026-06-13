@@ -14,6 +14,7 @@ export interface ScoringResult {
     agreement: number;
     citationQuality: number;
     factualAccuracy: number;
+    similarityBonus: number;
   };
   claim_graph: {
     agreement_ratio: number;
@@ -123,12 +124,13 @@ export async function scoreVerification(
       factualAccuracy: 0.2,
     };
 
-    const finalScore = Math.round(
+    const baseScore =
       consistency * weights.consistency +
-        agreement * weights.agreement +
-        citationQuality * weights.citationQuality +
-        factualAccuracy * weights.factualAccuracy
-    );
+      agreement * weights.agreement +
+      citationQuality * weights.citationQuality +
+      factualAccuracy * weights.factualAccuracy;
+    const similarityBonus = calculateSimilarityBonus(consistency, responses.length);
+    const finalScore = Math.min(100, Math.round(baseScore + similarityBonus));
 
     // Calculate confidence based on variance
     const scores = [consistency, agreement, citationQuality, factualAccuracy];
@@ -155,6 +157,7 @@ export async function scoreVerification(
         agreement,
         citationQuality,
         factualAccuracy,
+        similarityBonus,
       },
       responses.length
     );
@@ -174,6 +177,7 @@ export async function scoreVerification(
         agreement,
         citationQuality,
         factualAccuracy,
+        similarityBonus,
       },
       claim_graph: {
         agreement_ratio: agreementRatio,
@@ -200,6 +204,17 @@ export async function scoreVerification(
     logger.error('Scoring failed:', error);
     throw error;
   }
+}
+
+/**
+ * Award up to 10 extra points when multiple model responses are highly similar.
+ * The 70-point threshold prevents incidental word overlap from earning a bonus.
+ */
+export function calculateSimilarityBonus(consistency: number, responseCount: number): number {
+  if (responseCount < 2 || consistency < 70) return 0;
+
+  const normalizedSimilarity = (Math.min(100, consistency) - 70) / 30;
+  return Math.round(normalizedSimilarity * 10);
 }
 
 /**
@@ -305,6 +320,7 @@ function generateReasoning(
     agreement: number;
     citationQuality: number;
     factualAccuracy: number;
+    similarityBonus: number;
   },
   modelCount: number
 ): string {
@@ -326,6 +342,12 @@ function generateReasoning(
     parts.push('Partial agreement on facts.');
   } else {
     parts.push('Significant disagreement between models.');
+  }
+
+  if (breakdown.similarityBonus > 0) {
+    parts.push(
+      `Similar answers earned a ${breakdown.similarityBonus}-point consensus bonus.`
+    );
   }
 
   if (breakdown.citationQuality >= 80) {

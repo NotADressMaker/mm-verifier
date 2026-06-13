@@ -654,12 +654,15 @@ Verification:
 
 #### A) Consensus Score
 ```typescript
-function computeConsensusScore(analysis: ConsensusAnalysis): number {
+function computeConsensusScore(analysis: ConsensusAnalysis, responseCount: number): number {
   // Based on agreement percentage
   const baseScore = analysis.agreementScore * 100;
 
-  // Bonus for high intra-cluster similarity
-  const similarityBonus = analysis.consensusCluster.avgSimilarity * 10;
+  // Bonus only for high similarity; scales from 0 points at 70% to 10 at 100%.
+  // At least two model responses are required, so a single AI cannot self-award it.
+  const similarityBonus = responseCount < 2 || analysis.consensusCluster.avgSimilarity < 0.70
+    ? 0
+    : Math.round(((analysis.consensusCluster.avgSimilarity - 0.70) / 0.30) * 10);
 
   // Penalty for outliers
   const outlierPenalty = analysis.outliers.length * 5;
