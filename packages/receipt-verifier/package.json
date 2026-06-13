@@ -1,7 +1,7 @@
 {
   "name": "@mmv/receipt-verifier",
   "version": "0.1.0",
-  "description": "Dependency-light receipt verification utilities for MMV",
+  "description": "Create and independently verify portable MMV receipts",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -9,7 +9,11 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "npm run build && node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ethers": "^6.9.0"
   },
   "author": "LLM Verifier Team",
   "license": "MIT",

@@ -10,6 +10,10 @@ It turns any model response into a verifiable receipt backed by multi-LLM cross-
 MMV is a “truth receipt” layer for AI.
 Apps submit an AI output, MMV runs multi-model verification, produces an evidence bundle, and returns a signed, portable confidence receipt.
 
+**The receipt is the product.** It is the canonical artifact to trust, pass
+around, store, verify, and display. See [MMV Receipt 1.0](docs/RECEIPTS.md) for
+the portable format and the server-independent verification procedure.
+
 [Getting Started](docs/getting-started.md)
 
 ## What It Does
