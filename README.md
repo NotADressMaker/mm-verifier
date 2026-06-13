@@ -288,12 +288,24 @@ This monorepo is organized into the following workspaces:
 
 ```
 MMV/
-├── contracts/      # Solidity smart contracts (Arbitrum)
-├── api/            # REST API & WebSocket server
-├── verifier-node/  # Verification service
-├── shared/         # Shared types and utilities
-└── docs/           # Documentation
+├── contracts/                  # Solidity smart contracts (Arbitrum)
+├── api/                        # REST API & WebSocket server
+├── verifier-node/              # Verification service
+├── packages/
+│   ├── receipt-verifier/       # Receipt verification utilities
+│   ├── sdk-js/                 # JavaScript/TypeScript SDK
+│   └── genail-integration/     # GenAI Language integration
+├── apps/
+│   ├── dashboard/              # Web dashboard
+│   └── trust-lens/             # Browser extension
+└── services/
+    └── validator/              # Validator-as-a-Service
 ```
+
+These directories are npm workspaces and are installed together from the repository root with
+`npm ci`. The root-level `shared/` directory contains source shared by multiple projects, but is
+not a package because it has no `package.json`. The `examples/express-quickstart/` app remains a
+standalone example with its own lockfile and install lifecycle.
 
 ## Content Insurance Layer
 
