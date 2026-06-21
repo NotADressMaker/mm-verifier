@@ -166,10 +166,63 @@ describe("MAMVAnchor integration", function () {
           ethers.ZeroHash,
           ethers.ZeroHash
         )
-    ).to.be.revertedWith("task already recorded");
+    ).to.be.revertedWithCustomError(mamvAnchor, "TaskAlreadyRecorded");
 
     await ethers.provider.send("hardhat_stopImpersonatingAccount", [
       await marketplace.getAddress(),
     ]);
   });
+
+  it("anchors compact MAMV Receipt v1 metadata without raw receipt contents", async function () {
+    const receiptHash = ethers.keccak256(ethers.toUtf8Bytes("receipt-v1"));
+    const evidenceHash = ethers.keccak256(ethers.toUtf8Bytes("evidence-bundle"));
+    const programHash = ethers.keccak256(ethers.toUtf8Bytes("factual-consensus@1.0.0"));
+    const subjectHash = ethers.keccak256(ethers.toUtf8Bytes("subject-output"));
+    const uri = "ipfs://bafyreceipt";
+
+    await mamvAnchor.connect(owner).setAnchorer(verifier1.address, true);
+
+    await expect(
+      mamvAnchor
+        .connect(verifier1)
+        .anchorReceipt(receiptHash, evidenceHash, programHash, subjectHash, 8750, uri)
+    )
+      .to.emit(mamvAnchor, "ReceiptAnchored")
+      .withArgs(receiptHash, evidenceHash, programHash, subjectHash, 8750, verifier1.address, uri);
+
+    expect(await mamvAnchor.isAnchored(receiptHash)).to.equal(true);
+
+    const record = await mamvAnchor.getAnchor(receiptHash);
+    expect(record.receiptHash).to.equal(receiptHash);
+    expect(record.evidenceHash).to.equal(evidenceHash);
+    expect(record.programHash).to.equal(programHash);
+    expect(record.subjectHash).to.equal(subjectHash);
+    expect(record.scoreBps).to.equal(8750);
+    expect(record.issuer).to.equal(verifier1.address);
+    expect(record.uri).to.equal(uri);
+    expect(record.anchoredAt).to.be.greaterThan(0);
+  });
+
+  it("rejects unauthorized, duplicate, zero-hash, and invalid-score anchors", async function () {
+    const receiptHash = ethers.keccak256(ethers.toUtf8Bytes("receipt-v1"));
+
+    await expect(
+      mamvAnchor.connect(verifier1).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "")
+    ).to.be.revertedWithCustomError(mamvAnchor, "NotAnchorer");
+
+    await expect(
+      mamvAnchor.connect(owner).anchorReceipt(ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "")
+    ).to.be.revertedWithCustomError(mamvAnchor, "EmptyReceiptHash");
+
+    await expect(
+      mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 10_001, "")
+    ).to.be.revertedWithCustomError(mamvAnchor, "InvalidScore");
+
+    await mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "");
+
+    await expect(
+      mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "")
+    ).to.be.revertedWithCustomError(mamvAnchor, "ReceiptAlreadyAnchored");
+  });
+
 });
