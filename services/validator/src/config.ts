@@ -1,5 +1,5 @@
 export const config = {
-  apiBaseUrl: process.env.MMV_API_BASE_URL || 'http://localhost:3000',
+  apiBaseUrl: process.env.MAMV_API_BASE_URL || process.env.MMV_API_BASE_URL || 'http://localhost:3000',
   validatorId: process.env.VALIDATOR_ID || 'validator-local',
   port: parseInt(process.env.VALIDATOR_PORT || '4010', 10),
   pollIntervalMs: parseInt(process.env.VALIDATOR_POLL_INTERVAL_MS || '4000', 10),

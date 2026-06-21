@@ -19,7 +19,7 @@ Metrics produced:
 Run the benchmark harness:
 
 ```
-mmv benchmark run --program factual-consensus@1.0.0 --bundles benchmarks/bundles/ --out out/
+mamv benchmark run --program factual-consensus@1.0.0 --bundles benchmarks/bundles/ --out out/
 ```
 
 Outputs:

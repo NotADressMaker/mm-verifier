@@ -1,7 +1,7 @@
 import express from 'express';
 import { config } from './config';
 import { initializeDb, isProcessed, markProcessed, persistDb, storeReceipt, getReceipt } from './db';
-import { fetchPendingRequests, postReceipt } from './mmvClient';
+import { fetchPendingRequests, postReceipt } from './mamvClient';
 import { parseValidationRequest } from './requestParser';
 import { runVerification } from './plugins/router';
 import { buildReceipt } from './receipt';

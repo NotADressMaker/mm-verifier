@@ -1,24 +1,18 @@
-# MMV
+# MAMV
 
-** Accountability for AI Outputs**
+**Multi-Agent Model Verification**
 
-MMV is an open-source blockchain platform for AI output verification—a global, programmable **world computer** for trust in model responses. Instead of trusting a single AI model, get consensus-based verification with stake-backed accountability.
+MAMV is an open accountability layer for AI outputs. It turns model responses into portable verification receipts backed by multi-agent review, evidence bundles, transparent scoring, and optional onchain anchoring.
 
-MMV (Multi-Model Verifier) is an open verification layer for AI outputs.
-It turns any model response into a verifiable receipt backed by multi-LLM cross-checking, transparent scoring, and an auditable evidence bundle. Developers can embed MMV to show not just what an AI said, but how confident we should be, which verification program was used, and what evidence supports the result. MMV is designed as programmable trust infrastructure: receipts are compact, portable, and can be anchored onchain for accountability while keeping full evidence offchain.
+MAMV records how an AI output was checked. It does not prove objective truth or guarantee correctness; it packages the verification process, reviewer signals, scores, and evidence into a receipt that applications can store, display, audit, and optionally anchor onchain.
 
-MMV is a “truth receipt” layer for AI.
-Apps submit an AI output, MMV runs multi-model verification, produces an evidence bundle, and returns a signed, portable confidence receipt.
-
-**The receipt is the product.** It is the canonical artifact to trust, pass
-around, store, verify, and display. See [MMV Receipt 1.0](docs/RECEIPTS.md) for
-the portable format and the server-independent verification procedure.
+See [MAMV Receipt 1.0](docs/RECEIPTS.md) for the portable format and server-independent verification procedure.
 
 [Getting Started](docs/getting-started.md)
 
 ## What It Does
 
-When you ask an AI a question, the answer can sound confident and still be wrong. MMV gives you a structured second opinion, delivered by a shared, decentralized verification layer that any app can program against:
+When you ask an AI a question, the answer can sound confident and still be wrong. MAMV gives you a structured second opinion, delivered by a shared, decentralized verification layer that any app can program against:
 
 - **Multi-LLM Cross-Check**: Runs prompts across multiple LLMs (OpenAI, Anthropic, Google, open-source models)
 - **Consensus Scoring**: Compares responses for agreement and contradictions
@@ -54,13 +48,13 @@ You can also use `make dev` to start the same stack after configuring `.env.runt
 ### 1. Install the SDK
 
 ```bash
-npm install @mmv/sdk
+npm install @mamv/sdk
 ```
 
 ### 2. Verify LLM Output (3 lines)
 
 ```typescript
-import { verify, configure } from '@mmv/sdk';
+import { verify, configure } from '@mamv/sdk';
 
 // Configure once at startup
 configure({ baseUrl: 'http://localhost:3000' });
@@ -99,7 +93,7 @@ The example demonstrates:
 Check that a receipt is valid:
 
 ```typescript
-import { verifyReceiptOnchain } from '@mmv/sdk';
+import { verifyReceiptOnchain } from '@mamv/sdk';
 
 const result = verifyReceiptOnchain(receipt);
 
@@ -198,9 +192,9 @@ validates receipt and bundle schemas, and checks status transitions.
 
 ## AI Accountability: Beyond Ethereum
 
-Ethereum provides general-purpose transaction transparency. MMV extends this with AI-specific accountability primitives that address the "black box" problem in AI systems:
+Ethereum provides general-purpose transaction transparency. MAMV extends this with AI-specific accountability primitives that address the "black box" problem in AI systems:
 
-| Capability | Ethereum | MMV |
+| Capability | Ethereum | MAMV |
 |------------|----------|-----|
 | Transaction immutability | ✅ | ✅ (inherits) |
 | **Input/output provenance** | ❌ | ✅ Cryptographic hashes of AI inputs and outputs |
@@ -220,7 +214,7 @@ Ethereum provides general-purpose transaction transparency. MMV extends this wit
 
 ### What Remains Opaque
 
-MMV provides transparency for the verification *process* but cannot reveal:
+MAMV provides transparency for the verification *process* but cannot reveal:
 - Neural network internals (weights, attention patterns)
 - Why a model produced a specific answer at the neural level
 - Whether LLM providers are honest (trust assumption)
@@ -251,7 +245,7 @@ For a complete analysis, see [docs/BLACK_BOX_TRANSPARENCY.md](docs/BLACK_BOX_TRA
 
 ## Programmable Verification Programs
 
-MMV exposes **verification programs**: reusable, versioned workflows that define how AI outputs should be checked (retrieve sources, cross-check models, score, and assemble evidence). These programs make the network behave like a programmable "world computer" for verification logic.
+MAMV exposes **verification programs**: reusable, versioned workflows that define how AI outputs should be checked (retrieve sources, cross-check models, score, and assemble evidence). These programs make the network behave like a programmable "verification coordination layer" for verification logic.
 
 ### Register a Program (API)
 
@@ -291,7 +285,7 @@ curl -X POST http://localhost:3000/api/verify \
 This monorepo is organized into the following workspaces:
 
 ```
-MMV/
+MAMV/
 ├── contracts/                  # Solidity smart contracts (Arbitrum)
 ├── api/                        # REST API & WebSocket server
 ├── verifier-node/              # Verification service
@@ -313,7 +307,7 @@ standalone example with its own lockfile and install lifecycle.
 
 ## Content Insurance Layer
 
-MMV now includes a content insurance concept that pairs onchain policies with verification
+MAMV now includes a content insurance concept that pairs onchain policies with verification
 guarantees. Creators can insure either human-authored work or AI-generated work that has been
 verified, while claimants can challenge coverage with evidence. See
 [`docs/CONTENT_INSURANCE.md`](docs/CONTENT_INSURANCE.md) for contract and verification details.
@@ -322,7 +316,7 @@ verified, while claimants can challenge coverage with evidence. See
 
 ### The Marketplace Model
 
-MMV operates as an **open verification marketplace** where independent verifiers compete:
+MAMV operates as an **open verification marketplace** where independent verifiers compete:
 
 1. **Verifiers stake ETH** to participate
 2. They submit evaluations with **structured evidence**
@@ -485,8 +479,8 @@ When the dashboard work begins, the intended experience includes:
 
 ```bash
 # Clone the repository
-git clone https://github.com/michaelmannen3-oss/MMV.git
-cd MMV
+git clone https://github.com/michaelmannen3-oss/MAMV.git
+cd MAMV
 
 # Install dependencies (root + workspaces)
 npm install
@@ -508,7 +502,7 @@ ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
 ARBITRUM_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc # optional legacy alias
 PRIVATE_KEY=your_deployer_private_key
 CHAINLINK_VRF_COORDINATOR=0x... # Arbitrum Sepolia VRF Coordinator
-MMV_CHAIN_ID=421614 # Chain ID used for EIP-712 signing
+MAMV_CHAIN_ID=421614 # Chain ID used for EIP-712 signing
 
 # LLM Providers
 OPENAI_API_KEY=sk-...
@@ -680,7 +674,7 @@ See [docs/privacy.md](docs/privacy.md) for the full data minimization and retent
 ### Long Term (6+ months)
 - [ ] Mainnet deployment (Arbitrum One)
 - [ ] Governance token
-- [ ] “Trust Lens” browser extension for agent/endpoint safety
+- [ ] “MAMV Lens” browser extension for agent/endpoint safety
   - [ ] Show agent identity token, reputation summary, last validation outcomes, and risk flags (new agent, low-signal reviews, sudden score changes)
 
 ## Testing
@@ -724,8 +718,12 @@ MIT License - see [LICENSE](./LICENSE)
 ## Support
 
 - Documentation: [docs/](./docs/)
-- Issues: [GitHub Issues](https://github.com/michaelmannen3-oss/MMV/issues)
+- Issues: [GitHub Issues](https://github.com/michaelmannen3-oss/MAMV/issues)
 - Discord: [Join our community](#)
+
+## Provider and Trademark Disclaimer
+
+MAMV integrates with third-party model providers. All third-party names, logos, and trademarks are the property of their respective owners. No endorsement or affiliation is implied.
 
 ## Acknowledgments
 

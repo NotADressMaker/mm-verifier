@@ -161,11 +161,11 @@ Minimal Prometheus scrape configuration:
 
 ```yaml
 scrape_configs:
-  - job_name: "mmv-api"
+  - job_name: "mamv-api"
     static_configs:
       - targets: ["localhost:3000"]
     metrics_path: /metrics
-  - job_name: "mmv-verifier"
+  - job_name: "mamv-verifier"
     static_configs:
       - targets: ["localhost:9101"]
     metrics_path: /metrics

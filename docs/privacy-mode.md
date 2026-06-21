@@ -50,13 +50,13 @@ The signature and signer address are stored in receipts or explainability checks
 Encrypt a bundle for recipients:
 
 ```
-mmv encrypt-bundle bundle.json --recipients <pubkey...> --out bundle.encrypted.json
+mamv encrypt-bundle bundle.json --recipients <pubkey...> --out bundle.encrypted.json
 ```
 
 Decrypt a bundle:
 
 ```
-mmv decrypt-bundle bundle.encrypted.json --key <hex-private-key> --out bundle.json
+mamv decrypt-bundle bundle.encrypted.json --key <hex-private-key> --out bundle.json
 ```
 
 ## Notes

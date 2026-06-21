@@ -1,6 +1,6 @@
 # Privacy & Data Minimization Policy
 
-This document describes what MMV stores, where it is stored, and for how long.
+This document describes what MAMV stores, where it is stored, and for how long.
 
 ## Default: hashed-only storage
 
@@ -14,7 +14,7 @@ Plaintext prompts, model outputs, and transcripts are **not stored** in job reco
 
 ## Encrypted evidence bundles (opt-in)
 
-If a requester opts in (`store_evidence: true`), MMV stores an **encrypted** evidence bundle:
+If a requester opts in (`store_evidence: true`), MAMV stores an **encrypted** evidence bundle:
 
 * AES-256-GCM encryption for stored bundles.
 * A master key from `EVIDENCE_MASTER_KEY_BASE64`.
@@ -27,7 +27,7 @@ The stored payload contains:
 * `bundle_hash` (commitment)
 * `key_version` + encryption version
 
-MMV does not return plaintext evidence bundles via API endpoints in the default configuration.
+MAMV does not return plaintext evidence bundles via API endpoints in the default configuration.
 
 ## Storage locations
 
@@ -47,7 +47,7 @@ Receipts and commitments are stored in application DB/Redis and on-chain records
 Operators can purge evidence bundles manually:
 
 ```
-mmv admin purge-evidence --older-than 7d
+mamv admin purge-evidence --older-than 7d
 ```
 
 ## Access & redaction guarantees

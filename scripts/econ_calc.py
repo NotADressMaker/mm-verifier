@@ -30,7 +30,7 @@ class EconResult:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="MMV economic security parameter calculator",
+        description="MAMV economic security parameter calculator",
     )
     parser.add_argument("--job-value", type=float, required=True, help="Job value in ETH/WETH")
     parser.add_argument("--num-verifiers", type=int, required=True, help="Total verifiers")
@@ -104,7 +104,7 @@ def main() -> None:
     args = parse_args()
     result = compute(args)
 
-    print("\nMMV Economic Security Calculator\n" + "-" * 36)
+    print("\nMAMV Economic Security Calculator\n" + "-" * 36)
     print(f"Job value:                 {result.job_value:.4f}")
     print(f"Verifiers / quorum:        {result.num_verifiers} / {result.quorum}")
     print(f"Stake per verifier:        {result.stake_per_verifier:.4f}")

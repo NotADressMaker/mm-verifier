@@ -1,6 +1,6 @@
 # AI Content Insurance System
 
-This document describes the content insurance layer that pairs MMV verification with financial
+This document describes the content insurance layer that pairs MAMV verification with financial
 guarantees. It introduces the onchain policy contract, the offchain claim verification workflow,
 and the premium pricing model.
 
@@ -22,7 +22,7 @@ single onchain registry.
 Key behaviors:
 
 - **Policy creation**: creators pay a premium and define coverage, duration, and policy type.
-- **Verification attachment**: AI policies can attach MMV verification hashes and scores.
+- **Verification attachment**: AI policies can attach MAMV verification hashes and scores.
 - **Claim filing**: claimants post a stake and submit evidence hashes.
 - **Resolution**: auditors (owner-controlled for now) approve or deny payouts.
 
@@ -32,10 +32,10 @@ The claim verification engine provides the offchain workflow to validate claims 
 resolved onchain. It supports:
 
 - **AI detection consensus**: multiple detectors + pattern analysis.
-- **Factual error review**: MMV evidence re-checks and citation validation.
+- **Factual error review**: MAMV evidence re-checks and citation validation.
 - **Human audit escalation**: edge cases are escalated for manual review.
 
-Implementations are designed to plug into existing MMV services (source fetching, LLM checks, and
+Implementations are designed to plug into existing MAMV services (source fetching, LLM checks, and
 auditor workflows).
 
 ## Premium Pricing
@@ -56,5 +56,5 @@ chain.
 
 - Add policy routes to the API service (create policy, attach verification, file claim).
 - Create a policy dashboard UI for creators and claimants.
-- Integrate auditor workflow with MMV dispute tools.
+- Integrate auditor workflow with MAMV dispute tools.
 - Add automated evidence collection (IPFS bundling).

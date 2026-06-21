@@ -3,7 +3,7 @@
  *
  * This module provides types and helpers to derive queryable records from
  * existing on-chain events (VerificationMarketplace Revealed + TaskResolved)
- * and existing receipt structures (MMVReceipt).
+ * and existing receipt structures (MAMVReceipt).
  *
  * No new contracts are needed - records are derived from existing data.
  *
@@ -11,7 +11,7 @@
  */
 
 import { hashCanonical, hashUtf8 } from './canonicalJson';
-import { CONSTANTS, MMVReceipt } from './types';
+import { CONSTANTS, MAMVReceipt } from './types';
 
 // ============================================================================
 // Constants
@@ -69,10 +69,10 @@ export interface VerifiedOutputRecord {
   /** VerificationMarketplace contract address */
   contract_address: string;
 
-  /** keccak256 hash of the input content (from MMVReceipt if available) */
+  /** keccak256 hash of the input content (from MAMVReceipt if available) */
   input_hash?: string;
 
-  /** keccak256 hash of the output content (from MMVReceipt if available) */
+  /** keccak256 hash of the output content (from MAMVReceipt if available) */
   output_hash?: string;
 
   /** Evaluator address who submitted this evaluation */
@@ -145,8 +145,8 @@ export interface BuildRecordParams {
   /** VerificationMarketplace contract address */
   contractAddress: string;
 
-  /** Optional: MMVReceipt for additional provenance */
-  receipt?: MMVReceipt;
+  /** Optional: MAMVReceipt for additional provenance */
+  receipt?: MAMVReceipt;
 }
 
 /**
@@ -179,11 +179,11 @@ export function buildRecordFromChainData(params: BuildRecordParams): VerifiedOut
 }
 
 /**
- * Build a VerifiedOutputRecord directly from an MMVReceipt
+ * Build a VerifiedOutputRecord directly from an MAMVReceipt
  * Used when receipt already contains all needed data
  */
 export function buildRecordFromReceipt(
-  receipt: MMVReceipt,
+  receipt: MAMVReceipt,
   chainContext: {
     chainId: number;
     contractAddress: string;

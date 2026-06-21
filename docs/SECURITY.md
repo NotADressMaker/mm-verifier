@@ -1,6 +1,6 @@
-# MMV Security Features
+# MAMV Security Features
 
-This document outlines the comprehensive security measures implemented in MMV to ensure economic accountability, prevent gaming, and maintain system integrity.
+This document outlines the comprehensive security measures implemented in MAMV to ensure economic accountability, prevent gaming, and maintain system integrity.
 
 ## Table of Contents
 
@@ -601,7 +601,7 @@ Before mainnet launch:
 
 ## Conclusion
 
-MMV's security model combines:
+MAMV's security model combines:
 1. **Economic incentives** (slashing, rewards)
 2. **Cryptographic proofs** (commit/reveal, VRF)
 3. **Decentralized verification** (multi-auditor, consensus)
@@ -623,7 +623,7 @@ The system becomes **more secure over time** as:
 
 ## Threat Model
 
-This section formalizes what MMV protects against, what it doesn't, and the assumptions it makes.
+This section formalizes what MAMV protects against, what it doesn't, and the assumptions it makes.
 
 ### In-Scope Threats
 
@@ -757,7 +757,7 @@ assert(task.finalized => block.timestamp >= task.deadline);
 ### Governance Invariants
 
 ```solidity
-// contracts/governance/VerifyGovernor.sol
+// contracts/governance/MAMVGovernor.sol
 
 // INVARIANT 1: Proposal threshold is fraction of total supply
 assert(proposalThreshold <= totalSupply);
@@ -829,10 +829,10 @@ Every state transition MUST emit an event for off-chain indexers.
 | VerificationMarketplace | Evaluation committed | `Committed` | taskId, evaluator, commitHash |
 | VerificationMarketplace | Evaluation revealed | `Revealed` | taskId, evaluator, score |
 | VerificationMarketplace | Task finalized | `Finalized` | taskId, finalScore, feePool |
-| VerifyGovernor | Proposal created | `ProposalCreated` | proposalId, proposer, targets[] |
-| VerifyGovernor | Vote cast | `VoteCast` | voter, proposalId, support, weight |
-| VerifyGovernor | Proposal queued | `ProposalQueued` | proposalId, eta |
-| VerifyGovernor | Proposal executed | `ProposalExecuted` | proposalId |
+| MAMVGovernor | Proposal created | `ProposalCreated` | proposalId, proposer, targets[] |
+| MAMVGovernor | Vote cast | `VoteCast` | voter, proposalId, support, weight |
+| MAMVGovernor | Proposal queued | `ProposalQueued` | proposalId, eta |
+| MAMVGovernor | Proposal executed | `ProposalExecuted` | proposalId |
 
 ### Event Indexing Best Practices
 
@@ -985,5 +985,5 @@ Prioritized security improvements for mainnet.
 ---
 
 **Last Updated**: 2026-01-10
-**Security Contact**: security@mmverifier.xyz (to be created)
+**Security Contact**: security@mamverifier.xyz (to be created)
 **Bug Bounty**: Up to $100,000 for critical vulnerabilities

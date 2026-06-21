@@ -1,5 +1,5 @@
 /**
- * Shared types for LLM Verifier
+ * Shared types for MAMV
  * Used across contracts, API, and verifier nodes
  */
 
@@ -570,23 +570,23 @@ export const EIP712_TYPES = {
 };
 
 // ============================================================================
-// MMV Attestations (Multi-LLM Verifier)
+// MAMV Attestations (Multi-Agent Model Verification)
 // ============================================================================
 
-export interface MMVCandidate {
+export interface MAMVCandidate {
   index: number;
   output: string;
   outputHash: string;
 }
 
-export interface MMVVerificationInput {
+export interface MAMVVerificationInput {
   taskId: string;
   input: string;
-  candidates: MMVCandidate[];
+  candidates: MAMVCandidate[];
   evidence?: Record<string, unknown>;
 }
 
-export interface MMVCandidateScore {
+export interface MAMVCandidateScore {
   index: number;
   score: number;
   confidence: number;
@@ -594,14 +594,14 @@ export interface MMVCandidateScore {
   rationale: string;
 }
 
-export interface MMVVerificationResult {
+export interface MAMVVerificationResult {
   taskId: string;
   inputHash: string;
   selectedIndex: number;
   selectedOutputHash: string;
   overallScore: number;
   pass: boolean;
-  candidateScores: MMVCandidateScore[];
+  candidateScores: MAMVCandidateScore[];
   rationale: {
     summary: string;
     checks: string[];
@@ -614,12 +614,12 @@ export interface MMVVerificationResult {
     version: string;
     configHash: string;
   };
-  provenance: MMVModelRunProvenance;
+  provenance: MAMVModelRunProvenance;
 }
 
-export type MMVModelRunProvenance = ProvenanceModelRun;
+export type MAMVModelRunProvenance = ProvenanceModelRun;
 
-export interface MMVVerifierConfig {
+export interface MAMVVerifierConfig {
   provider: 'openai';
   model: string;
   maxRollouts: number;
@@ -630,7 +630,7 @@ export interface MMVVerifierConfig {
   version: string;
 }
 
-export interface MMVAttestation {
+export interface MAMVAttestation {
   taskId: string;
   inputHash: string;
   selectedOutputHash: string;
@@ -642,7 +642,7 @@ export interface MMVAttestation {
   passed: boolean;
 }
 
-export interface MMVReceipt {
+export interface MAMVReceipt {
   receipt_version: '0.1';
   generated_at: string;
   task_id: string;
@@ -652,7 +652,7 @@ export interface MMVReceipt {
     pass: boolean;
     overall_score: number;
     selected_index: number;
-    candidate_scores: MMVCandidateScore[];
+    candidate_scores: MAMVCandidateScore[];
   };
   verifier: {
     provider: 'openai';
@@ -660,29 +660,29 @@ export interface MMVReceipt {
     version: string;
     config_hash: string;
   };
-  provenance: MMVModelRunProvenance;
+  provenance: MAMVModelRunProvenance;
   attestation?: {
     chain_id: number;
     verifying_contract: string;
     signature: string;
-    attestation: MMVAttestation;
+    attestation: MAMVAttestation;
   };
 }
 
-export const MMV_EIP712_DOMAIN = {
-  name: 'MMVVerifier',
+export const MAMV_EIP712_DOMAIN = {
+  name: 'MAMVVerifier',
   version: '1',
 };
 
-export function getMmvEip712Domain(chainId: number, verifyingContract: string) {
+export function getMamvEip712Domain(chainId: number, verifyingContract: string) {
   return {
-    ...MMV_EIP712_DOMAIN,
+    ...MAMV_EIP712_DOMAIN,
     chainId,
     verifyingContract,
   };
 }
 
-export const MMV_EIP712_TYPES = {
+export const MAMV_EIP712_TYPES = {
   Attestation: [
     { name: 'taskId', type: 'bytes32' },
     { name: 'inputHash', type: 'bytes32' },
@@ -695,6 +695,29 @@ export const MMV_EIP712_TYPES = {
     { name: 'passed', type: 'bool' },
   ],
 };
+
+/** @deprecated Use MAMVCandidate. */
+export type MMVCandidate = MAMVCandidate;
+/** @deprecated Use MAMVVerificationInput. */
+export type MMVVerificationInput = MAMVVerificationInput;
+/** @deprecated Use MAMVCandidateScore. */
+export type MMVCandidateScore = MAMVCandidateScore;
+/** @deprecated Use MAMVVerificationResult. */
+export type MMVVerificationResult = MAMVVerificationResult;
+/** @deprecated Use MAMVModelRunProvenance. */
+export type MMVModelRunProvenance = MAMVModelRunProvenance;
+/** @deprecated Use MAMVVerifierConfig. */
+export type MMVVerifierConfig = MAMVVerifierConfig;
+/** @deprecated Use MAMVAttestation. */
+export type MMVAttestation = MAMVAttestation;
+/** @deprecated Use MAMVReceipt. */
+export type MMVReceipt = MAMVReceipt;
+/** @deprecated Use MAMV_EIP712_DOMAIN. */
+export const MMV_EIP712_DOMAIN = MAMV_EIP712_DOMAIN;
+/** @deprecated Use getMamvEip712Domain. */
+export const getMmvEip712Domain = getMamvEip712Domain;
+/** @deprecated Use MAMV_EIP712_TYPES. */
+export const MMV_EIP712_TYPES = MAMV_EIP712_TYPES;
 
 // ============================================================================
 // Configuration

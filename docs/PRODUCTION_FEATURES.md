@@ -2,7 +2,7 @@
 
 ## Overview
 
-MMV includes production-ready safety mechanisms and gas optimizations implemented in commit `49cedb7`:
+MAMV includes production-ready safety mechanisms and gas optimizations implemented in commit `49cedb7`:
 
 1. **Pull-Based Juror Rewards** - Gas-efficient, fail-safe reward distribution
 2. **Emergency Pause** - Halt operations during security incidents

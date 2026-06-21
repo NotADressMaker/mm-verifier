@@ -1,6 +1,6 @@
 # Benchmarks
 
-This harness measures **end-to-end latency** and **throughput** for the MMV pipeline using a mocked (sleep-based) execution model. It is meant to be lightweight and deterministic, so contributors can reproduce results locally without deploying contracts.
+This harness measures **end-to-end latency** and **throughput** for the MAMV pipeline using a mocked (sleep-based) execution model. It is meant to be lightweight and deterministic, so contributors can reproduce results locally without deploying contracts.
 
 ## What it measures
 
@@ -26,7 +26,7 @@ The `tasks.jsonl`, `ground_truth.jsonl`, and `bundles/` directory provide a ligh
 Run the calibration harness:
 
 ```bash
-mmv benchmark run --program factual-consensus@1.0.0 --bundles benchmarks/bundles/ --out out/
+mamv benchmark run --program factual-consensus@1.0.0 --bundles benchmarks/bundles/ --out out/
 ```
 
 ### Common flags

@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { body, query, param, validationResult } from 'express-validator';
 import { logger } from '../utils/logger';
-import { verifyWithMMV } from '../services/mmvVerifier';
-import { hashUtf8 } from '../services/mmvHasher';
+import { verifyWithMAMV } from '../services/mamvVerifier';
+import { hashUtf8 } from '../services/mamvHasher';
 import { runDecisionGate } from '../services/decisionGate';
-import { buildMMVReceipt } from '../services/mmvReceipt';
+import { buildMAMVReceipt } from '../services/mamvReceipt';
 import {
   getRecord,
   listRecords,
@@ -15,7 +15,7 @@ import { WORTHY_MIN_BPS } from '../../../shared/verifiedOutput';
 
 const router = Router();
 
-const mmvValidators = [
+const mamvValidators = [
   body('taskId').isString().notEmpty().withMessage('taskId is required'),
   body('input').isString().notEmpty().withMessage('input is required'),
   body('candidates').isArray({ min: 1 }).withMessage('At least one candidate required'),
@@ -23,7 +23,7 @@ const mmvValidators = [
   body('evidence').optional().isObject().withMessage('Evidence must be an object'),
 ];
 
-router.post('/verify', mmvValidators, async (req: Request, res: Response) => {
+router.post('/verify', mamvValidators, async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -38,7 +38,7 @@ router.post('/verify', mmvValidators, async (req: Request, res: Response) => {
   };
 
   try {
-    const mmvResult = await verifyWithMMV(
+    const mamvResult = await verifyWithMAMV(
       {
         taskId,
         input,
@@ -52,23 +52,23 @@ router.post('/verify', mmvValidators, async (req: Request, res: Response) => {
       requesterId
     );
 
-    const receipt = buildMMVReceipt(mmvResult);
+    const receipt = buildMAMVReceipt(mamvResult);
 
     res.status(200).json({
       taskId,
-      result: mmvResult,
+      result: mamvResult,
       receipt,
     });
   } catch (error: any) {
-    logger.error('MMV verification failed', { error: error.message });
+    logger.error('MAMV verification failed', { error: error.message });
     res.status(500).json({
-      error: 'MMV verification failed',
+      error: 'MAMV verification failed',
       message: error.message,
     });
   }
 });
 
-router.post('/guard', mmvValidators, async (req: Request, res: Response) => {
+router.post('/guard', mamvValidators, async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -99,7 +99,7 @@ router.post('/guard', mmvValidators, async (req: Request, res: Response) => {
       receipt: gateResult.receipt,
     });
   } catch (error: any) {
-    logger.warn('MMV decision gate blocked request', { error: error.message });
+    logger.warn('MAMV decision gate blocked request', { error: error.message });
     res.status(403).json({
       error: 'Decision gate blocked',
       message: error.message,
@@ -112,7 +112,7 @@ router.post('/guard', mmvValidators, async (req: Request, res: Response) => {
 // ============================================================================
 
 /**
- * GET /api/mmv/tasks/:taskId/record
+ * GET /api/mamv/tasks/:taskId/record
  * Get the VerifiedOutputRecord for a specific task
  */
 router.get(
@@ -148,7 +148,7 @@ router.get(
 );
 
 /**
- * GET /api/mmv/records
+ * GET /api/mamv/records
  * List verified output records with filtering and pagination
  * Returns "worthy" records by default (score >= WORTHY_MIN_BPS)
  */
@@ -219,7 +219,7 @@ router.get('/records', recordsValidators, async (req: Request, res: Response) =>
 });
 
 /**
- * GET /api/mmv/tasks/:taskId/verify
+ * GET /api/mamv/tasks/:taskId/verify
  * Verify that a record exists on-chain
  */
 router.get(
@@ -253,7 +253,7 @@ router.get(
 );
 
 /**
- * GET /api/mmv/records/stats
+ * GET /api/mamv/records/stats
  * Get cache statistics (for debugging/monitoring)
  */
 router.get('/records/stats', async (_req: Request, res: Response) => {
@@ -272,4 +272,4 @@ router.get('/records/stats', async (_req: Request, res: Response) => {
   }
 });
 
-export { router as mmvRoutes };
+export { router as mamvRoutes };

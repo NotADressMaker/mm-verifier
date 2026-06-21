@@ -1,6 +1,6 @@
-# MMV JavaScript SDK
+# MAMV JavaScript SDK
 
-Minimal, typed client for the MMV verification API.
+Minimal, typed client for the MAMV verification API.
 
 ## Install (workspace)
 
@@ -11,9 +11,9 @@ npm install
 ## Usage
 
 ```ts
-import { MMVClient } from '@mmv/sdk';
+import { MAMVClient } from '@mamv/sdk';
 
-const client = new MMVClient({ baseUrl: 'http://localhost:3000' });
+const client = new MAMVClient({ baseUrl: 'http://localhost:3000' });
 
 const response = await client.verifyText({
   prompt: 'Summarize the article.',

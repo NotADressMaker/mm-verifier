@@ -1,5 +1,5 @@
 /**
- * Tests for GenAIL integration with MMV
+ * Tests for GenAIL integration with MAMV
  */
 
 import {
@@ -75,7 +75,7 @@ const SAMPLE_INPUTS = {
 function createTestContext(): MMVExecutionContext {
   const program = parseGenAILProgram(SAMPLE_GENAIL_SOURCE);
   const config = {
-    mmv: { base_url: 'http://localhost:3000', auto_verify: false },
+    mamv: { base_url: 'http://localhost:3000', auto_verify: false },
     auto_verify: false,
     metering_limits: DEFAULT_METERING_LIMITS,
   };

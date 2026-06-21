@@ -1,11 +1,11 @@
 /**
- * MMV SDK Quickstart API
+ * MAMV SDK Quickstart API
  *
  * Provides simple, high-level functions for common verification tasks.
  * Use these functions for rapid integration - they handle all the setup.
  */
 
-import { MMVClient, MMVClientOptions } from './client';
+import { MAMVClient, MAMVClientOptions } from './client';
 import { Receipt, VerifyOptions, OnchainVerifyResult, ProgramSummary } from './types';
 
 // ============================================================================
@@ -13,7 +13,7 @@ import { Receipt, VerifyOptions, OnchainVerifyResult, ProgramSummary } from './t
 // ============================================================================
 
 export interface QuickstartConfig {
-  /** Base URL of the MMV API (default: http://localhost:3000) */
+  /** Base URL of the MAMV API (default: http://localhost:3000) */
   baseUrl?: string;
   /** API key for authentication */
   apiKey?: string;
@@ -29,7 +29,7 @@ const DEFAULT_CHAIN_ID = 421614; // Arbitrum Sepolia
 const DEFAULT_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 // Global client instance (lazy initialized)
-let globalClient: MMVClient | null = null;
+let globalClient: MAMVClient | null = null;
 let globalConfig: QuickstartConfig = {};
 
 // ============================================================================
@@ -61,13 +61,13 @@ export const FACTUAL_CONSENSUS_PROGRAM: ProgramSummary = {
 // ============================================================================
 
 /**
- * Create a configured MMV client instance.
+ * Create a configured MAMV client instance.
  *
  * @param config - Configuration options
- * @returns Configured MMVClient
+ * @returns Configured MAMVClient
  */
-export function createClient(config: QuickstartConfig = {}): MMVClient {
-  return new MMVClient({
+export function createClient(config: QuickstartConfig = {}): MAMVClient {
+  return new MAMVClient({
     baseUrl: config.baseUrl ?? DEFAULT_BASE_URL,
     apiKey: config.apiKey,
     chainId: config.chainId ?? DEFAULT_CHAIN_ID,
@@ -83,7 +83,7 @@ export function configure(config: QuickstartConfig): void {
   globalClient = null; // Reset so next call creates fresh client
 }
 
-function getClient(): MMVClient {
+function getClient(): MAMVClient {
   if (!globalClient) {
     globalClient = createClient(globalConfig);
   }
@@ -107,7 +107,7 @@ function getClient(): MMVClient {
  *
  * @example
  * ```ts
- * import { verify, configure } from '@mmv/sdk';
+ * import { verify, configure } from '@mamv/sdk';
  *
  * // Configure once at startup
  * configure({ baseUrl: 'http://localhost:3000', apiKey: 'your-key' });

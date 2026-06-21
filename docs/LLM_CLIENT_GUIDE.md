@@ -1,6 +1,6 @@
 # LLM Client Guide
 
-This guide makes MMV easy to call from LLM tool/function frameworks by providing
+This guide makes MAMV easy to call from LLM tool/function frameworks by providing
 copy/paste-ready schemas, prompts, and response handling patterns.
 
 ## 1) Minimal LLM Tool Definition (OpenAI-style)
@@ -133,10 +133,10 @@ Response (completed):
 
 ## 3) LLM-Friendly System Prompt Template
 
-Use this system prompt to help an LLM decide when to call MMV and how to summarize results.
+Use this system prompt to help an LLM decide when to call MAMV and how to summarize results.
 
 ```
-You are an assistant that can verify answers using the MMV API.
+You are an assistant that can verify answers using the MAMV API.
 When the user asks a factual, mathematical, policy, or citation-sensitive question,
 call mm_verifier_submit with a concise prompt, a model list, and an appropriate taskType.
 After receiving the taskId (returned as jobId), poll GET /api/verify/:jobId until status is completed.

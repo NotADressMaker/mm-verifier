@@ -6,7 +6,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env.runtime") });
 dotenv.config({ path: path.resolve(__dirname, "../../.env"), override: false });
 
 async function main() {
-  console.log("Starting LLM Verifier deployment to Arbitrum...\n");
+  console.log("Starting MAMV deployment to Arbitrum...\n");
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with account:", deployer.address);

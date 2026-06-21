@@ -1,7 +1,7 @@
 import { Wallet, keccak256, toUtf8Bytes, verifyTypedData } from 'ethers';
 import {
-  MMVAttestation,
-  MMV_EIP712_TYPES,
+  MAMVAttestation,
+  MAMV_EIP712_TYPES,
   getMmvEip712Domain,
 } from '../../../shared/types';
 
@@ -9,17 +9,17 @@ export function hashVerifierVersion(version: string): string {
   return keccak256(toUtf8Bytes(version));
 }
 
-export async function signMMVAttestation(
+export async function signMAMVAttestation(
   privateKey: string,
   chainId: number,
   verifyingContract: string,
-  attestation: MMVAttestation
+  attestation: MAMVAttestation
 ): Promise<string> {
   const wallet = new Wallet(privateKey);
 
   const domain = getMmvEip712Domain(chainId, verifyingContract);
 
-  return wallet.signTypedData(domain, MMV_EIP712_TYPES, {
+  return wallet.signTypedData(domain, MAMV_EIP712_TYPES, {
     taskId: attestation.taskId,
     inputHash: attestation.inputHash,
     selectedOutputHash: attestation.selectedOutputHash,
@@ -32,13 +32,13 @@ export async function signMMVAttestation(
   });
 }
 
-export function verifyMMVAttestationSignature(
+export function verifyMAMVAttestationSignature(
   chainId: number,
   verifyingContract: string,
-  attestation: MMVAttestation,
+  attestation: MAMVAttestation,
   signature: string
 ): string {
   const domain = getMmvEip712Domain(chainId, verifyingContract);
 
-  return verifyTypedData(domain, MMV_EIP712_TYPES, attestation, signature);
+  return verifyTypedData(domain, MAMV_EIP712_TYPES, attestation, signature);
 }

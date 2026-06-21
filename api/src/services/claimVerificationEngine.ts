@@ -84,17 +84,17 @@ export class ClaimVerificationEngine {
       return { valid: false, reason: 'Missing verification evidence hash' };
     }
 
-    const mmvEvidence = await this.dependencies.fetchMMVEvidence(policy.verificationHash);
+    const mamvEvidence = await this.dependencies.fetchMMVEvidence(policy.verificationHash);
     if (!evidence.specificClaims || evidence.specificClaims.length === 0) {
       return { valid: false, reason: 'No specific factual errors provided' };
     }
 
     const errorVerifications = await Promise.all(
-      evidence.specificClaims.map((claim) => this.verifyFactualClaim(claim, mmvEvidence))
+      evidence.specificClaims.map((claim) => this.verifyFactualClaim(claim, mamvEvidence))
     );
 
     const confirmedErrors = errorVerifications.filter((verification) => verification.isError);
-    const totalClaims = mmvEvidence.claims.length;
+    const totalClaims = mamvEvidence.claims.length;
     const errorRate = totalClaims === 0 ? 0 : confirmedErrors.length / totalClaims;
 
     if (errorRate <= 0.1) {
@@ -121,9 +121,9 @@ export class ClaimVerificationEngine {
 
   async verifyFactualClaim(
     claim: FactualClaim,
-    mmvEvidence: MMVEvidence
+    mamvEvidence: MMVEvidence
   ): Promise<{ isError: boolean; explanation: string }> {
-    const claimRecord = mmvEvidence.claims.find((record) => record.text === claim.text);
+    const claimRecord = mamvEvidence.claims.find((record) => record.text === claim.text);
     const claimSources = claimRecord?.sources ?? [];
 
     if (claimSources.length === 0) {

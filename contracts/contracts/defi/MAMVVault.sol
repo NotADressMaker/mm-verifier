@@ -7,40 +7,40 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
- * @title VERIFYVault
- * @notice Auto-compounding yield vault for VERIFY token
+ * @title MAMVVault
+ * @notice Auto-compounding yield vault for MAMV token
  * @dev ERC4626-inspired vault that auto-compounds staking rewards
  *
  * How it works:
- * 1. Users deposit VERIFY, receive vVERIFY (vault shares)
- * 2. Vault stakes VERIFY in VerifyStaking contract
+ * 1. Users deposit MAMV, receive vMAMV (vault shares)
+ * 2. Vault stakes MAMV in VerifyStaking contract
  * 3. Harvest WETH rewards periodically
- * 4. Swap WETH → VERIFY on DEX
- * 5. Re-stake VERIFY (compounding)
+ * 4. Swap WETH → MAMV on DEX
+ * 5. Re-stake MAMV (compounding)
  * 6. Share price increases over time
  *
  * Benefits:
  * - Set-and-forget yield optimization
  * - Gas-efficient (shared harvest costs)
  * - Auto-compound staking rewards
- * - Liquid vault shares (vVERIFY)
+ * - Liquid vault shares (vMAMV)
  *
  * Example:
  * ```
- * // Alice deposits 1000 VERIFY
+ * // Alice deposits 1000 MAMV
  * vault.deposit(1000e18);
- * // Receives 1000 vVERIFY (1:1 initially)
+ * // Receives 1000 vMAMV (1:1 initially)
  *
  * // After 1 year of compounding...
- * // 1 vVERIFY = 1.2 VERIFY (20% APY)
- * vault.withdraw(1000e18); // Gets 1200 VERIFY
+ * // 1 vMAMV = 1.2 MAMV (20% APY)
+ * vault.withdraw(1000e18); // Gets 1200 MAMV
  * ```
  *
  * Performance Fees:
  * - 10% of yield goes to protocol treasury
  * - 90% auto-compounded for depositors
  */
-contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
+contract MAMVVault is ERC20, Ownable, ReentrancyGuard {
     IERC20 public immutable verifyToken;
 
     // External contracts
@@ -68,7 +68,7 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
         address _staking,
         address _router,
         address _treasury
-    ) ERC20("Vaulted VERIFY", "vVERIFY") Ownable(msg.sender) {
+    ) ERC20("Vaulted MAMV", "vMAMV") Ownable(msg.sender) {
         verifyToken = _verifyToken;
         staking = _staking;
         router = _router;
@@ -77,9 +77,9 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Deposit VERIFY tokens
-     * @param assets Amount of VERIFY to deposit
-     * @return shares Amount of vVERIFY minted
+     * @notice Deposit MAMV tokens
+     * @param assets Amount of MAMV to deposit
+     * @return shares Amount of vMAMV minted
      */
     function deposit(uint256 assets) external nonReentrant returns (uint256 shares) {
         require(assets > 0, "Cannot deposit 0");
@@ -112,9 +112,9 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Withdraw VERIFY tokens
-     * @param shares Amount of vVERIFY to burn
-     * @return assets Amount of VERIFY withdrawn
+     * @notice Withdraw MAMV tokens
+     * @param shares Amount of vMAMV to burn
+     * @return assets Amount of MAMV withdrawn
      */
     function withdraw(uint256 shares) external nonReentrant returns (uint256 assets) {
         require(shares > 0, "Cannot withdraw 0");
@@ -152,7 +152,7 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
      * @notice Harvest and compound rewards
      * @dev Anyone can call, but cooldown prevents spam
      * @return wethHarvested Amount of WETH harvested
-     * @return verifyBought Amount of VERIFY bought and compounded
+     * @return verifyBought Amount of MAMV bought and compounded
      */
     function harvest() external nonReentrant returns (
         uint256 wethHarvested,
@@ -177,14 +177,14 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
         uint256 fee = (wethHarvested * performanceFeeBps) / 10_000;
         uint256 toCompound = wethHarvested - fee;
 
-        // Swap WETH → VERIFY via router
+        // Swap WETH → MAMV via router
         if (router != address(0) && toCompound > 0) {
             // In production, would call router.swapExactETHForTokens()
             // For now, simplified: assume 1:1 for demonstration
             verifyBought = toCompound; // Placeholder
         }
 
-        // Re-stake VERIFY
+        // Re-stake MAMV
         if (verifyBought > 0) {
             verifyToken.approve(staking, verifyBought);
             (success,) = staking.call(
@@ -209,8 +209,8 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @notice Convert assets to shares
-     * @param assets Amount of VERIFY
-     * @return shares Amount of vVERIFY
+     * @param assets Amount of MAMV
+     * @return shares Amount of vMAMV
      */
     function convertToShares(uint256 assets) public view returns (uint256 shares) {
         uint256 supply = totalSupply();
@@ -224,8 +224,8 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @notice Convert shares to assets
-     * @param shares Amount of vVERIFY
-     * @return assets Amount of VERIFY
+     * @param shares Amount of vMAMV
+     * @return assets Amount of MAMV
      */
     function convertToAssets(uint256 shares) public view returns (uint256 assets) {
         uint256 supply = totalSupply();
@@ -239,7 +239,7 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @notice Get total assets under management
-     * @return total Total VERIFY in vault + staked
+     * @return total Total MAMV in vault + staked
      */
     function totalAssets() public view returns (uint256 total) {
         // Vault balance
@@ -261,8 +261,8 @@ contract VERIFYVault is ERC20, Ownable, ReentrancyGuard {
     /**
      * @notice Get user's share of vault
      * @param user User address
-     * @return assets User's VERIFY balance
-     * @return shares User's vVERIFY balance
+     * @return assets User's MAMV balance
+     * @return shares User's vMAMV balance
      * @return percentage Share of vault (bps)
      */
     function getUserInfo(address user) external view returns (

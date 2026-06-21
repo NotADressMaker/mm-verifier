@@ -7,7 +7,7 @@ export function getRpcUrl(): string {
 }
 
 export function getChainIdFromEnv(): number | undefined {
-  const value = process.env.MMV_CHAIN_ID || process.env.CHAIN_ID;
+  const value = process.env.MAMV_CHAIN_ID || process.env.MMV_CHAIN_ID || process.env.CHAIN_ID;
   if (!value) {
     return undefined;
   }

@@ -14,11 +14,11 @@ describe('env helpers', () => {
     expect(getRpcUrl()).toBe('https://sepolia.example');
   });
 
-  it('returns chain id from MMV_CHAIN_ID or CHAIN_ID', () => {
-    process.env.MMV_CHAIN_ID = '421614';
+  it('returns chain id from MAMV_CHAIN_ID or CHAIN_ID', () => {
+    process.env.MAMV_CHAIN_ID = '421614';
     expect(getChainIdFromEnv()).toBe(421614);
 
-    delete process.env.MMV_CHAIN_ID;
+    delete process.env.MAMV_CHAIN_ID;
     process.env.CHAIN_ID = '42161';
     expect(getChainIdFromEnv()).toBe(42161);
   });

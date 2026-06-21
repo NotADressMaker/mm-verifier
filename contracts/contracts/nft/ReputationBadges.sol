@@ -66,7 +66,7 @@ contract ReputationBadges is ERC721, Ownable {
     event BadgeRevoked(uint256 indexed tokenId, address indexed recipient);
     event MinterSet(address indexed minter, bool authorized);
 
-    constructor() ERC721("MM Verify Badges", "VERIFY-BADGE") Ownable(msg.sender) {
+    constructor() ERC721("MM Verify Badges", "MAMV-BADGE") Ownable(msg.sender) {
         // Initialize badge colors and names
         badgeColors[BadgeType.EXPERT_VERIFIED] = "#FFD700";      // Gold
         badgeColors[BadgeType.ACCURACY_GOLD] = "#FFD700";        // Gold

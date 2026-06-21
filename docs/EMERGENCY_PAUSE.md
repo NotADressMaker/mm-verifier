@@ -207,7 +207,7 @@ await updateStatusPage({
 
 ## Status: PAUSED
 
-We have temporarily paused MMV operations due to [brief description].
+We have temporarily paused MAMV operations due to [brief description].
 
 **What happened:**
 - [Timeline of events]
@@ -341,7 +341,7 @@ console.log('Operations resumed');
 // Notify users
 await sendNotification({
   title: 'Operations Resumed',
-  message: 'MMV is back online. All systems normal.',
+  message: 'MAMV is back online. All systems normal.',
 });
 ```
 

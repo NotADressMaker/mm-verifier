@@ -2,7 +2,7 @@
  * Evidence export module for GenAIL executions
  *
  * This module provides auditable evidence bundle generation
- * for GenAIL script executions within MMV.
+ * for GenAIL script executions within MAMV.
  */
 
 import { createHash } from 'crypto';

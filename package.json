@@ -1,5 +1,5 @@
 {
-  "name": "llm-verifier",
+  "name": "mamv",
   "version": "0.1.0",
   "description": "Decentralized marketplace for verifying AI model outputs with economic accountability",
   "main": "index.js",
@@ -39,7 +39,7 @@
     "smart-contracts",
     "decentralized"
   ],
-  "author": "LLM Verifier Team",
+  "author": "MAMV Team",
   "license": "MIT",
   "repository": {
     "type": "git",

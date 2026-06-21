@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title BondingCurve
- * @notice Algorithmic price discovery for VERIFY token
+ * @notice Algorithmic price discovery for MAMV token
  * @dev Bonding curve AMM with linear price function
  *
  * Price Function:
@@ -34,11 +34,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  *
  * Example Usage:
  * ```
- * // Buy 100 VERIFY
+ * // Buy 100 MAMV
  * uint256 cost = bondingCurve.getBuyPrice(100e18);
  * bondingCurve.buy{value: cost}(100e18);
  *
- * // Sell 50 VERIFY
+ * // Sell 50 MAMV
  * verifyToken.approve(bondingCurve, 50e18);
  * bondingCurve.sell(50e18);
  * ```
@@ -105,8 +105,8 @@ contract BondingCurve is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Buy VERIFY tokens
-     * @param amount Amount of VERIFY to buy
+     * @notice Buy MAMV tokens
+     * @param amount Amount of MAMV to buy
      * @return cost Total cost in WETH
      */
     function buy(uint256 amount) external payable nonReentrant returns (uint256 cost) {
@@ -144,8 +144,8 @@ contract BondingCurve is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Sell VERIFY tokens
-     * @param amount Amount of VERIFY to sell
+     * @notice Sell MAMV tokens
+     * @param amount Amount of MAMV to sell
      * @return proceeds Amount of WETH received
      */
     function sell(uint256 amount) external nonReentrant returns (uint256 proceeds) {
@@ -182,7 +182,7 @@ contract BondingCurve is Ownable, ReentrancyGuard {
 
     /**
      * @notice Get buy price for amount
-     * @param amount Amount of VERIFY tokens
+     * @param amount Amount of MAMV tokens
      * @return price Total cost in wei
      */
     function getBuyPrice(uint256 amount) public view returns (uint256 price) {
@@ -200,7 +200,7 @@ contract BondingCurve is Ownable, ReentrancyGuard {
 
     /**
      * @notice Get sell price for amount
-     * @param amount Amount of VERIFY tokens
+     * @param amount Amount of MAMV tokens
      * @return price Total proceeds in wei
      */
     function getSellPrice(uint256 amount) public view returns (uint256 price) {
@@ -317,7 +317,7 @@ contract BondingCurve is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Deposit VERIFY tokens to curve
+     * @notice Deposit MAMV tokens to curve
      * @param amount Amount of tokens
      */
     function depositTokens(uint256 amount) external onlyOwner {
@@ -325,7 +325,7 @@ contract BondingCurve is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Withdraw VERIFY tokens from curve
+     * @notice Withdraw MAMV tokens from curve
      * @param amount Amount of tokens
      */
     function withdrawTokens(uint256 amount) external onlyOwner {

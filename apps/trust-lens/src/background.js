@@ -4,7 +4,7 @@
   chrome.webRequest.onHeadersReceived.addListener(
     (details) => {
       const header = details.responseHeaders?.find(
-        (item) => item.name.toLowerCase() === 'x-mmv-receipt'
+        (item) => item.name.toLowerCase() === 'x-mamv-receipt'
       );
       if (header && header.value) {
         receiptByTab.set(details.tabId, header.value);

@@ -15,7 +15,7 @@ A `VerifiedOutputRecord` is a derived artifact that captures:
 - **Worthiness**: `worthy` flag (score >= 8000 bps by default)
 - **Evidence provenance**: `bundle_hash` and `bundle_uri` for full audit trail
 - **Chain context**: `chain_id`, `contract_address`, `finalized_at`, `block_number`, `tx_hash`
-- **Content hashes**: `input_hash` and `output_hash` when available from MMVReceipt
+- **Content hashes**: `input_hash` and `output_hash` when available from MAMVReceipt
 
 ## What "Worthy" Means
 
@@ -37,7 +37,7 @@ Records with `worthy: true` represent high-quality verifications suitable for:
 ### Get Record for Task
 
 ```
-GET /api/mmv/tasks/{taskId}/record
+GET /api/mamv/tasks/{taskId}/record
 ```
 
 Returns the VerifiedOutputRecord for a finalized task.
@@ -70,7 +70,7 @@ Returns the VerifiedOutputRecord for a finalized task.
 ### List Records
 
 ```
-GET /api/mmv/records?worthy_only=true&limit=50&offset=0
+GET /api/mamv/records?worthy_only=true&limit=50&offset=0
 ```
 
 Returns paginated list of verified records.
@@ -102,7 +102,7 @@ Returns paginated list of verified records.
 ### Verify On-Chain
 
 ```
-GET /api/mmv/tasks/{taskId}/verify
+GET /api/mamv/tasks/{taskId}/verify
 ```
 
 Confirms that a Finalized event exists on-chain for the task.
@@ -122,10 +122,10 @@ Confirms that a Finalized event exists on-chain for the task.
 ### JavaScript/TypeScript
 
 ```typescript
-import { MMVClient } from '@mmv/sdk-js';
+import { MAMVClient } from '@mamv/sdk-js';
 
-const client = new MMVClient({
-  baseUrl: 'https://api.mmv.example.com',
+const client = new MAMVClient({
+  baseUrl: 'https://api.mamv.example.com',
   apiKey: 'your-api-key',
 });
 
@@ -169,7 +169,7 @@ VerifiedOutputRecord (derived at query time)
 ├── task_id, score_bps, verdict, worthy
 ├── bundle_hash, bundle_uri (from Revealed)
 ├── finalized_at, block_number, tx_hash (from Finalized)
-└── input_hash, output_hash (from MMVReceipt if available)
+└── input_hash, output_hash (from MAMVReceipt if available)
 ```
 
 ### Event Log Structure
@@ -284,10 +284,10 @@ import { SCORE_THRESHOLDS, WORTHY_MIN_BPS } from 'shared/verifiedOutput';
 │  └─────────────────────────────────────────────────────┘    │
 │                              │                               │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              mmv.ts routes                           │    │
-│  │  - GET /api/mmv/tasks/:taskId/record                │    │
-│  │  - GET /api/mmv/records                             │    │
-│  │  - GET /api/mmv/tasks/:taskId/verify                │    │
+│  │              mamv.ts routes                           │    │
+│  │  - GET /api/mamv/tasks/:taskId/record                │    │
+│  │  - GET /api/mamv/records                             │    │
+│  │  - GET /api/mamv/tasks/:taskId/verify                │    │
 │  └─────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -383,6 +383,6 @@ console.log(`Average score: ${totalScore / totalWorthy / 100}%`);
 ## Related Documentation
 
 - [API Reference](./api.md) - Full API documentation
-- [MMV Integration](./mmv-integration.md) - MMV system overview
+- [MAMV Integration](./mamv-integration.md) - MAMV system overview
 - [Economic Security](./economic-security.md) - Staking and incentives
 - [BLS System](./BLS_SYSTEM.md) - Branch Legitimacy Scoring

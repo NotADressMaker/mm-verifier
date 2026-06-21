@@ -1,24 +1,24 @@
 import { Wallet } from 'ethers';
 import { runDecisionGate } from '../src/services/decisionGate';
-import { verifyMMVAttestationSignature } from '../src/services/mmvAttestation';
+import { verifyMAMVAttestationSignature } from '../src/services/mamvAttestation';
 import { MMVVerificationResult } from '../../shared/types';
 
-jest.mock('../src/services/mmvVerifier', () => ({
-  verifyWithMMV: jest.fn(),
+jest.mock('../src/services/mamvVerifier', () => ({
+  verifyWithMAMV: jest.fn(),
 }));
 
-const { verifyWithMMV } = jest.requireMock('../src/services/mmvVerifier');
+const { verifyWithMAMV } = jest.requireMock('../src/services/mamvVerifier');
 
 describe('Decision gate integration', () => {
   beforeEach(() => {
     const wallet = new Wallet(
       '0x8b3a350cf5c34c9194ca3a545d1dfe54c4b7275a59b65e94a4cb6c1316a9f0f3'
     );
-    process.env.MMV_SIGNER_PRIVATE_KEY = wallet.privateKey;
-    process.env.MMV_CHAIN_ID = '42161';
-    process.env.MMV_ATTESTATION_CONTRACT = '0x0000000000000000000000000000000000000002';
-    process.env.MMV_MIN_PASS_SCORE = '70';
-    process.env.MMV_MIN_CANDIDATE_SCORE = '60';
+    process.env.MAMV_SIGNER_PRIVATE_KEY = wallet.privateKey;
+    process.env.MAMV_CHAIN_ID = '42161';
+    process.env.MAMV_ATTESTATION_CONTRACT = '0x0000000000000000000000000000000000000002';
+    process.env.MAMV_MIN_PASS_SCORE = '70';
+    process.env.MAMV_MIN_CANDIDATE_SCORE = '60';
   });
 
   it('returns a signed attestation for passing verification', async () => {
@@ -42,7 +42,7 @@ describe('Decision gate integration', () => {
       verifier: {
         provider: 'openai',
         model: 'gpt-4-turbo',
-        version: 'mmv-verifier@1.0.0',
+        version: 'mamv-verifier@1.0.0',
         configHash: '0x' + '44'.repeat(32),
       },
       provenance: {
@@ -58,7 +58,7 @@ describe('Decision gate integration', () => {
       },
     };
 
-    verifyWithMMV.mockResolvedValue(mockResult);
+    verifyWithMAMV.mockResolvedValue(mockResult);
 
     const result = await runDecisionGate({
       taskId: 'task-1',
@@ -67,10 +67,10 @@ describe('Decision gate integration', () => {
       requesterId: 'tester',
     });
 
-    const wallet = new Wallet(process.env.MMV_SIGNER_PRIVATE_KEY as string);
-    const recovered = verifyMMVAttestationSignature(
+    const wallet = new Wallet(process.env.MAMV_SIGNER_PRIVATE_KEY as string);
+    const recovered = verifyMAMVAttestationSignature(
       42161,
-      process.env.MMV_ATTESTATION_CONTRACT as string,
+      process.env.MAMV_ATTESTATION_CONTRACT as string,
       result.attestation,
       result.signature
     );

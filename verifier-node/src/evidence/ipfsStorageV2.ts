@@ -360,7 +360,7 @@ async function pinExistingToPinata(cid: string): Promise<void> {
     {
       hashToPin: cid,
       pinataMetadata: {
-        name: `llm-verifier-evidence-${cid}`,
+        name: `mamv-evidence-${cid}`,
       },
     },
     {

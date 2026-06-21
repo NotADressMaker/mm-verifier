@@ -1,6 +1,6 @@
 (function () {
   function getMetaReceipt() {
-    const meta = document.querySelector('meta[name="mmv-receipt"]');
+    const meta = document.querySelector('meta[name="mamv-receipt"]');
     if (!meta) {
       return null;
     }

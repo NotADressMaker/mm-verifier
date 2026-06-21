@@ -13,7 +13,7 @@ contract MMVCoin is ERC20, Ownable {
 
     event MinterSet(address indexed minter);
 
-    constructor() ERC20("MMV Coin", "MMVC") Ownable(msg.sender) {}
+    constructor() ERC20("MAMV Coin", "MMVC") Ownable(msg.sender) {}
 
     function setMinter(address _minter) external onlyOwner {
         require(_minter != address(0), "minter=0");

@@ -1,6 +1,6 @@
 # Threat Model
 
-This document enumerates the concrete threats MMV defends against, the specific components impacted, and which mitigations are **implemented** vs **planned**. It also includes validation checks, residual risk, and out-of-scope items.
+This document enumerates the concrete threats MAMV defends against, the specific components impacted, and which mitigations are **implemented** vs **planned**. It also includes validation checks, residual risk, and out-of-scope items.
 
 ## Scope
 
@@ -36,7 +36,7 @@ Chain <----- disputes/commitments ---- auditors
 
 ## Security Assumptions
 
-- **Chain finality:** MMV assumes finality based on Arbitrum/ETH reorg depth. Chain finality liveness assumptions are required for dispute windows and slashing payouts.
+- **Chain finality:** MAMV assumes finality based on Arbitrum/ETH reorg depth. Chain finality liveness assumptions are required for dispute windows and slashing payouts.
 - **VRF / oracle assumptions:** Chainlink VRF (when enabled) is assumed to provide unbiased randomness; deterministic fallback is not adversarially secure and is intended for test/emergency use.
 - **Storage assumptions:** IPFS/Arweave/DB storage is assumed to be *tamper-evident* (hash-checked) but not necessarily durable or censorship-resistant.
 - **Key management:** Verifiers and auditors must protect private keys and avoid key reuse across environments.
@@ -321,7 +321,7 @@ Attackers attempt to block disputes or prevent evidence availability.
 
 - Model providers lying about model internals or training data.
 - Client-side malware or compromised user machines.
-- Attacks requiring network-level censorship beyond MMV’s control.
+- Attacks requiring network-level censorship beyond MAMV’s control.
 
 ## Implementation Checks (Quick List)
 

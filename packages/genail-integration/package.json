@@ -1,7 +1,7 @@
 {
-  "name": "@mmv/genail-integration",
+  "name": "@mamv/genail-integration",
   "version": "0.1.0",
-  "description": "GenAI Language integration for MMV verification with metering, receipts, and auditable evidence",
+  "description": "GenAI Language integration for MAMV verification with metering, receipts, and auditable evidence",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -13,17 +13,17 @@
     "test": "jest"
   },
   "keywords": [
-    "mmv",
+    "mamv",
     "genail",
     "verification",
     "ai",
     "llm",
     "metering"
   ],
-  "author": "MMV Contributors",
+  "author": "MAMV Contributors",
   "license": "MIT",
   "dependencies": {
-    "@mmv/sdk": "^0.1.0"
+    "@mamv/sdk": "^0.1.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

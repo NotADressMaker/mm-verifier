@@ -1,4 +1,4 @@
-// Prisma Schema for MMV API
+// Prisma Schema for MAMV API
 // Database schema for verification tasks, webhooks, and audit trail
 
 generator client {

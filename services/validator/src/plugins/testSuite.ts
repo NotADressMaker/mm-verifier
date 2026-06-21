@@ -25,7 +25,7 @@ async function prepareWorkspace(payload: TestSuiteRequestPayload): Promise<strin
     throw new Error('repoUrl and commit are required when workspacePath is not provided');
   }
 
-  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'mmv-test-suite-'));
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'mamv-test-suite-'));
   const cloneResult = await runCommand('git', ['clone', payload.repoUrl, workspace], undefined, {
     timeoutMs: 120000,
     maxOutputBytes: 20000,

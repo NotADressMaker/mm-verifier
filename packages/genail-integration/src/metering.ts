@@ -2,7 +2,7 @@
  * Metering module for GenAIL runtime
  *
  * This module provides resource tracking and limit enforcement
- * for GenAIL script executions within MMV.
+ * for GenAIL script executions within MAMV.
  */
 
 import { createHash } from 'crypto';
@@ -304,7 +304,7 @@ export function createMeteringHooks(
 
       if (check.warnings.length > 0 && ctx.limits) {
         // Approaching limits
-        console.warn(`[MMV Metering] Warning: ${check.warnings.join(', ')}`);
+        console.warn(`[MAMV Metering] Warning: ${check.warnings.join(', ')}`);
       }
 
       if (!check.within_limits && effectiveLimits.on_exceed === 'error') {

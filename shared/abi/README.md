@@ -1,6 +1,6 @@
 # Shared Contract ABIs
 
-This directory contains exported contract ABIs for use across the LLM Verifier system.
+This directory contains exported contract ABIs for use across the MAMV system.
 
 ## Purpose
 

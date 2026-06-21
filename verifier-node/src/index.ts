@@ -13,7 +13,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
 
 async function main() {
   try {
-    logger.info('🚀 Starting LLM Verifier Node...');
+    logger.info('🚀 Starting MAMV Node...');
 
     const mockMode = process.env.MOCK_VERIFIER === 'true';
     if (mockMode) {

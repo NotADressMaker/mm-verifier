@@ -1,6 +1,6 @@
-# Contributing to MMV
+# Contributing to MAMV
 
-Thank you for your interest in contributing to MMV! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to MAMV! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -10,7 +10,7 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/michaelmannen3-oss/MMV/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/michaelmannen3-oss/MAMV/issues)
 2. If not, create a new issue with:
    - Clear, descriptive title
    - Steps to reproduce
@@ -20,7 +20,7 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 ### Suggesting Features
 
-1. Check [Issues](https://github.com/michaelmannen3-oss/MMV/issues) for existing feature requests
+1. Check [Issues](https://github.com/michaelmannen3-oss/MAMV/issues) for existing feature requests
 2. Create a new issue with:
    - Clear description of the feature
    - Use cases and benefits
@@ -99,8 +99,8 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/michaelmannen3-oss/MMV.git
-   cd MMV
+   git clone https://github.com/michaelmannen3-oss/MAMV.git
+   cd MAMV
    ```
 
 2. Install dependencies:
@@ -140,7 +140,7 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 ## Project Structure
 
 ```
-MMV/
+MAMV/
 ├── contracts/          # Solidity smart contracts
 │   ├── contracts/     # Contract source files
 │   ├── scripts/       # Deployment scripts
@@ -254,7 +254,7 @@ npm run format
 
 If you have questions:
 - Check the [README](./README.md)
-- Search [existing issues](https://github.com/michaelmannen3-oss/MMV/issues)
+- Search [existing issues](https://github.com/michaelmannen3-oss/MAMV/issues)
 - Ask in a new issue or discussion
 
 ## License

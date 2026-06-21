@@ -6,9 +6,9 @@ concurrency:
 
 on:
   push:
-    branches: ["main", "master", "claude/multi-llm-verifier-IDKkb"]
+    branches: ["main", "master", "claude/multi-mamv-IDKkb"]
   pull_request:
-    branches: ["main", "master", "claude/multi-llm-verifier-IDKkb"]
+    branches: ["main", "master", "claude/multi-mamv-IDKkb"]
 
 jobs:
   lint-typecheck:

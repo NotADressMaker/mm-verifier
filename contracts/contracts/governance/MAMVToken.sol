@@ -8,12 +8,12 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title VerifyToken
- * @notice Governance token for MMV protocol
+ * @title MAMVToken
+ * @notice Governance token for MAMV protocol
  * @dev ERC20Votes enables on-chain governance with delegation
  *
  * Features:
- * - Total supply: 1,000,000 VERIFY
+ * - Total supply: 1,000,000 MAMV
  * - Burnable: Holders can burn tokens
  * - Votable: Supports delegation for governance
  * - Permit: Gasless approvals via EIP-2612
@@ -24,7 +24,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * - 20% Liquidity mining rewards
  * - 10% Initial airdrop to early verifiers
  */
-contract VerifyToken is ERC20, ERC20Burnable, ERC20Votes, ERC20Permit, Ownable {
+contract MAMVToken is ERC20, ERC20Burnable, ERC20Votes, ERC20Permit, Ownable {
     uint256 public constant TOTAL_SUPPLY = 1_000_000 * 10**18; // 1M tokens
 
     // Distribution addresses
@@ -39,7 +39,7 @@ contract VerifyToken is ERC20, ERC20Burnable, ERC20Votes, ERC20Permit, Ownable {
         address _miningRewards,
         address _airdrop
     )
-        ERC20("MM Verify", "VERIFY")
+        ERC20("MM Verify", "MAMV")
         ERC20Permit("MM Verify")
         Ownable(msg.sender)
     {

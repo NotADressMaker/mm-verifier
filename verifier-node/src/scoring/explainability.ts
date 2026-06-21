@@ -1,5 +1,5 @@
 /**
- * Explainability Payload for MMV
+ * Explainability Payload for MAMV
  *
  * Structured output that makes verification results fully transparent:
  * - Atomic claim extraction
@@ -126,7 +126,7 @@ export class ExplainabilityBuilder {
       const claim: Claim = {
         id: this.generateClaimId(sentence),
         text: sentence,
-        category: this.categorize Claim(sentence),
+        category: this.categorizeClaim(sentence),
         importance: this.calculateImportance(sentence),
         verdict: ClaimVerdict.UNCERTAIN,
         confidence: 0,

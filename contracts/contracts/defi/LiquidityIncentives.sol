@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title LiquidityIncentives
- * @notice Reward liquidity providers with VERIFY tokens
- * @dev Incentivize deep liquidity for VERIFY/WETH pairs on DEXes
+ * @notice Reward liquidity providers with MAMV tokens
+ * @dev Incentivize deep liquidity for MAMV/WETH pairs on DEXes
  *
  * Supported DEXes:
  * - Uniswap V2/V3
@@ -19,11 +19,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * How it works:
  * 1. Users provide liquidity on supported DEX (get LP tokens)
  * 2. Stake LP tokens in this contract
- * 3. Earn VERIFY tokens proportionally
+ * 3. Earn MAMV tokens proportionally
  * 4. Rewards emitted per block (like Masterchef)
  *
  * Benefits:
- * - Deep liquidity for VERIFY token
+ * - Deep liquidity for MAMV token
  * - Reduced slippage for traders
  * - Additional yield for LPs
  * - Price stability
@@ -31,11 +31,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * Example:
  * ```
  * // Add liquidity on Uniswap V2
- * lpToken = uniswapV2.addLiquidity(VERIFY, WETH, 1000e18, 10e18);
+ * lpToken = uniswapV2.addLiquidity(MAMV, WETH, 1000e18, 10e18);
  *
  * // Stake LP tokens
  * lpToken.approve(incentives, amount);
- * incentives.stake(0, amount); // Pool 0 = VERIFY/WETH
+ * incentives.stake(0, amount); // Pool 0 = MAMV/WETH
  *
  * // Harvest rewards
  * incentives.harvest(0);
@@ -52,7 +52,7 @@ contract LiquidityIncentives is Ownable, ReentrancyGuard {
         uint256 accRewardPerShare; // Scaled by 1e12
         uint256 totalStaked;
         bool active;
-        string name;            // Pool name (e.g., "Uniswap V2 VERIFY/WETH")
+        string name;            // Pool name (e.g., "Uniswap V2 MAMV/WETH")
     }
 
     // User info
@@ -66,7 +66,7 @@ contract LiquidityIncentives is Ownable, ReentrancyGuard {
     PoolInfo[] public poolInfo;
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
 
-    uint256 public rewardPerBlock = 10e18; // 10 VERIFY per block
+    uint256 public rewardPerBlock = 10e18; // 10 MAMV per block
     uint256 public totalAllocPoint = 0;
     uint256 public startBlock;
 

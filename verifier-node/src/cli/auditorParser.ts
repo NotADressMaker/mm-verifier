@@ -127,7 +127,7 @@ export function parseAuditorArgs(args: string[]): AuditorCommand {
     }
     default:
       throw new Error(
-        'Usage: mmv auditor <list-disputes|inspect|run|submit> [options]'
+        'Usage: mamv auditor <list-disputes|inspect|run|submit> [options]'
       );
   }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 /**
  * @title VerifierTypes
- * @notice Canonical type library for LLM Verifier system
+ * @notice Canonical type library for MAMV system
  * @dev Shared structs and enums used across all contracts
  *
  * This library provides a single source of truth for all data structures,

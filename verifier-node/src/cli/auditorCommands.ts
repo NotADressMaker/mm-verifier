@@ -90,7 +90,7 @@ export async function executeAuditorCommand(
 
       const verdictWinner = command.verdict === 'ACCEPT' ? 2 : 1;
       const rationaleHash =
-        command.rationaleHash ?? ethers.keccak256(ethers.toUtf8Bytes('mmv-auditor'));
+        command.rationaleHash ?? ethers.keccak256(ethers.toUtf8Bytes('mamv-auditor'));
 
       if (command.dryRun) {
         return {

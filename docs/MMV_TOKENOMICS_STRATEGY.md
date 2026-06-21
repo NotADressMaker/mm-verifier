@@ -1,4 +1,4 @@
-# MMV Tokenomics and Platform Strategy
+# MAMV Tokenomics and Platform Strategy
 
 ## Executive Summary
 
@@ -14,7 +14,7 @@
 
 6. **Platform hardening follows a dependency chain**: P0 (schema unification) → P1 (receipts as settlement) → P2 (provenance + model commitments) → P3 (dispute hardening) → P4 (developer surface).
 
-7. **MMV's trust model differs fundamentally from Ethereum's**: Ethereum verifies deterministic computation (1+1=2 is provable). MMV verifies probabilistic trustworthiness via economic incentives + audit trails. This distinction shapes every design decision.
+7. **MAMV's trust model differs fundamentally from Ethereum's**: Ethereum verifies deterministic computation (1+1=2 is provable). MAMV verifies probabilistic trustworthiness via economic incentives + audit trails. This distinction shapes every design decision.
 
 8. **Slashing must be tied to protocol violations and dispute outcomes**, not to "being wrong"—because "wrong" is often unknowable for AI outputs.
 
@@ -24,7 +24,7 @@
 
 ---
 
-## Section 1: Should MMV Add a Token Now?
+## Section 1: Should MAMV Add a Token Now?
 
 ### Recommendation: No. Use a Phased Approach.
 
@@ -32,7 +32,7 @@
 |-------|-----------|--------------------------|
 | **Phase 1: Points + Reputation** | Off-chain points; non-transferable reputation scores; ETH for fees | Working verification flow; 10+ active verifiers; 1,000+ verifications completed |
 | **Phase 2: Stake + Slashing** | ETH staking with slashing; fee distribution; reputation affects job priority | Dispute mechanism tested in production; clear slashing rules; 6+ months Phase 1 data |
-| **Phase 3: Optional Token** | MMV token for staking, governance, emissions (if justified) | Demonstrated demand exceeding ETH capacity; regulatory clarity; community governance framework |
+| **Phase 3: Optional Token** | MAMV token for staking, governance, emissions (if justified) | Demonstrated demand exceeding ETH capacity; regulatory clarity; community governance framework |
 
 ### Why This Phasing?
 
@@ -120,7 +120,7 @@ verifier_reward = total_epoch_fees × FEE_TO_VERIFIERS × verifier_share
 This model uses token emissions to bootstrap the network:
 
 **How it works:**
-1. MMV token is emitted to verifiers for completed verifications
+1. MAMV token is emitted to verifiers for completed verifications
 2. Emissions are tied to **paid demand** (not raw verification count)
 3. Difficulty adjusts so emissions per verification decrease as network grows
 4. Anti-farming mechanisms prevent synthetic demand
@@ -128,7 +128,7 @@ This model uses token emissions to bootstrap the network:
 **Parameters:**
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| `TOTAL_SUPPLY` | 1,000,000,000 MMV | Fixed cap |
+| `TOTAL_SUPPLY` | 1,000,000,000 MAMV | Fixed cap |
 | `EMISSION_POOL` | 40% of supply | Distributed over ~10 years |
 | `EMISSION_HALVING` | Every 2 years | Decreasing inflation |
 | `DEMAND_MULTIPLIER` | `min(1.0, paid_fees / target_fees)` | Emissions only when demand exists |
@@ -339,10 +339,10 @@ If the attacker gains less than 1.95 ETH from corrupting the verification, the a
 ### 4.2 Off-Chain Gating (Middleware)
 
 ```typescript
-import { MMVGate, GatingMode } from '@mmv/sdk';
+import { MAMVGate, GatingMode } from '@mamv/sdk';
 
 // 10-line integration
-const gate = new MMVGate({
+const gate = new MAMVGate({
   mode: 'warn',  // 'warn' | 'label' | 'block'
   policy: {
     min_score_bps: 8000,
@@ -493,7 +493,7 @@ interface GatableReceipt {
 **Scope:**
 - `/v1/` API with versioned endpoints
 - OpenAPI 3.0 specification
-- `@mmv/sdk` with TypeScript client
+- `@mamv/sdk` with TypeScript client
 - Gating middleware (warn/label/block)
 - Example integrations (agent, smart contract, API)
 
@@ -508,9 +508,9 @@ interface GatableReceipt {
 
 ---
 
-## Section 6: Ethereum vs MMV Trust Models
+## Section 6: Ethereum vs MAMV Trust Models
 
-| Dimension | Ethereum | MMV |
+| Dimension | Ethereum | MAMV |
 |-----------|----------|-----|
 | **What is verified** | Deterministic computation (EVM execution) | Probabilistic AI output trustworthiness |
 | **Verification method** | Cryptographic proof (re-execute to verify) | Economic consensus (multiple verifiers + incentives) |
@@ -523,11 +523,11 @@ interface GatableReceipt {
 
 **Why this matters for tokenomics:**
 
-Ethereum validators are rewarded for *availability* and *correct execution*—both verifiable. MMV verifiers are rewarded for *trustworthy evaluation*—not directly verifiable.
+Ethereum validators are rewarded for *availability* and *correct execution*—both verifiable. MAMV verifiers are rewarded for *trustworthy evaluation*—not directly verifiable.
 
 This means:
-1. MMV cannot slash for "wrong answers" (no ground truth)
-2. MMV must slash for *process violations* and *lost disputes*
+1. MAMV cannot slash for "wrong answers" (no ground truth)
+2. MAMV must slash for *process violations* and *lost disputes*
 3. Rewards must incentivize calibration, not false confidence
 4. The token (if any) cannot promise "truth"—only "auditable, incentive-aligned evaluation"
 
@@ -541,7 +541,7 @@ This means:
 
 3. **Cold-start problem**: How does the network bootstrap when there are few verifiers and little fee volume? Subsidized jobs? Foundation grants?
 
-4. **Regulatory classification**: Would an MMV token be a security under Howey? Does this change based on jurisdiction?
+4. **Regulatory classification**: Would an MAMV token be a security under Howey? Does this change based on jurisdiction?
 
 5. **Auditor selection fairness**: VRF is random, but can sophisticated attackers predict or influence selection?
 
@@ -557,18 +557,18 @@ This means:
 
 ---
 
-## Appendix: Why MMV for AI Accountability
+## Appendix: Why MAMV for AI Accountability
 
 Ethereum provides transaction immutability—once recorded, data cannot be altered. This solves *tamper-proofing* but not *trustworthiness*. For AI outputs, the question is not "was this recorded correctly?" but "should this output be trusted?"
 
-MMV extends the blockchain trust model to address AI-specific challenges:
+MAMV extends the blockchain trust model to address AI-specific challenges:
 - **Input/output provenance**: Proves what was asked and answered, not just that something was recorded
 - **Multi-model consensus**: Cross-checks outputs across independent AI providers, reducing single-point-of-failure trust
 - **Model accountability**: Cryptographic commitments detect when providers silently change models
 - **Economic verification**: Staked verifiers with skin in the game, slashed for misbehavior
 - **Audit trail**: Evidence bundles provide reproducible verification reasoning (via hashes, not raw content)
 
-This does not replace Ethereum—it builds on it. Ethereum provides the settlement layer (immutability, finality). MMV provides the verification layer (trustworthiness evaluation with economic guarantees).
+This does not replace Ethereum—it builds on it. Ethereum provides the settlement layer (immutability, finality). MAMV provides the verification layer (trustworthiness evaluation with economic guarantees).
 
 The result is not "provably correct AI" (impossible) but "auditable, economically-secured AI evaluation"—a meaningful improvement over "trust OpenAI's API response."
 

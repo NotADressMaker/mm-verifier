@@ -1,6 +1,6 @@
-# Validator-as-a-Service (MMV)
+# Validator-as-a-Service (MAMV)
 
-This document summarizes the request/result interfaces discovered in the MMV repo and how the new validator service integrates with them.
+This document summarizes the request/result interfaces discovered in the MAMV repo and how the new validator service integrates with them.
 
 ## Repository discovery (interfaces)
 
@@ -10,18 +10,18 @@ This document summarizes the request/result interfaces discovered in the MMV rep
 
 **Request contents**
 - On-chain task metadata (prompt hash, rubric hash, deadlines, eval counts, etc.) is fetched via `getTaskDetails` in the API blockchain service.【F:api/src/services/blockchain.ts†L118-L171】
-- For MMV API verification (`/api/mmv/verify`), the request is `{ taskId, input, candidates[] }` and produces an MMV receipt via `buildMMVReceipt`.【F:api/src/routes/mmv.ts†L1-L70】
+- For MAMV API verification (`/api/mamv/verify`), the request is `{ taskId, input, candidates[] }` and produces an MAMV receipt via `buildMAMVReceipt`.【F:api/src/routes/mamv.ts†L1-L70】
 
 **Result posting**
 - Verifier nodes commit/reveal results on-chain via `commitEvaluation` and `revealEvaluation` in `verifier-node/src/services/blockchain.ts`.【F:verifier-node/src/services/jobProcessor.ts†L132-L210】
-- For validator-as-a-service, results are posted to the new MMV read API endpoint `/api/validation/requests/:id/results` with a `ValidationReceipt`.
+- For validator-as-a-service, results are posted to the new MAMV read API endpoint `/api/validation/requests/:id/results` with a `ValidationReceipt`.
 
 **Validator identity**
-- Validator identity in this service is a configured `VALIDATOR_ID` (env). This aligns with existing MMV patterns where verifiers are represented by addresses or node IDs (e.g., `VERIFIER_NODE_ID`, wallet address).【F:verifier-node/src/services/jobProcessor.ts†L78-L118】
+- Validator identity in this service is a configured `VALIDATOR_ID` (env). This aligns with existing MAMV patterns where verifiers are represented by addresses or node IDs (e.g., `VERIFIER_NODE_ID`, wallet address).【F:verifier-node/src/services/jobProcessor.ts†L78-L118】
 
 ## Validator Service Overview
 
-The validator service (`services/validator`) polls the MMV API for work validation requests, runs the appropriate verification plugin, stores receipts locally, and posts receipts back to MMV.
+The validator service (`services/validator`) polls the MAMV API for work validation requests, runs the appropriate verification plugin, stores receipts locally, and posts receipts back to MAMV.
 
 ### Request Schema
 
@@ -51,7 +51,7 @@ POST /api/validation/requests/:id/results
 
 ## Local Dev
 
-1. Start a local chain (optional, for MMV contracts):
+1. Start a local chain (optional, for MAMV contracts):
    ```
    ./scripts/dev-chain.sh
    ```
@@ -69,7 +69,7 @@ POST /api/validation/requests/:id/results
      -H 'Content-Type: application/json' \
      -d '{"plugin":"deterministic","payload":{"runner":"bash","command":"echo hello","inputHash":"0x123"}}'
    ```
-5. Open the demo endpoint (adds `X-MMV-Receipt` header):
+5. Open the demo endpoint (adds `X-MAMV-Receipt` header):
    ```
    http://localhost:3000/api/validation/demo/protected?requestId=<requestId>
    ```

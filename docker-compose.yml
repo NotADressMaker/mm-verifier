@@ -4,7 +4,7 @@ services:
   # Redis for job queue and caching
   redis:
     image: redis:7-alpine
-    container_name: mmverifier-redis
+    container_name: mamverifier-redis
     ports:
       - '6379:6379'
     volumes:
@@ -19,11 +19,11 @@ services:
   # PostgreSQL for API data
   postgres:
     image: postgres:15-alpine
-    container_name: mmverifier-postgres
+    container_name: mamverifier-postgres
     env_file:
       - .env.runtime
     environment:
-      POSTGRES_DB: mmverifier
+      POSTGRES_DB: mamverifier
       POSTGRES_USER: verifier
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     ports:
@@ -39,7 +39,7 @@ services:
   # IPFS for evidence storage
   ipfs:
     image: ipfs/kubo:latest
-    container_name: mmverifier-ipfs
+    container_name: mamverifier-ipfs
     ports:
       - '4001:4001' # P2P
       - '5001:5001' # API
@@ -54,7 +54,7 @@ services:
     build:
       context: ./contracts
       dockerfile: Dockerfile.hardhat
-    container_name: mmverifier-hardhat
+    container_name: mamverifier-hardhat
     ports:
       - '8545:8545'
     volumes:
@@ -73,7 +73,7 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: mmverifier-api
+    container_name: mamverifier-api
     env_file:
       - .env.runtime
     ports:
@@ -82,7 +82,7 @@ services:
       NODE_ENV: production
       API_PORT: 3000
       REDIS_URL: redis://redis:6379
-      DATABASE_URL: postgresql://verifier:${DB_PASSWORD:-changeme}@postgres:5432/mmverifier
+      DATABASE_URL: postgresql://verifier:${DB_PASSWORD:-changeme}@postgres:5432/mamverifier
       MOCK_VERIFIER: ${MOCK_VERIFIER:-false}
       MOCK_CHAIN: ${MOCK_CHAIN:-false}
       MOCK_SCENARIO: ${MOCK_SCENARIO:-happy}
@@ -102,7 +102,7 @@ services:
     build:
       context: ./verifier-node
       dockerfile: Dockerfile
-    container_name: mmverifier-node
+    container_name: mamverifier-node
     env_file:
       - .env.runtime
     environment:
@@ -135,4 +135,4 @@ volumes:
 
 networks:
   default:
-    name: mmverifier-network
+    name: mamverifier-network

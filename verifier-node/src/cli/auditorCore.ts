@@ -25,7 +25,7 @@ export async function loadEvidenceBundle(
 ): Promise<EvidenceBundle> {
   if (source.startsWith('http://') || source.startsWith('https://')) {
     if (!options.allowRemote) {
-      throw new Error('Remote evidence fetch disabled (set MMV_AUDITOR_ALLOW_NETWORK=true)');
+      throw new Error('Remote evidence fetch disabled (set MAMV_AUDITOR_ALLOW_NETWORK=true)');
     }
     const response = await axios.get(source, { timeout: 10_000 });
     return response.data as EvidenceBundle;
@@ -33,7 +33,7 @@ export async function loadEvidenceBundle(
 
   if (source.startsWith('ipfs://')) {
     if (!options.allowRemote) {
-      throw new Error('IPFS fetch disabled (set MMV_AUDITOR_ALLOW_NETWORK=true)');
+      throw new Error('IPFS fetch disabled (set MAMV_AUDITOR_ALLOW_NETWORK=true)');
     }
     const gatewayUrl = `https://ipfs.io/ipfs/${source.replace('ipfs://', '')}`;
     const response = await axios.get(gatewayUrl, { timeout: 10_000 });

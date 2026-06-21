@@ -1,6 +1,6 @@
 # Advanced Web3 Packages Integration Guide
 
-Complete deployment and integration guide for MMV's advanced Web3 packages.
+Complete deployment and integration guide for MAMV's advanced Web3 packages.
 
 ---
 
@@ -18,10 +18,10 @@ This guide covers three major expansion packages:
 
 ### Overview
 
-Enable MMV to operate across multiple blockchains with unified liquidity and state.
+Enable MAMV to operate across multiple blockchains with unified liquidity and state.
 
 **Contracts:**
-- `LayerZeroBridge.sol` - Cross-chain VERIFY token bridge
+- `LayerZeroBridge.sol` - Cross-chain MAMV token bridge
 - `OmniChainStaking.sol` - Stake on any chain, earn everywhere
 - `CrossChainDispute.sol` - Multi-chain dispute resolution
 
@@ -40,9 +40,9 @@ bridge.configureChain(
     ARBITRUM_CHAIN_ID,
     arbBridgeAddress,
     true,                    // enabled
-    1000000e18,             // 1M VERIFY daily limit
-    10e18,                  // Min 10 VERIFY
-    100000e18,              // Max 100K VERIFY per tx
+    1000000e18,             // 1M MAMV daily limit
+    10e18,                  // Min 10 MAMV
+    100000e18,              // Max 100K MAMV per tx
     50                      // 0.5% fee
 );
 ```
@@ -89,7 +89,7 @@ crossDispute.configureChain(
 
 ### Integration Examples
 
-#### Example 1: Bridge VERIFY to Arbitrum
+#### Example 1: Bridge MAMV to Arbitrum
 
 ```javascript
 // On Ethereum
@@ -103,7 +103,7 @@ const tx = await bridge.bridge(
 );
 
 // Wait for cross-chain message (off-chain relayer)
-// On Arbitrum, recipient receives 995 VERIFY (after 0.5% fee)
+// On Arbitrum, recipient receives 995 MAMV (after 0.5% fee)
 ```
 
 #### Example 2: Cross-Chain Staking
@@ -159,17 +159,17 @@ const disputeId = await crossDispute.escalateDispute(
 Integrate with DeFi protocols for liquidity provision and yield optimization.
 
 **Contracts:**
-- `VERIFYVault.sol` - Auto-compounding yield vault
+- `MAMVVault.sol` - Auto-compounding yield vault
 - `LiquidityIncentives.sol` - LP rewards
 - `BondingCurve.sol` - Algorithmic price discovery
 - `YieldRouter.sol` - Route rewards to DeFi protocols
 
 ### Deployment
 
-#### Step 1: Deploy VERIFYVault
+#### Step 1: Deploy MAMVVault
 
 ```solidity
-VERIFYVault vault = new VERIFYVault(
+MAMVVault vault = new MAMVVault(
     IERC20(verifyToken),
     verifyStakingAddress,
     uniswapRouterAddress,
@@ -193,24 +193,24 @@ LiquidityIncentives incentives = new LiquidityIncentives(
     block.number // Start immediately
 );
 
-// Add Uniswap V2 VERIFY/WETH pool
+// Add Uniswap V2 MAMV/WETH pool
 incentives.addPool(
     IERC20(uniV2PairAddress),
     1000,                           // Allocation points
-    "Uniswap V2 VERIFY/WETH",
+    "Uniswap V2 MAMV/WETH",
     false
 );
 
-// Add Curve VERIFY pool
+// Add Curve MAMV pool
 incentives.addPool(
     IERC20(curveLPToken),
     500,                            // Half allocation
-    "Curve VERIFY Pool",
+    "Curve MAMV Pool",
     false
 );
 
 // Set emission rate
-incentives.setRewardPerBlock(10e18); // 10 VERIFY per block
+incentives.setRewardPerBlock(10e18); // 10 MAMV per block
 ```
 
 #### Step 3: Deploy BondingCurve
@@ -266,7 +266,7 @@ const shares = await vault.deposit(ethers.parseEther("1000"));
 // Vault auto-compounds rewards
 // After 1 year at 20% APY:
 const assets = await vault.convertToAssets(shares);
-// assets = 1200 VERIFY (20% gain from compounding)
+// assets = 1200 MAMV (20% gain from compounding)
 
 // Withdraw anytime
 await vault.withdraw(shares);
@@ -291,11 +291,11 @@ await incentives.harvest(0);
 #### Example 3: Bonding Curve Trading
 
 ```javascript
-// Buy 100 VERIFY
+// Buy 100 MAMV
 const cost = await curve.getBuyPrice(ethers.parseEther("100"));
 await curve.buy(ethers.parseEther("100"), { value: cost });
 
-// Sell 50 VERIFY
+// Sell 50 MAMV
 await verifyToken.approve(curve.address, ethers.parseEther("50"));
 const proceeds = await curve.sell(ethers.parseEther("50"));
 ```
@@ -317,14 +317,14 @@ const deposited = await router.getUserTotalDeposited(myAddress);
 
 ```
 ┌──────────────────────────────────────────┐
-│          MMV Protocol           │
+│          MAMV Protocol           │
 │                                          │
 │  ┌────────────┐      ┌────────────┐     │
 │  │  Staking   │──────│   Mining   │     │
 │  └──────┬─────┘      └──────┬─────┘     │
 │         │                   │            │
 └─────────┼───────────────────┼────────────┘
-          │ WETH              │ VERIFY
+          │ WETH              │ MAMV
           │ Rewards           │ Rewards
           ▼                   ▼
 ┌─────────────────────────────────────────┐
@@ -404,7 +404,7 @@ AgentStaking agentStaking = new AgentStaking(
 
 // Configure
 agentStaking.setConfig(
-    10e18,      // Min 10 VERIFY delegation
+    10e18,      // Min 10 MAMV delegation
     7 days      // 7 day unstake cooldown
 );
 ```
@@ -486,7 +486,7 @@ const assignedAgents = await evaluator.assignTask(
     taskId,
     5,                                    // 5 agents
     "coding",                             // Required capability
-    ethers.parseEther("100")              // 100 VERIFY reward pool
+    ethers.parseEther("100")              // 100 MAMV reward pool
 );
 
 // Agents evaluate off-chain and submit commitments
@@ -510,7 +510,7 @@ const medianScore = await evaluator.finalizeTask(taskId);
 
 ```
 ┌──────────────────────────────────────────────┐
-│         MMV Protocol                │
+│         MAMV Protocol                │
 │                                              │
 │  ┌─────────────────────────────────────┐    │
 │  │    AutomatedEvaluator               │    │
@@ -575,7 +575,7 @@ evaluator.on("TaskAssigned", async (taskId, agents) => {
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                  MMV Ecosystem                  │
+│                  MAMV Ecosystem                  │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
 │  │              Core Protocol (Base Layer)            │ │
@@ -601,7 +601,7 @@ evaluator.on("TaskAssigned", async (taskId, agents) => {
    - WETH, BondVault, AuditorRegistry, DisputeLadder, Marketplace
 
 2. **Web3 Base** (Previously deployed)
-   - VerifyToken, VerifyGovernor, VerifyStaking, VerifierMining
+   - MAMVToken, MAMVGovernor, VerifyStaking, VerifierMining
    - ReputationBadges, DynamicExpertNFT
 
 3. **Cross-Chain** (This release)
@@ -611,7 +611,7 @@ evaluator.on("TaskAssigned", async (taskId, agents) => {
    - Configure chain trust relationships
 
 4. **DeFi** (This release)
-   - Deploy VERIFYVault
+   - Deploy MAMVVault
    - Deploy LiquidityIncentives
    - Deploy BondingCurve
    - Deploy YieldRouter
@@ -683,7 +683,7 @@ evaluator.on("TaskAssigned", async (taskId, agents) => {
 - **Dispute Resolution**: Access to larger expert pools
 
 ### DeFi Integration
-- **Liquidity Depth**: 10x deeper VERIFY liquidity
+- **Liquidity Depth**: 10x deeper MAMV liquidity
 - **Price Stability**: Reduced volatility via bonding curve
 - **Yield Enhancement**: 15-25% APY from DeFi strategies
 - **Token Utility**: Multiple use cases beyond staking

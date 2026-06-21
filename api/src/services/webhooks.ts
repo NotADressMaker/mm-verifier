@@ -1,5 +1,5 @@
 /**
- * Webhook Service for MMV API
+ * Webhook Service for MAMV API
  *
  * Sends HTTP callbacks when verification jobs complete.
  * Prevents polling by notifying subscribers of status changes.
@@ -175,7 +175,7 @@ export class WebhookService extends EventEmitter {
           'X-Webhook-Event': payload.event,
           'X-Webhook-Signature': signature,
           'X-Webhook-Delivery-ID': deliveryId,
-          'User-Agent': 'MMV-Webhooks/1.0',
+          'User-Agent': 'MAMV-Webhooks/1.0',
         },
         timeout: 5000,
       });

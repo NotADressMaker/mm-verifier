@@ -1,10 +1,10 @@
-# @mmv/genail-integration
+# @mamv/genail-integration
 
-GenAI Language (GenAIL) integration for MMV verification with metering, receipts, and auditable evidence.
+GenAI Language (GenAIL) integration for MAMV verification with metering, receipts, and auditable evidence.
 
 ## Overview
 
-This package provides a wrapper around GenAIL runtime that integrates with MMV to provide:
+This package provides a wrapper around GenAIL runtime that integrates with MAMV to provide:
 
 - **Metering hooks**: Track LLM calls, token usage, execution time, and tool calls
 - **Verification receipts**: Auto-generate cryptographic receipts for script executions
@@ -13,16 +13,16 @@ This package provides a wrapper around GenAIL runtime that integrates with MMV t
 ## Installation
 
 ```bash
-npm install @mmv/genail-integration
+npm install @mamv/genail-integration
 ```
 
 ## Quick Start
 
 ```typescript
-import { createVerifiedRuntime } from '@mmv/genail-integration';
+import { createVerifiedRuntime } from '@mamv/genail-integration';
 
-// Create a runtime with MMV verification enabled
-const runtime = createVerifiedRuntime('https://api.mmv.io', 'your-api-key');
+// Create a runtime with MAMV verification enabled
+const runtime = createVerifiedRuntime('https://api.mamv.io', 'your-api-key');
 
 // Execute a GenAIL script
 const result = await runtime.execute(`
@@ -48,7 +48,7 @@ if (result.success) {
 Track resource consumption during script execution:
 
 ```typescript
-import { createRuntime, DEFAULT_METERING_LIMITS } from '@mmv/genail-integration';
+import { createRuntime, DEFAULT_METERING_LIMITS } from '@mamv/genail-integration';
 
 const runtime = createRuntime({
   metering_limits: {
@@ -77,7 +77,7 @@ console.log('Utilization:', result.metering_check.utilization);
 Receipts provide cryptographic proof of execution:
 
 ```typescript
-import { buildReceipt, validateReceiptIntegrity } from '@mmv/genail-integration';
+import { buildReceipt, validateReceiptIntegrity } from '@mamv/genail-integration';
 
 // Receipts are auto-generated
 const receipt = result.receipt;
@@ -99,7 +99,7 @@ if (!validation.valid) {
 Export complete audit trails:
 
 ```typescript
-import { buildEvidenceBundle, formatEvidenceSummary } from '@mmv/genail-integration';
+import { buildEvidenceBundle, formatEvidenceSummary } from '@mamv/genail-integration';
 
 const evidence = result.evidence;
 
@@ -113,7 +113,7 @@ const evidence = result.evidence;
 console.log(formatEvidenceSummary(evidence));
 
 // Validate evidence integrity
-import { validateEvidenceIntegrity } from '@mmv/genail-integration';
+import { validateEvidenceIntegrity } from '@mamv/genail-integration';
 const check = validateEvidenceIntegrity(evidence);
 console.log('Evidence valid:', check.valid);
 ```
@@ -123,7 +123,7 @@ console.log('Evidence valid:', check.valid);
 Validate GenAIL programs before execution:
 
 ```typescript
-import { validateAndFingerprint } from '@mmv/genail-integration';
+import { validateAndFingerprint } from '@mamv/genail-integration';
 
 const result = validateAndFingerprint(`
   model "gpt-4"
@@ -148,12 +148,12 @@ if (!result.valid) {
 
 #### `createRuntime(config)`
 
-Creates a new MMV GenAIL runtime instance.
+Creates a new MAMV GenAIL runtime instance.
 
 ```typescript
 const runtime = createRuntime({
-  mmv: {
-    base_url: 'https://api.mmv.io',
+  mamv: {
+    base_url: 'https://api.mamv.io',
     api_key: 'your-api-key',
     auto_verify: true,
   },
@@ -167,15 +167,15 @@ const runtime = createRuntime({
 
 #### `createVerifiedRuntime(baseUrl, apiKey?, options?)`
 
-Creates a runtime pre-configured for MMV verification.
+Creates a runtime pre-configured for MAMV verification.
 
 ```typescript
-const runtime = createVerifiedRuntime('https://api.mmv.io', 'api-key');
+const runtime = createVerifiedRuntime('https://api.mamv.io', 'api-key');
 ```
 
 #### `runtime.execute(source, inputs, options?)`
 
-Executes a GenAIL script with MMV integration.
+Executes a GenAIL script with MAMV integration.
 
 Returns `MMVExecutionResult`:
 - `context`: Full execution context
@@ -325,7 +325,7 @@ interface GenAILEvidenceBundle {
 To integrate with the actual GenAIL runtime, hook into runtime events:
 
 ```typescript
-import { createMeteringHooks, createExecutionContext } from '@mmv/genail-integration';
+import { createMeteringHooks, createExecutionContext } from '@mamv/genail-integration';
 
 // Create hooks
 const ctx = createExecutionContext(program, inputs, config);

@@ -8,7 +8,7 @@
  * 4. Make decisions based on the verification result
  */
 
-import { MMVClient } from '../packages/sdk-js/src/client';
+import { MAMVClient } from '../packages/sdk-js/src/client';
 import {
   computeReceiptHash,
   validateReceipt,
@@ -20,13 +20,13 @@ import {
 } from '../shared/programs';
 
 // Configuration
-const MMV_API_URL = process.env.MMV_API_URL || 'http://localhost:3000';
-const MMV_API_KEY = process.env.MMV_API_KEY || '';
+const MAMV_API_URL = process.env.MAMV_API_URL || process.env.MMV_API_URL || 'http://localhost:3000';
+const MAMV_API_KEY = process.env.MAMV_API_KEY || process.env.MMV_API_KEY || '';
 
 // Initialize client
-const client = new MMVClient({
-  baseUrl: MMV_API_URL,
-  apiKey: MMV_API_KEY,
+const client = new MAMVClient({
+  baseUrl: MAMV_API_URL,
+  apiKey: MAMV_API_KEY,
 });
 
 // Define a custom verification program

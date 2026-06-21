@@ -1,14 +1,14 @@
-# MMV Research Paper v2.0 - Enhanced Edition
+# MAMV Research Paper v2.0 - Enhanced Edition
 
 ## Executive Summary
-MMV (Multi-Modal Verifier) is a programmable verification protocol that transforms LLM outputs into economically secured, on-chain attestations. This document expands the v1 concept into a production-grade specification with a clear path to mainnet, detailed dispute tiers, and a developer experience that takes builders from zero to first verification in under 10 minutes. It includes rigorous economic security analysis, tiered dispute resolution, privacy-preserving options, and a comprehensive developer onboarding package with troubleshooting and a video script outline. The paper is written to withstand audit scrutiny while remaining actionable for practitioners.
+MAMV (Multi-Modal Verifier) is a programmable verification protocol that transforms LLM outputs into economically secured, on-chain attestations. This document expands the v1 concept into a production-grade specification with a clear path to mainnet, detailed dispute tiers, and a developer experience that takes builders from zero to first verification in under 10 minutes. It includes rigorous economic security analysis, tiered dispute resolution, privacy-preserving options, and a comprehensive developer onboarding package with troubleshooting and a video script outline. The paper is written to withstand audit scrutiny while remaining actionable for practitioners.
 
 ---
 
 ## 1. Programmable Verification Infrastructure
 
 ### 1.1 Architecture Overview
-MMV is a modular stack composed of:
+MAMV is a modular stack composed of:
 - **Client SDKs** (React/Node/Python): Submit jobs and receive evidence bundles.
 - **Verifier Node**: Executes model runs, aggregates evidence, and commits to chain.
 - **On-Chain Contracts**: Escrow deposits, job commitments, and dispute arbitration.
@@ -46,7 +46,7 @@ Every verification produces a **bundle** containing:
 - Chain commitment and timestamp
 
 ### 1.4 Contract Commit/Reveal
-MMV uses commit-reveal for evidence integrity. A commitment hash binds the evidence. Reveal occurs if challenged or required by policy.
+MAMV uses commit-reveal for evidence integrity. A commitment hash binds the evidence. Reveal occurs if challenged or required by policy.
 
 ```solidity
 function commitEvidence(bytes32 jobId, bytes32 evidenceHash) external {
@@ -287,8 +287,8 @@ open https://faucet.arbitrum.io
 
 **Step 2: Clone & Install** (2 minutes)
 ```bash
-git clone https://github.com/michaelmannen3-oss/MMV.git
-cd MMV
+git clone https://github.com/michaelmannen3-oss/MAMV.git
+cd MAMV
 npm install
 cp .env.example .env.runtime
 ```
@@ -445,7 +445,7 @@ print({"honest": honest, "cheat": cheat})
 ### E. Integration Examples (React, Python, CLI)
 ```bash
 # CLI
-mmv submit --program math-qa --input '{"question":"2+2"}'
+mamv submit --program math-qa --input '{"question":"2+2"}'
 ```
 
 ---

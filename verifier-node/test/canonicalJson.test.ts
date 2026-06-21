@@ -1,5 +1,5 @@
 import { canonicalize as sharedCanonicalize, hashCanonical as sharedHashCanonical } from '../../shared/canonicalJson';
-import { canonicalize as apiCanonicalize, hashCanonical as apiHashCanonical } from '../../api/src/services/mmvHasher';
+import { canonicalize as apiCanonicalize, hashCanonical as apiHashCanonical } from '../../api/src/services/mamvHasher';
 import { hashEvidenceBundle } from '../src/evidence/evidenceBundlerV2';
 
 const samplePayload = {
@@ -11,7 +11,7 @@ const samplePayload = {
 };
 
 describe('canonical JSON hashing', () => {
-  it('matches api mmvHasher canonicalization output', () => {
+  it('matches api mamvHasher canonicalization output', () => {
     const shared = sharedCanonicalize(samplePayload);
     const api = apiCanonicalize(samplePayload);
     expect(shared).toEqual(api);
