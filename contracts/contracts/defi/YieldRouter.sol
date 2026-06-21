@@ -18,7 +18,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * 5. Lido - Stake ETH for stETH
  *
  * How it works:
- * 1. User stakes VERIFY in VerifyStaking
+ * 1. User stakes MAMV in VerifyStaking
  * 2. Instead of claiming WETH directly, route to YieldRouter
  * 3. YieldRouter deploys WETH into best-yielding strategy
  * 4. User can withdraw principal + DeFi yield anytime

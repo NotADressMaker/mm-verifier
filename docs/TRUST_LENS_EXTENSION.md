@@ -1,13 +1,13 @@
-# Trust Lens Extension (MMV)
+# MAMV Lens Extension (MAMV)
 
-Trust Lens is a Chrome MV3 extension that surfaces MMV verification receipts and risk flags when users hit MMV-protected endpoints.
+MAMV Lens is a Chrome MV3 extension that surfaces MAMV verification receipts and risk flags when users hit MAMV-protected endpoints.
 
 ## Receipt detection
 
-The extension detects MMV receipts from:
+The extension detects MAMV receipts from:
 
-1. `X-MMV-Receipt` response header (preferred)
-2. `<meta name="mmv-receipt" content="...">` in HTML
+1. `X-MAMV-Receipt` response header (preferred)
+2. `<meta name="mamv-receipt" content="...">` in HTML
 
 The receipt payload is JSON containing:
 
@@ -31,7 +31,7 @@ The popup shows:
 
 ## API endpoints used
 
-The extension reads from the MMV read API:
+The extension reads from the MAMV read API:
 
 - `GET /api/validation/receipts/:receiptId`
 - `GET /api/validation/receipts/:requestId/history`

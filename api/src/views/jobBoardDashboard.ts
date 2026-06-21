@@ -101,7 +101,7 @@ export function renderJobBoardDashboard(): string {
       const table = document.getElementById('job-table');
       const count = document.getElementById('job-count');
 
-      count.textContent = `${data.total} job(s)`;
+      count.textContent = data.total + ' job(s)';
       table.innerHTML = '';
 
       if (!data.jobs || data.jobs.length === 0) {
@@ -114,14 +114,12 @@ export function renderJobBoardDashboard(): string {
         const agentDisplay = job.agent === '0x0000000000000000000000000000000000000000'
           ? '—'
           : job.agent.slice(0, 6) + '…' + job.agent.slice(-4);
-        row.innerHTML = `
-          <td>#${job.jobId}</td>
-          <td><span class="badge ${job.status}">${job.status}</span></td>
-          <td title="${job.agent}">${agentDisplay}</td>
-          <td>${formatBudget(job.budgetAmount)}</td>
-          <td>${formatBudget(job.totalReleased)}</td>
-          <td>${formatTimestamp(job.deadline)}</td>
-        `;
+        row.innerHTML = '<td>#' + job.jobId + '</td>' +
+          '<td><span class="badge ' + job.status + '">' + job.status + '</span></td>' +
+          '<td title="' + job.agent + '">' + agentDisplay + '</td>' +
+          '<td>' + formatBudget(job.budgetAmount) + '</td>' +
+          '<td>' + formatBudget(job.totalReleased) + '</td>' +
+          '<td>' + formatTimestamp(job.deadline) + '</td>';
         table.appendChild(row);
       });
     }

@@ -7,7 +7,7 @@ import "./libraries/VerifierHash.sol";
 import "./interfaces/IVerifierMining.sol";
 import "./interfaces/IVerifierRewards.sol";
 import "./interfaces/IStakingManager.sol";
-import "./interfaces/ITruthChain.sol";
+import "./interfaces/IMAMVAnchor.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -36,9 +36,9 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
 
     address public miningContract;
     address public rewardsDistributor;
-    address public truthChain;
+    address public mamvAnchor;
     address public stakingManager;
-    bool public truthChainEnabled;
+    bool public mamvAnchorEnabled;
     bool public stakingEnforced;
 
     enum TaskState { Open, Reveal, Provisional, Disputed, Resolved }
@@ -167,9 +167,9 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         emit RewardsDistributorSet(_rewardsDistributor);
     }
 
-    function setTruthChain(address _truthChain, bool _enabled) external onlyOwner {
-        truthChain = _truthChain;
-        truthChainEnabled = _enabled;
+    function setMAMVAnchor(address _mamvAnchor, bool _enabled) external onlyOwner {
+        mamvAnchor = _mamvAnchor;
+        mamvAnchorEnabled = _enabled;
     }
 
     function setStakingManager(
@@ -569,7 +569,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         }
         emit TaskFinal(taskId, t.finalScoreBps, t.finalBundleHash, t.finalBundleURI, t.promptHash, t.rubricHash);
         emit TaskResolved(taskId, finalScore, payoutPool, disputed || t.wasDisputed);
-        _appendTruthBlock(taskId);
+        _appendVerificationBlock(taskId);
     }
 
     function _setFinalEvidence(uint256 taskId) internal {
@@ -607,8 +607,8 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         t.finalBundleURI = bestURI;
     }
 
-    function _appendTruthBlock(uint256 taskId) internal {
-        if (!truthChainEnabled || truthChain == address(0)) {
+    function _appendVerificationBlock(uint256 taskId) internal {
+        if (!mamvAnchorEnabled || mamvAnchor == address(0)) {
             return;
         }
 
@@ -618,7 +618,7 @@ contract VerifierMarketplace is Ownable, ReentrancyGuard {
         bytes32 programHash = bytes32(0);
 
         try
-            ITruthChain(truthChain).appendTruthBlock(
+            IMAMVAnchor(mamvAnchor).appendVerificationBlock(
                 taskId,
                 claimHash,
                 outcomeHash,

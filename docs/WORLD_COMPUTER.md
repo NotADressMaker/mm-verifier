@@ -1,8 +1,8 @@
-# MMV as a World Computer for AI Verification
+# MAMV as a World Computer for AI Verification
 
 ## Overview
 
-MMV provides programmable, verifiable AI execution with receipts that settle on-chain. This document describes the core concepts and architecture that enable trustworthy AI computation.
+MAMV provides programmable, verifiable AI execution with receipts that settle on-chain. This document describes the core concepts and architecture that enable trustworthy AI computation.
 
 ## Core Concepts
 
@@ -244,7 +244,7 @@ if (result.verified) {
 An AI agent can verify its outputs before acting:
 
 ```typescript
-const client = new MMVClient({ baseUrl, apiKey });
+const client = new MAMVClient({ baseUrl, apiKey });
 
 // Submit verification
 const task = await client.verifyText({
@@ -331,5 +331,5 @@ if (!result.verified) {
 ## Related Documentation
 
 - [Trustworthy Outputs](./TRUSTWORTHY_OUTPUTS.md) - Verified output records
-- [Integration Guide](./INTEGRATION.md) - How to integrate with MMV
+- [Integration Guide](./INTEGRATION.md) - How to integrate with MAMV
 - [API Reference](./api.md) - Full API documentation

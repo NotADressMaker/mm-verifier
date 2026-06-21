@@ -1,15 +1,15 @@
 /**
- * @mmv/genail-integration
+ * @mamv/genail-integration
  *
- * GenAI Language integration for MMV verification with metering,
+ * GenAI Language integration for MAMV verification with metering,
  * receipts, and auditable evidence.
  *
  * @example
  * ```typescript
- * import { createVerifiedRuntime, executeGenAIL } from '@mmv/genail-integration';
+ * import { createVerifiedRuntime, executeGenAIL } from '@mamv/genail-integration';
  *
- * // Create a runtime with MMV verification
- * const runtime = createVerifiedRuntime('https://api.mmv.io', 'your-api-key');
+ * // Create a runtime with MAMV verification
+ * const runtime = createVerifiedRuntime('https://api.mamv.io', 'your-api-key');
  *
  * // Execute a GenAIL script
  * const result = await runtime.execute(`
@@ -114,7 +114,7 @@ export {
   validateReceiptIntegrity,
   validateReceiptAgainstContext,
 
-  // MMV integration
+  // MAMV integration
   submitForVerification,
   waitForVerification,
 

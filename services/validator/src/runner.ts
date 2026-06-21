@@ -23,7 +23,7 @@ export async function runCommand(
       cwd,
       env: {
         ...process.env,
-        MMV_NETWORK_DISABLED: '1',
+        MAMV_NETWORK_DISABLED: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });

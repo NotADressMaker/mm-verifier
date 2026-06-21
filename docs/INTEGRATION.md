@@ -1,8 +1,8 @@
-# MMV Integration Guide
+# MAMV Integration Guide
 
 ## Overview
 
-This guide covers integrating MMV verification into your application. MMV provides:
+This guide covers integrating MAMV verification into your application. MAMV provides:
 - Multi-model AI verification
 - Cryptographic receipts for audit trails
 - On-chain settlement for trustless verification
@@ -12,16 +12,16 @@ This guide covers integrating MMV verification into your application. MMV provid
 ### Installation
 
 ```bash
-npm install @mmv/sdk-js
+npm install @mamv/sdk-js
 ```
 
 ### Basic Usage
 
 ```typescript
-import { MMVClient } from '@mmv/sdk-js';
+import { MAMVClient } from '@mamv/sdk-js';
 
-const client = new MMVClient({
-  baseUrl: 'https://api.mmv.example.com',
+const client = new MAMVClient({
+  baseUrl: 'https://api.mamv.example.com',
   apiKey: 'your-api-key',
 });
 
@@ -368,7 +368,7 @@ import type {
   ProgramRecord,
   RecordQueryFilter,
   OnChainVerifyResult,
-} from '@mmv/sdk-js';
+} from '@mamv/sdk-js';
 ```
 
 ## Related Documentation

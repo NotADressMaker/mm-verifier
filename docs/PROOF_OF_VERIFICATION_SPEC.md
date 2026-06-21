@@ -1,16 +1,16 @@
-# MMV: Proof of Verification Design Specification
+# MAMV: Proof of Verification Design Specification
 
 ## Executive Summary
 
-This document proposes a design for two interconnected mechanisms in MMV:
+This document proposes a design for two interconnected mechanisms in MAMV:
 
 1. **Proof of Verification (PoV)**: A system where verifiers earn rewards (tokens or points) for performing AI output verification work, with accuracy-based incentives and penalties for misbehavior.
 
-2. **Forced Verification**: A gating mechanism where applications and AI agents would be required to attach valid MMV verification receipts to AI outputs before those outputs can be consumed or acted upon.
+2. **Forced Verification**: A gating mechanism where applications and AI agents would be required to attach valid MAMV verification receipts to AI outputs before those outputs can be consumed or acted upon.
 
 These mechanisms aim to create economic incentives for honest verification and make verification a default trust requirement rather than an optional add-on. This specification provides concrete implementation paths for both a minimal MVP (off-chain points) and a full protocol version (on-chain token).
 
-**Important limitations**: AI correctness cannot be proven cryptographically—it remains probabilistic. MMV provides economic and consensus-based assurance, not mathematical certainty. The system proves that verification *occurred* and *what the outcome was*, not that the AI output is objectively "true."
+**Important limitations**: AI correctness cannot be proven cryptographically—it remains probabilistic. MAMV provides economic and consensus-based assurance, not mathematical certainty. The system proves that verification *occurred* and *what the outcome was*, not that the AI output is objectively "true."
 
 ---
 
@@ -106,16 +106,16 @@ These mechanisms aim to create economic incentives for honest verification and m
 
 | Aspect | Variant 1: Points (MVP) | Variant 2: Token (Protocol) |
 |--------|-------------------------|----------------------------|
-| Reward unit | Off-chain points in database | On-chain MMV token (ERC-20) |
-| Staking | ETH only | MMV token (with ETH fallback) |
-| Slashing | ETH slashed | MMV token slashed |
+| Reward unit | Off-chain points in database | On-chain MAMV token (ERC-20) |
+| Staking | ETH only | MAMV token (with ETH fallback) |
+| Slashing | ETH slashed | MAMV token slashed |
 | Transferability | Non-transferable | Transferable |
 | Governance | None | Token-weighted voting |
-| Fee payment | ETH | MMV token (or ETH converted) |
+| Fee payment | ETH | MAMV token (or ETH converted) |
 
 ### 2.2 Issuance Model (Tokenized Variant)
 
-**Initial supply**: Fixed cap (e.g., 1,000,000,000 MMV)
+**Initial supply**: Fixed cap (e.g., 1,000,000,000 MAMV)
 
 **Emission schedule**:
 - Verification rewards: 40% of supply, emitted over 10 years with halving every 2 years
@@ -140,7 +140,7 @@ actual_reward = base_reward * quality_multiplier * difficulty_factor
 
 ### 2.4 Staking and Slashing
 
-**Minimum stake**: 0.1 ETH (or equivalent MMV tokens)
+**Minimum stake**: 0.1 ETH (or equivalent MAMV tokens)
 
 **Stake tiers** (higher stake = priority job assignment):
 | Tier | Stake | Job Priority | Max Concurrent Jobs |
@@ -238,7 +238,7 @@ function adjust_difficulty(params: DifficultyParameters): number {
 
 ### 3.1 Concept
 
-"Forced verification" means that AI outputs would not be accepted by downstream systems unless accompanied by a valid MMV verification receipt. This shifts verification from opt-in to default.
+"Forced verification" means that AI outputs would not be accepted by downstream systems unless accompanied by a valid MAMV verification receipt. This shifts verification from opt-in to default.
 
 ### 3.2 Off-Chain Gating (API Middleware)
 
@@ -271,7 +271,7 @@ interface GatingResult {
 **Integration pattern**:
 ```typescript
 // In application code
-import { MMVGate } from '@mmv/sdk';
+import { MMVGate } from '@mamv/sdk';
 
 const gate = new MMVGate({
   policy: { min_score_bps: 8000, required_verifier_count: 3 }
@@ -297,7 +297,7 @@ For on-chain agents or DeFi protocols that consume AI outputs:
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-interface IMMVReceiptVerifier {
+interface IMAMVReceiptVerifier {
     struct ReceiptProof {
         bytes32 taskId;
         bytes32 inputHash;
@@ -319,11 +319,11 @@ interface IMMVReceiptVerifier {
 
 // Example: AI-gated contract
 contract AIGatedAction {
-    IMMVReceiptVerifier public immutable receiptVerifier;
+    IMAMVReceiptVerifier public immutable receiptVerifier;
     uint16 public constant MIN_SCORE = 8000; // 80%
     uint8 public constant MIN_VERIFIERS = 3;
 
-    modifier requiresVerification(IMMVReceiptVerifier.ReceiptProof calldata proof) {
+    modifier requiresVerification(IMAMVReceiptVerifier.ReceiptProof calldata proof) {
         require(
             receiptVerifier.verifyReceipt(proof, MIN_SCORE, MIN_VERIFIERS),
             "Invalid or insufficient verification"
@@ -333,7 +333,7 @@ contract AIGatedAction {
 
     function executeWithAI(
         bytes calldata aiOutput,
-        IMMVReceiptVerifier.ReceiptProof calldata proof
+        IMAMVReceiptVerifier.ReceiptProof calldata proof
     ) external requiresVerification(proof) {
         // Only executes if receipt is valid
         _processOutput(aiOutput);
@@ -382,8 +382,8 @@ interface GatableReceipt {
 ### 3.5 SDK Helpers for Integration
 
 ```typescript
-// @mmv/sdk exports
-export class MMVClient {
+// @mamv/sdk exports
+export class MAMVClient {
   // Submit job and wait for receipt
   async verifyAndWait(input: string, output: string, options?: VerifyOptions): Promise<GatableReceipt>;
 
@@ -447,13 +447,13 @@ export function withVerification<T>(
 
 ```
 1. Install SDK
-   npm install @mmv/sdk
+   npm install @mamv/sdk
 
 2. Initialize client
-   const mmv = new MMVClient({ apiKey: '...' });
+   const mamv = new MAMVClient({ apiKey: '...' });
 
 3. Submit verification
-   const receipt = await mmv.verifyAndWait(prompt, response);
+   const receipt = await mamv.verifyAndWait(prompt, response);
 
 4. Use receipt for gating
    if (receipt.worthy && receipt.score_bps >= 8000) {
@@ -467,7 +467,7 @@ For AI agents that call other AI systems:
 
 ```typescript
 class VerifiedAgent {
-  private mmv: MMVClient;
+  private mamv: MAMVClient;
   private gate: GatingMiddleware;
 
   async callAI(prompt: string): Promise<{ response: string; receipt: GatableReceipt }> {
@@ -475,7 +475,7 @@ class VerifiedAgent {
     const response = await this.llm.complete(prompt);
 
     // 2. Submit for verification
-    const receipt = await this.mmv.verifyAndWait(prompt, response);
+    const receipt = await this.mamv.verifyAndWait(prompt, response);
 
     // 3. Self-gate: only return if verified
     const result = this.gate.validate(receipt);
@@ -506,11 +506,11 @@ class VerifiedAgent {
 ```solidity
 // Minimal integration for on-chain gating
 contract MyProtocol {
-    IMMVReceiptVerifier public receiptVerifier;
+    IMAMVReceiptVerifier public receiptVerifier;
 
     function executeAIAction(
         bytes32 outputHash,
-        IMMVReceiptVerifier.ReceiptProof calldata proof
+        IMAMVReceiptVerifier.ReceiptProof calldata proof
     ) external {
         // Verify the receipt
         require(
@@ -619,7 +619,7 @@ interface ReasoningTracePrivacy {
 **Timeline**: After demonstrated product-market fit
 
 **Features**:
-- MMV token (ERC-20) deployment
+- MAMV token (ERC-20) deployment
 - Staking contract with token collateral
 - Reward distribution contract
 - Fee burning mechanism
@@ -652,7 +652,7 @@ interface ReasoningTracePrivacy {
 
 4. **Token necessity**: Is a token actually needed, or can the system work indefinitely with ETH + off-chain points?
 
-5. **Regulatory classification**: Would an MMV token be classified as a security? How does this affect design?
+5. **Regulatory classification**: Would an MAMV token be classified as a security? How does this affect design?
 
 6. **Privacy vs. auditability**: How much evidence should be publicly auditable vs. encrypted to submitter?
 

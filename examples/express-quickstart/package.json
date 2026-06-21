@@ -1,7 +1,7 @@
 {
-  "name": "mmv-express-quickstart",
+  "name": "mamv-express-quickstart",
   "version": "1.0.0",
-  "description": "Express example app demonstrating MMV verification with badge UI",
+  "description": "Express example app demonstrating MAMV verification with badge UI",
   "main": "app.ts",
   "scripts": {
     "start": "ts-node app.ts",

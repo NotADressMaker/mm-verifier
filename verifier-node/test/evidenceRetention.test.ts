@@ -4,7 +4,7 @@ import os from 'os';
 import { purgeEncryptedEvidence } from '../src/evidence/evidenceStorage';
 
 describe('evidence retention', () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mmv-evidence-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mamv-evidence-'));
 
   beforeEach(() => {
     process.env.EVIDENCE_STORAGE_DIR = tmpDir;

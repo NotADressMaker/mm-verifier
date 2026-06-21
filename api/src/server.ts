@@ -14,7 +14,7 @@ import { jobRoutes } from './routes/jobs';
 import { jobBoardRoutes } from './routes/jobBoard';
 import { statsRoutes } from './routes/stats';
 import { programRoutes } from './routes/programs';
-import { mmvRoutes } from './routes/mmv';
+import { mamvRoutes } from './routes/mamv';
 import { verifyV1Routes } from './routes/v1/verify';
 import { programV1Routes } from './routes/v1/programs';
 import { tasksV1Routes } from './routes/v1/tasks';
@@ -80,7 +80,9 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/job-board', jobBoardRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/programs', programRoutes);
-app.use('/api/mmv', mmvRoutes);
+app.use('/api/mamv', mamvRoutes);
+// Deprecated compatibility alias for one release.
+app.use('/api/mmv', mamvRoutes);
 app.use('/api/validation', validationRoutes);
 app.use('/v1/verify', verifyV1Routes);
 app.use('/v1/programs', programV1Routes);
@@ -105,7 +107,7 @@ app.use((req, res) => {
 // Initialize services
 async function initialize() {
   try {
-    logger.info('Initializing LLM Verifier API...');
+    logger.info('Initializing MAMV API...');
 
     // Initialize Redis
     await initializeRedis();
@@ -137,7 +139,7 @@ async function initialize() {
 // Start server
 server.listen(PORT, async () => {
   await initialize();
-  logger.info(`🎉 LLM Verifier API running on http://${HOST}:${PORT}`);
+  logger.info(`🎉 MAMV API running on http://${HOST}:${PORT}`);
   logger.info(`📡 WebSocket server running on ws://${HOST}:${PORT}/ws`);
 });
 

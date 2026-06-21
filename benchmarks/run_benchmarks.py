@@ -33,7 +33,7 @@ class TaskResult:
 
 
 def parse_args() -> BenchConfig:
-    parser = argparse.ArgumentParser(description="MMV benchmark harness (mocked).")
+    parser = argparse.ArgumentParser(description="MAMV benchmark harness (mocked).")
     parser.add_argument("--tasks", type=int, default=10)
     parser.add_argument("--concurrency", type=int, default=5)
     parser.add_argument("--bundle-ms", type=int, default=120)
@@ -163,7 +163,7 @@ def main() -> None:
     report = asyncio.run(run(cfg))
 
     summary = report["summary"]
-    print("\nMMV Benchmark Summary")
+    print("\nMAMV Benchmark Summary")
     print("-" * 24)
     print(f"Tasks:                  {summary['tasks']}")
     print(f"Concurrency:            {cfg.concurrency}")

@@ -5,7 +5,7 @@ import "./VerifierTypes.sol";
 
 /**
  * @title VerifierHash
- * @notice Canonical hashing library for LLM Verifier system
+ * @notice Canonical hashing library for MAMV system
  * @dev Provides deterministic, contract-enforced hashing rules for commit-reveal protocol
  *
  * This library ensures that all parties compute commit hashes identically,

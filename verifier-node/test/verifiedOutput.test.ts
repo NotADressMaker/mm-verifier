@@ -15,7 +15,7 @@ import {
   WORTHY_MIN_BPS,
   SCORE_THRESHOLDS,
 } from '../../shared/verifiedOutput';
-import { MMVReceipt } from '../../shared/types';
+import { MAMVReceipt } from '../../shared/types';
 
 // Sample on-chain task data
 const createSampleTaskData = (): OnChainTaskData => ({
@@ -29,8 +29,8 @@ const createSampleTaskData = (): OnChainTaskData => ({
   txHash: '0x' + '22'.repeat(32),
 });
 
-// Sample MMVReceipt
-const createSampleReceipt = (): MMVReceipt => ({
+// Sample MAMVReceipt
+const createSampleReceipt = (): MAMVReceipt => ({
   receipt_version: '0.1',
   generated_at: '2024-01-15T12:00:00Z',
   task_id: '12345',
@@ -147,7 +147,7 @@ describe('VerifiedOutputRecord', () => {
   });
 
   describe('buildRecordFromReceipt', () => {
-    it('should build record from MMVReceipt', () => {
+    it('should build record from MAMVReceipt', () => {
       const receipt = createSampleReceipt();
 
       const record = buildRecordFromReceipt(receipt, {

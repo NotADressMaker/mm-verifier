@@ -1,5 +1,5 @@
 /**
- * AI Transparency Types for MMV
+ * AI Transparency Types for MAMV
  *
  * Provides types and utilities for:
  * - Reasoning trace commitments (hash-based audit trail)

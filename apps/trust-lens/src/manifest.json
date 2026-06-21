@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Trust Lens",
+  "name": "MAMV Lens",
   "version": "0.1.0",
-  "description": "MMV validation visibility and risk flags",
+  "description": "MAMV validation visibility and risk flags",
   "permissions": ["storage", "activeTab", "webRequest"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -10,7 +10,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Trust Lens"
+    "default_title": "MAMV Lens"
   },
   "content_scripts": [
     {

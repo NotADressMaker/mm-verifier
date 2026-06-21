@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# MMV Quickstart
+# MAMV Quickstart
 # One-command setup for mock or real providers.
 
 set -euo pipefail
@@ -190,7 +190,7 @@ docker-compose --env-file "$ENV_FILE" up -d api verifier-node
 cat <<SUMMARY
 
 ┌──────────────────────────────────────────────────────────┐
-│          ${GREEN}✓ MMV stack booted (${MODE} mode)${NC}           │
+│          ${GREEN}✓ MAMV stack booted (${MODE} mode)${NC}           │
 └──────────────────────────────────────────────────────────┘
 
 Runtime env: ${ENV_FILE}

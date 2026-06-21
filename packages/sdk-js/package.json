@@ -1,7 +1,7 @@
 {
-  "name": "@mmv/sdk",
+  "name": "@mamv/sdk",
   "version": "0.1.0",
-  "description": "JavaScript/TypeScript SDK for the MMV verification API",
+  "description": "JavaScript/TypeScript SDK for the MAMV verification API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -13,7 +13,7 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
-  "author": "LLM Verifier Team",
+  "author": "MAMV Team",
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.11",

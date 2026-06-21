@@ -19,7 +19,7 @@ import { TraceContext } from '../../../../shared/observability/tracing';
 const router = Router();
 
 router.use((req, res, next) => {
-  res.setHeader('X-MMV-API-Version', '1');
+  res.setHeader('X-MAMV-API-Version', '1');
   next();
 });
 

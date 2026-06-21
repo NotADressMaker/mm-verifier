@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 /**
- * @title MMVAttestation
- * @notice Verifies off-chain Multi-LLM Verifier attestations (EIP-712)
+ * @title MAMVAttestation
+ * @notice Verifies off-chain Multi-Agent Model Verification attestations (EIP-712)
  */
-contract MMVAttestation is Ownable, EIP712 {
+contract MAMVAttestation is Ownable, EIP712 {
     using ECDSA for bytes32;
 
     struct Attestation {

@@ -1,7 +1,7 @@
 {
-  "name": "@llm-verifier/trust-lens",
+  "name": "@mamv/trust-lens",
   "version": "0.1.0",
-  "description": "Trust Lens browser extension for MMV validation visibility",
+  "description": "MAMV Lens browser extension for MAMV validation visibility",
   "main": "dist/popup.js",
   "scripts": {
     "build": "node scripts/build.js",

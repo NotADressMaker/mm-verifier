@@ -1,16 +1,16 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
-import { MockWETH, VerifierMarketplace, TruthChain } from "../typechain-types";
+import { MockWETH, VerifierMarketplace, MAMVAnchor } from "../typechain-types";
 
-describe("TruthChain integration", function () {
+describe("MAMVAnchor integration", function () {
   const EVAL_BOND = ethers.parseEther("1");
   const DISPUTE_BOND = ethers.parseEther("1");
   const FEE_POOL = ethers.parseEther("10");
 
   let weth: MockWETH;
   let marketplace: VerifierMarketplace;
-  let truthChain: TruthChain;
+  let mamvAnchor: MAMVAnchor;
 
   let owner: any;
   let requester: any;
@@ -32,11 +32,11 @@ describe("TruthChain integration", function () {
     );
     await marketplace.waitForDeployment();
 
-    const TruthChainFactory = await ethers.getContractFactory("TruthChain");
-    truthChain = await TruthChainFactory.deploy(await marketplace.getAddress());
-    await truthChain.waitForDeployment();
+    const MAMVAnchorFactory = await ethers.getContractFactory("MAMVAnchor");
+    mamvAnchor = await MAMVAnchorFactory.deploy(await marketplace.getAddress());
+    await mamvAnchor.waitForDeployment();
 
-    await marketplace.connect(owner).setTruthChain(await truthChain.getAddress(), true);
+    await marketplace.connect(owner).setMAMVAnchor(await mamvAnchor.getAddress(), true);
 
     await weth.connect(requester).deposit({ value: ethers.parseEther("50") });
     await weth.connect(verifier1).deposit({ value: ethers.parseEther("10") });
@@ -117,37 +117,37 @@ describe("TruthChain integration", function () {
     return { bundleHash, revealDeadline };
   }
 
-  it("appends truth blocks only after finalization", async function () {
+  it("appends verification blocks only after finalization", async function () {
     const { taskId, revealDeadline, disputeWindow } = await createTask();
 
     await commitAndReveal(taskId);
 
-    expect(await truthChain.taskToBlock(taskId)).to.equal(ethers.ZeroHash);
+    expect(await mamvAnchor.taskToBlock(taskId)).to.equal(ethers.ZeroHash);
 
     await time.increaseTo(Number(revealDeadline) + Number(disputeWindow) + 1);
     await marketplace.finalizeUndisputed(taskId);
 
-    const blockHash = await truthChain.taskToBlock(taskId);
+    const blockHash = await mamvAnchor.taskToBlock(taskId);
     expect(blockHash).to.not.equal(ethers.ZeroHash);
-    expect(await truthChain.truthHead()).to.equal(blockHash);
+    expect(await mamvAnchor.verificationHead()).to.equal(blockHash);
   });
 
-  it("links truth blocks in order and prevents duplicates", async function () {
+  it("links verification blocks in order and prevents duplicates", async function () {
     const first = await createTask();
     await commitAndReveal(first.taskId);
     await time.increaseTo(Number(first.revealDeadline) + Number(first.disputeWindow) + 1);
     await marketplace.finalizeUndisputed(first.taskId);
 
-    const firstBlock = await truthChain.taskToBlock(first.taskId);
+    const firstBlock = await mamvAnchor.taskToBlock(first.taskId);
 
     const second = await createTask();
     await commitAndReveal(second.taskId);
     await time.increaseTo(Number(second.revealDeadline) + Number(second.disputeWindow) + 1);
     await marketplace.finalizeUndisputed(second.taskId);
 
-    const secondBlock = await truthChain.taskToBlock(second.taskId);
-    expect(await truthChain.prevByBlock(secondBlock)).to.equal(firstBlock);
-    expect(await truthChain.truthHead()).to.equal(secondBlock);
+    const secondBlock = await mamvAnchor.taskToBlock(second.taskId);
+    expect(await mamvAnchor.prevByBlock(secondBlock)).to.equal(firstBlock);
+    expect(await mamvAnchor.verificationHead()).to.equal(secondBlock);
 
     await ethers.provider.send("hardhat_impersonateAccount", [await marketplace.getAddress()]);
     await ethers.provider.send("hardhat_setBalance", [
@@ -157,9 +157,9 @@ describe("TruthChain integration", function () {
     const impersonatedMarketplace = await ethers.getSigner(await marketplace.getAddress());
 
     await expect(
-      truthChain
+      mamvAnchor
         .connect(impersonatedMarketplace)
-        .appendTruthBlock(
+        .appendVerificationBlock(
           second.taskId,
           ethers.ZeroHash,
           ethers.ZeroHash,

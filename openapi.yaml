@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: MMV Verification API
+  title: MAMV Verification API
   version: 1.0.0
   description: |
     Stable, developer-friendly API for submitting and tracking LLM verification tasks.
@@ -100,7 +100,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/mmv/tasks/{task_id}/record:
+  /api/mamv/tasks/{task_id}/record:
     get:
       summary: Get verified output record for a task
       operationId: getTaskRecord
@@ -131,7 +131,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/mmv/records:
+  /api/mamv/records:
     get:
       summary: List verified output records
       operationId: listRecords
@@ -180,7 +180,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/RecordListResponse'
 
-  /api/mmv/tasks/{task_id}/verify:
+  /api/mamv/tasks/{task_id}/verify:
     get:
       summary: Verify record exists on-chain
       operationId: verifyRecordOnChain
@@ -201,7 +201,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OnChainVerifyResult'
 
-  /api/mmv/tasks/{task_id}/receipt:
+  /api/mamv/tasks/{task_id}/receipt:
     get:
       summary: Get verification receipt for a task
       operationId: getReceipt
@@ -231,7 +231,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/mmv/tasks/{task_id}/receipt/verify:
+  /api/mamv/tasks/{task_id}/receipt/verify:
     get:
       summary: Verify receipt against on-chain data
       operationId: verifyReceiptOnChain

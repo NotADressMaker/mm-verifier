@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title BondVaultWETH
- * @notice Centralized WETH bond management for LLM Verifier system
+ * @notice Centralized WETH bond management for MAMV system
  * @dev Manages bonds for both marketplace tasks and dispute resolution
  *
  * Authorization Model:

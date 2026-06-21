@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /**
  * @title VerifierMining
  * @notice Liquidity mining program for verifiers
- * @dev Rewards verifiers with VERIFY tokens based on accuracy and participation
+ * @dev Rewards verifiers with MAMV tokens based on accuracy and participation
  *
  * Reward Formula:
  * - Base reward: 1 point per evaluation
@@ -24,16 +24,16 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - Alice: 100 evals, 100 accurate → 200 points
  * - Bob: 50 evals, 0 accurate → 50 points
  * - Total: 250 points
- * - Epoch rewards: 1000 VERIFY
- * - Alice gets: 800 VERIFY (80%)
- * - Bob gets: 200 VERIFY (20%)
+ * - Epoch rewards: 1000 MAMV
+ * - Alice gets: 800 MAMV (80%)
+ * - Bob gets: 200 MAMV (20%)
  */
 contract VerifierMining is Ownable, ReentrancyGuard {
     IERC20 public immutable verifyToken;
 
     // Epoch configuration
     uint256 public constant EPOCH_DURATION = 50400; // ~1 week in blocks
-    uint256 public epochRewards = 1000e18; // 1000 VERIFY per epoch
+    uint256 public epochRewards = 1000e18; // 1000 MAMV per epoch
     uint256 public currentEpoch;
     uint256 public epochStartBlock;
 

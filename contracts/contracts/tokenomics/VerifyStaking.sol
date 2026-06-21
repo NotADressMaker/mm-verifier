@@ -8,11 +8,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title VerifyStaking
- * @notice Stake VERIFY tokens to earn protocol revenue (WETH)
+ * @notice Stake MAMV tokens to earn protocol revenue (WETH)
  * @dev Implements revenue sharing from marketplace protocol fees
  *
  * How it works:
- * 1. Users stake VERIFY tokens
+ * 1. Users stake MAMV tokens
  * 2. Protocol fees (WETH) distributed proportionally to stakers
  * 3. Users can claim accumulated WETH rewards anytime
  * 4. Unstaking has no lockup period (instant withdrawal)
@@ -26,8 +26,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * - Pending reward = (userStake * accRewardPerShare) - userDebt
  *
  * Example:
- * - Alice stakes 10K VERIFY (50% of pool)
- * - Bob stakes 10K VERIFY (50% of pool)
+ * - Alice stakes 10K MAMV (50% of pool)
+ * - Bob stakes 10K MAMV (50% of pool)
  * - Protocol earns 1 WETH in fees
  * - Alice and Bob each earn 0.5 WETH
  */
@@ -43,7 +43,7 @@ contract VerifyStaking is ReentrancyGuard, Ownable {
     mapping(address => uint256) public stakedAmount;
 
     // Reward accounting (scaled by 1e12 for precision)
-    uint256 public accRewardPerShare; // Accumulated WETH per staked VERIFY (scaled)
+    uint256 public accRewardPerShare; // Accumulated WETH per staked MAMV (scaled)
     mapping(address => uint256) public rewardDebt; // Rewards already accounted for
 
     // Events
@@ -75,8 +75,8 @@ contract VerifyStaking is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Stake VERIFY tokens to earn protocol revenue
-     * @param amount Amount of VERIFY to stake
+     * @notice Stake MAMV tokens to earn protocol revenue
+     * @param amount Amount of MAMV to stake
      */
     function stake(uint256 amount) external nonReentrant {
         require(amount > 0, "Cannot stake 0");
@@ -86,7 +86,7 @@ contract VerifyStaking is ReentrancyGuard, Ownable {
             _claimRewards(msg.sender);
         }
 
-        // Transfer VERIFY from user
+        // Transfer MAMV from user
         verifyToken.transferFrom(msg.sender, address(this), amount);
 
         // Update staking state
@@ -100,8 +100,8 @@ contract VerifyStaking is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Unstake VERIFY tokens (instant withdrawal)
-     * @param amount Amount of VERIFY to unstake
+     * @notice Unstake MAMV tokens (instant withdrawal)
+     * @param amount Amount of MAMV to unstake
      */
     function unstake(uint256 amount) external nonReentrant {
         require(amount > 0, "Cannot unstake 0");
@@ -114,7 +114,7 @@ contract VerifyStaking is ReentrancyGuard, Ownable {
         stakedAmount[msg.sender] -= amount;
         totalStaked -= amount;
 
-        // Transfer VERIFY back to user
+        // Transfer MAMV back to user
         verifyToken.transfer(msg.sender, amount);
 
         // Update reward debt
@@ -164,7 +164,7 @@ contract VerifyStaking is ReentrancyGuard, Ownable {
     /**
      * @notice Get staking info for user
      * @param user Address to query
-     * @return staked Amount of VERIFY staked
+     * @return staked Amount of MAMV staked
      * @return pending Pending WETH rewards
      * @return shareOfPool Share of total pool (basis points)
      */

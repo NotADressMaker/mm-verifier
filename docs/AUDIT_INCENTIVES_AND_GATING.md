@@ -1,7 +1,7 @@
-# MMV Audit: Incentives (Verification Mining) + Forced Verification Readiness
+# MAMV Audit: Incentives (Verification Mining) + Forced Verification Readiness
 
 ## Scope & Sources
-This audit focuses on whether the current MMV system can safely support:
+This audit focuses on whether the current MAMV system can safely support:
 - **Verification mining / incentives** (points, reputation, stake+slashing, emissions readiness)
 - **Forced verification / gating** for downstream apps
 
@@ -38,9 +38,9 @@ Reviewed artifacts include:
 ### 1.2 Receipt Schema(s)
 **Two receipt schemas exist with different goals:**
 - `VerificationReceipt` (shared/receipt.ts) is a canonical proof for verification tasks with score, verdict, evidence bundle, chain context, etc. It is not wired to API endpoints yet.
-- `MMVReceipt` (shared/types.ts) is used by the MMV gating flow and scores are on a 0–100 scale, later converted to basis points in `VerifiedOutputRecord`.
+- `MAMVReceipt` (shared/types.ts) is used by the MAMV gating flow and scores are on a 0–100 scale, later converted to basis points in `VerifiedOutputRecord`.
   - `VerificationReceipt` schema is defined with `score_bps` and `bundle_hash`/`bundle_uri` references.【F:shared/receipt.ts†L22-L158】
-  - `MMVReceipt` schema uses `decision.overall_score` (0–100) and `selected_output_hash` for gating receipts.【F:shared/types.ts†L517-L615】
+  - `MAMVReceipt` schema uses `decision.overall_score` (0–100) and `selected_output_hash` for gating receipts.【F:shared/types.ts†L517-L615】
   - `VerifiedOutputRecord` converts `overall_score * 100` to bps, indicating different unit expectations across schemas.【F:shared/verifiedOutput.ts†L180-L220】
 
 **Gating receipt mismatch vs spec:**
@@ -65,7 +65,7 @@ Reviewed artifacts include:
   - Receipt hash uses `hashCanonical` over normalized fields.【F:shared/receipt.ts†L178-L239】
   - Evidence bundle hash uses `hashCanonical` over the bundle without signatures.【F:verifier-node/src/evidence/evidenceBundlerV2.ts†L292-L306】
 
-**Docs confirm the same hashing rule** for MMV integration (deep-sorted canonical JSON with 0x-prefixed keccak).【F:docs/mmv-integration.md†L54-L63】
+**Docs confirm the same hashing rule** for MAMV integration (deep-sorted canonical JSON with 0x-prefixed keccak).【F:docs/mamv-integration.md†L54-L63】
 
 ### 2.2 Commit Hash Derivation
 - The verifier-node uses `computeCommitHash` with Solidity packed encoding to compute commit hashes; the on-chain marketplace uses `keccak256(abi.encodePacked(...))` with the same field order.
@@ -128,10 +128,10 @@ Reviewed artifacts include:
 
 ## 5) Forced Verification Readiness (Gating)
 ### 5.1 SDK/OpenAPI vs API Implementation
-- SDK expects `/api/mmv/tasks/:taskId/receipt` and `/api/mmv/tasks/:taskId/receipt/verify`, but API routes do **not** implement these endpoints.
+- SDK expects `/api/mamv/tasks/:taskId/receipt` and `/api/mamv/tasks/:taskId/receipt/verify`, but API routes do **not** implement these endpoints.
   - SDK client uses receipt endpoints for `getReceipt` and `verifyReceiptOnChain`.【F:packages/sdk-js/src/client.ts†L103-L171】
   - OpenAPI documents receipt endpoints as supported.【F:openapi.yaml†L189-L260】
-  - API routes implement `/api/mmv/verify`, `/api/mmv/guard`, `/api/mmv/tasks/:taskId/record`, `/api/mmv/records`, `/api/mmv/tasks/:taskId/verify` only.【F:api/src/routes/mmv.ts†L15-L230】
+  - API routes implement `/api/mamv/verify`, `/api/mamv/guard`, `/api/mamv/tasks/:taskId/record`, `/api/mamv/records`, `/api/mamv/tasks/:taskId/verify` only.【F:api/src/routes/mamv.ts†L15-L230】
 
 ### 5.2 Contract-Level Receipt Verification
 - The proof-of-verification spec defines an on-chain receipt verifier interface, but no contract implementation exists in the repo.
@@ -140,7 +140,7 @@ Reviewed artifacts include:
 ### 5.3 Security Pitfalls for Forced Verification
 - **Trusting API DB vs on-chain**: current SDK paths rely on API responses without a canonical receipt endpoint, forcing users to trust API output without an on-chain receipt verification contract.
 - **Replay / stale receipt risk**: receipts are not consistently tied to chain context; `VerificationReceipt` supports `chain_context`, but the receipt is not served by API routes.
-  - Receipt schema includes optional chain context and signature, but API does not surface it yet.【F:shared/receipt.ts†L106-L140】【F:api/src/routes/mmv.ts†L15-L230】
+  - Receipt schema includes optional chain context and signature, but API does not surface it yet.【F:shared/receipt.ts†L106-L140】【F:api/src/routes/mamv.ts†L15-L230】
 
 **Recommended Modes (warn/label/block):**
 - **Warn**: API-only receipts (no chain context) — suitable for UI labels only.
@@ -164,7 +164,7 @@ Reviewed artifacts include:
 - **OpenAPI and SDK imply features that the API does not implement** (receipt endpoints). This creates integration pitfalls for forced verification.
   - OpenAPI includes receipt endpoints.【F:openapi.yaml†L189-L260】
   - SDK calls those endpoints directly.【F:packages/sdk-js/src/client.ts†L103-L171】
-  - API lacks those routes.【F:api/src/routes/mmv.ts†L15-L230】
+  - API lacks those routes.【F:api/src/routes/mamv.ts†L15-L230】
 - **Two parallel API surfaces (`/api/*` vs `/v1/*`)** with mismatched schemas (jobId vs task_id) increase integration complexity for incentives and gating.
   - `/api/verify` returns jobId and status `pending`.【F:api/src/routes/verify.ts†L130-L199】
   - `/v1/verify` returns task_id and standard status set. 【F:api/src/routes/v1/verify.ts†L137-L220】
@@ -178,8 +178,8 @@ Reviewed artifacts include:
    - Implement deterministic bundle hash verification against content (keccak of canonical JSON) and bind it to the stored URI/CID.
    - Files: `verifier-node/src/evidence/ipfsStorage.ts`, `verifier-node/src/evidence/ipfsStorageV2.ts`, `shared/onchainVerify.ts`.
 2) **Receipt API endpoints**
-   - Implement `/api/mmv/tasks/:taskId/receipt` and `/api/mmv/tasks/:taskId/receipt/verify` using `shared/receipt.ts` and `shared/onchainVerify.ts`.
-   - Files: `api/src/routes/mmv.ts`, `api/src/services/recordsService.ts`, `shared/receipt.ts`, `shared/onchainVerify.ts`.
+   - Implement `/api/mamv/tasks/:taskId/receipt` and `/api/mamv/tasks/:taskId/receipt/verify` using `shared/receipt.ts` and `shared/onchainVerify.ts`.
+   - Files: `api/src/routes/mamv.ts`, `api/src/services/recordsService.ts`, `shared/receipt.ts`, `shared/onchainVerify.ts`.
 3) **Receipt verification contract**
    - Add on-chain receipt verification contract (as specified in docs) or clearly remove/flag the feature in docs/SDK until implemented.
    - Files: `contracts/contracts/` (new), `docs/PROOF_OF_VERIFICATION_SPEC.md`, `packages/sdk-js/src/client.ts`.
@@ -192,8 +192,8 @@ Reviewed artifacts include:
    - Define a canonical task ID representation (uint256 decimal string vs bytes32 hex) and enforce it in evidence bundles and receipts.
    - Files: `shared/types.ts`, `verifier-node/src/evidence/evidenceBundlerV2.ts`, `docs/ARCHITECTURE.md`.
 3) **Explicit receipt schema selection**
-   - Clarify when `VerificationReceipt` vs `MMVReceipt` applies and provide explicit versioning in API responses.
-   - Files: `shared/receipt.ts`, `shared/types.ts`, `api/src/routes/mmv.ts`, `docs/INTEGRATION.md`.
+   - Clarify when `VerificationReceipt` vs `MAMVReceipt` applies and provide explicit versioning in API responses.
+   - Files: `shared/receipt.ts`, `shared/types.ts`, `api/src/routes/mamv.ts`, `docs/INTEGRATION.md`.
 
 ## P2 (Medium Priority)
 1) **Marketplace contract coherence**
@@ -204,7 +204,7 @@ Reviewed artifacts include:
    - Files: `docs/ARCHITECTURE.md`, `docs/AUDITOR_DUTIES.md`.
 3) **Add API-supported export endpoints**
    - Provide an audit pack endpoint (receipt + bundle + chain context) for downstream apps.
-   - Files: `api/src/routes/mmv.ts`, `openapi.yaml`, `packages/sdk-js/src/client.ts`.
+   - Files: `api/src/routes/mamv.ts`, `openapi.yaml`, `packages/sdk-js/src/client.ts`.
 
 ---
 

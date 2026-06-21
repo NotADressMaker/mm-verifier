@@ -1,6 +1,6 @@
 # Database Migrations with Prisma
 
-This directory contains the Prisma schema and database migrations for the MMV API.
+This directory contains the Prisma schema and database migrations for the MAMV API.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This directory contains the Prisma schema and database migrations for the MMV AP
 
 ## Overview
 
-MMV uses **Prisma** as its database ORM and migration tool. Prisma provides:
+MAMV uses **Prisma** as its database ORM and migration tool. Prisma provides:
 
 - **Type-safe database client** for TypeScript/JavaScript
 - **Declarative schema** in `schema.prisma`
@@ -68,7 +68,7 @@ npm install
 Create a `.env` file in the `api/` directory:
 
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/mmverifier"
+DATABASE_URL="postgresql://user:password@localhost:5432/mamverifier"
 ```
 
 ### 3. Generate Prisma Client
@@ -129,7 +129,7 @@ Opens a web UI at `http://localhost:5555`.
 ### 1. Set Production DATABASE_URL
 
 ```bash
-export DATABASE_URL="postgresql://prod_user:prod_pass@prod-db.example.com:5432/mmverifier"
+export DATABASE_URL="postgresql://prod_user:prod_pass@prod-db.example.com:5432/mamverifier"
 ```
 
 ### 2. Deploy Migrations
@@ -238,7 +238,7 @@ This creates a `schema.prisma` from the current database structure.
 **Solution:** Create the database manually:
 
 ```sql
-CREATE DATABASE mmverifier;
+CREATE DATABASE mamverifier;
 ```
 
 Or let Prisma create it:
@@ -317,19 +317,19 @@ const prisma = new PrismaClient({
 ### Development
 
 ```.env.development
-DATABASE_URL="postgresql://dev:dev@localhost:5432/mmverifier_dev"
+DATABASE_URL="postgresql://dev:dev@localhost:5432/mamverifier_dev"
 ```
 
 ### Testing
 
 ```.env.test
-DATABASE_URL="postgresql://test:test@localhost:5432/mmverifier_test"
+DATABASE_URL="postgresql://test:test@localhost:5432/mamverifier_test"
 ```
 
 ### Production
 
 ```.env.production
-DATABASE_URL="postgresql://prod_user:prod_pass@prod-db:5432/mmverifier"
+DATABASE_URL="postgresql://prod_user:prod_pass@prod-db:5432/mamverifier"
 ```
 
 ---
@@ -339,13 +339,13 @@ DATABASE_URL="postgresql://prod_user:prod_pass@prod-db:5432/mmverifier"
 ### Backup
 
 ```bash
-pg_dump -h localhost -U user mmverifier > backup.sql
+pg_dump -h localhost -U user mamverifier > backup.sql
 ```
 
 ### Restore
 
 ```bash
-psql -h localhost -U user mmverifier < backup.sql
+psql -h localhost -U user mamverifier < backup.sql
 ```
 
 ---

@@ -1,6 +1,6 @@
-# MMV Receipt 1.0
+# MAMV Receipt 1.0
 
-The receipt is MMV's product: the artifact people trust, pass around, store,
+The receipt is MAMV's product: the artifact people trust, pass around, store,
 verify, and display. An API response is only a delivery mechanism for a
 receipt.
 
@@ -18,7 +18,7 @@ receipt.
   "program_version": "1.0.0",
   "evidence_bundle_hash": "0x...",
   "evidence_uri": "ipfs://...",
-  "verifier_id": "mmv-default-verifier",
+  "verifier_id": "mamv-default-verifier",
   "signature": "0x...",
   "chain_anchor": {
     "enabled": false,
@@ -31,7 +31,7 @@ receipt.
 ## Can a third party verify this without trusting our server?
 
 **Yes, with independently obtained artifacts and verifier keys.** The
-`@mmv/receipt-verifier` package performs local computation and makes no network
+`@mamv/receipt-verifier` package performs local computation and makes no network
 requests:
 
 1. Validate the closed Receipt 1.0 schema.
@@ -45,11 +45,11 @@ requests:
    from an independent RPC or block explorer.
 
 ```typescript
-import { verifyReceipt } from '@mmv/receipt-verifier';
+import { verifyReceipt } from '@mamv/receipt-verifier';
 
 const result = verifyReceipt(receipt, {
   verifier_keys: {
-    'mmv-default-verifier': process.env.TRUSTED_MMV_VERIFIER_ADDRESS!,
+    'mamv-default-verifier': process.env.TRUSTED_MAMV_VERIFIER_ADDRESS!,
   },
   input,
   output,

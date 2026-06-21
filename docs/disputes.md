@@ -69,29 +69,29 @@ A dispute references:
 
 ## Auditor CLI Quickstart
 
-The auditor CLI is shipped with `verifier-node` as the `mmv` binary.
+The auditor CLI is shipped with `verifier-node` as the `mamv` binary.
 
 ### List disputes
 ```
-mmv auditor list-disputes --status OPEN
+mamv auditor list-disputes --status OPEN
 ```
 
 ### Inspect a dispute
 ```
-mmv auditor inspect 12 --out report.json
+mamv auditor inspect 12 --out report.json
 ```
 
 ### Run a program locally
 ```
-mmv auditor run 12 --program factual-consensus@1.0.0 --bundle ./evidence.json
+mamv auditor run 12 --program factual-consensus@1.0.0 --bundle ./evidence.json
 ```
 
 ### Submit an audit vote
 ```
-mmv auditor submit 12 --verdict ACCEPT --score-bps 9000 --evidence-hash 0x... --bundle ./evidence.json
+mamv auditor submit 12 --verdict ACCEPT --score-bps 9000 --evidence-hash 0x... --bundle ./evidence.json
 ```
 
 **Notes**
 - Set `DISPUTE_LADDER_ADDRESS` and `AUDITOR_PRIVATE_KEY` in your environment.
 - Use `--dry-run` to avoid on-chain submission.
-- For remote bundle URIs, set `MMV_AUDITOR_ALLOW_NETWORK=true`.
+- For remote bundle URIs, set `MAMV_AUDITOR_ALLOW_NETWORK=true`.

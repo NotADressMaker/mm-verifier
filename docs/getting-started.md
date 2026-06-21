@@ -1,6 +1,6 @@
 # Getting Started
 
-This is a “local-first” setup path to run MMV end-to-end: contracts (dev chain), API, and verifier node.
+This is a “local-first” setup path to run MAMV end-to-end: contracts (dev chain), API, and verifier node.
 
 ## Prerequisites
 
@@ -15,13 +15,13 @@ This is a “local-first” setup path to run MMV end-to-end: contracts (dev cha
 Install the SDK:
 
 ```bash
-npm install @mmv/sdk
+npm install @mamv/sdk
 ```
 
 Minimal usage (configure once, then verify any output):
 
 ```ts
-import { verify, configure } from '@mmv/sdk';
+import { verify, configure } from '@mamv/sdk';
 
 configure({ baseUrl: 'http://localhost:3000' });
 

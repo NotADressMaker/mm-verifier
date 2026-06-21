@@ -16,4 +16,4 @@ for (const entry of entries) {
   fs.copyFileSync(srcPath, destPath);
 }
 
-console.log('Trust Lens build complete');
+console.log('MAMV Lens build complete');

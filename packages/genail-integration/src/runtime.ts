@@ -1,8 +1,8 @@
 /**
- * MMV-wrapped GenAIL runtime
+ * MAMV-wrapped GenAIL runtime
  *
  * This module provides the main runtime wrapper that integrates
- * GenAIL execution with MMV metering, receipts, and evidence.
+ * GenAIL execution with MAMV metering, receipts, and evidence.
  */
 
 import {
@@ -40,7 +40,7 @@ import {
 // ============================================================================
 
 /**
- * Default MMV GenAIL configuration
+ * Default MAMV GenAIL configuration
  */
 export const DEFAULT_CONFIG: Partial<MMVGenAILConfig> = {
   auto_verify: false,
@@ -54,7 +54,7 @@ export const DEFAULT_CONFIG: Partial<MMVGenAILConfig> = {
  */
 function mergeConfig(userConfig: Partial<MMVGenAILConfig>): MMVGenAILConfig {
   return {
-    mmv: userConfig.mmv ?? { base_url: '', auto_verify: false },
+    mamv: userConfig.mamv ?? { base_url: '', auto_verify: false },
     auto_verify: userConfig.auto_verify ?? DEFAULT_CONFIG.auto_verify!,
     worthy_threshold_bps:
       userConfig.worthy_threshold_bps ?? DEFAULT_CONFIG.worthy_threshold_bps,
@@ -85,16 +85,16 @@ export function createExecutionContext(
     outputs: {},
     model_calls: [],
     auto_verify: config.auto_verify,
-    mmv_config: config.mmv,
+    mamv_config: config.mamv,
   };
 }
 
 // ============================================================================
-// MMV GenAIL Runtime Wrapper
+// MAMV GenAIL Runtime Wrapper
 // ============================================================================
 
 /**
- * MMV-wrapped GenAIL runtime
+ * MAMV-wrapped GenAIL runtime
  *
  * This class wraps GenAIL runtime execution with:
  * - Metering hooks for resource tracking
@@ -109,7 +109,7 @@ export class MMVGenAILRuntime {
   }
 
   /**
-   * Executes a GenAIL script with MMV integration
+   * Executes a GenAIL script with MAMV integration
    *
    * @param source - GenAIL source code
    * @param inputs - Input variables for the script
@@ -161,9 +161,9 @@ export class MMVGenAILRuntime {
       let receipt = buildReceipt(ctx);
 
       // Auto-verify if enabled
-      if (ctx.auto_verify && ctx.mmv_config?.base_url) {
+      if (ctx.auto_verify && ctx.mamv_config?.base_url) {
         try {
-          receipt = await submitForVerification(ctx, ctx.mmv_config);
+          receipt = await submitForVerification(ctx, ctx.mamv_config);
         } catch (verifyError) {
           console.error('Auto-verification failed:', verifyError);
           // Continue without verification
@@ -333,25 +333,25 @@ export class MMVGenAILRuntime {
 // ============================================================================
 
 /**
- * Creates a new MMV GenAIL runtime instance
+ * Creates a new MAMV GenAIL runtime instance
  */
 export function createRuntime(config: Partial<MMVGenAILConfig>): MMVGenAILRuntime {
   return new MMVGenAILRuntime(config);
 }
 
 /**
- * Creates a runtime with MMV API configured
+ * Creates a runtime with MAMV API configured
  */
 export function createVerifiedRuntime(
-  mmvBaseUrl: string,
-  mmvApiKey?: string,
-  options: Partial<Omit<MMVGenAILConfig, 'mmv'>> = {}
+  mamvBaseUrl: string,
+  mamvApiKey?: string,
+  options: Partial<Omit<MMVGenAILConfig, 'mamv'>> = {}
 ): MMVGenAILRuntime {
   return new MMVGenAILRuntime({
     ...options,
-    mmv: {
-      base_url: mmvBaseUrl,
-      api_key: mmvApiKey,
+    mamv: {
+      base_url: mamvBaseUrl,
+      api_key: mamvApiKey,
       auto_verify: true,
     },
     auto_verify: true,
@@ -380,15 +380,15 @@ export async function executeGenAIL(
 export async function executeAndGetReceipt(
   source: string,
   inputs: Record<string, unknown>,
-  mmvConfig?: { base_url: string; api_key?: string }
+  mamvConfig?: { base_url: string; api_key?: string }
 ): Promise<{
   receipt: MMVExecutionResult['receipt'];
   success: boolean;
   error?: Error;
 }> {
-  const config: Partial<MMVGenAILConfig> = mmvConfig
+  const config: Partial<MMVGenAILConfig> = mamvConfig
     ? {
-        mmv: { ...mmvConfig, auto_verify: true },
+        mamv: { ...mamvConfig, auto_verify: true },
         auto_verify: true,
       }
     : {};

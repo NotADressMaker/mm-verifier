@@ -1,7 +1,7 @@
 {
-  "name": "@llm-verifier/validator-service",
+  "name": "@mamv/validator-service",
   "version": "0.1.0",
-  "description": "Validator-as-a-Service for MMV work verification",
+  "description": "Validator-as-a-Service for MAMV work verification",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",

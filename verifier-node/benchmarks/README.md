@@ -1,4 +1,4 @@
-# MMV Benchmarking System
+# MAMV Benchmarking System
 
 Comprehensive benchmarking infrastructure to measure and validate scoring pipeline accuracy.
 

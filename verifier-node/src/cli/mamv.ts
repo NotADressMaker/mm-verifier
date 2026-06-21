@@ -22,7 +22,7 @@ async function main() {
         await runBenchmarkCli(subrest);
         break;
       }
-      process.stderr.write('Usage: mmv benchmark run --bundles <path> --out <out>\n');
+      process.stderr.write('Usage: mamv benchmark run --bundles <path> --out <out>\n');
       process.exit(1);
       break;
     }
@@ -31,7 +31,7 @@ async function main() {
       break;
     default:
       process.stderr.write(
-        'Usage: mmv <auditor|encrypt-bundle|decrypt-bundle|benchmark|admin> [args]\n'
+        'Usage: mamv <auditor|encrypt-bundle|decrypt-bundle|benchmark|admin> [args]\n'
       );
       process.exit(1);
   }

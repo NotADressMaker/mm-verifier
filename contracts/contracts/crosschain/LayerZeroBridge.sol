@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title LayerZeroBridge
- * @notice Cross-chain VERIFY token bridge using LayerZero OFT pattern
- * @dev Enables seamless VERIFY transfers across EVM chains (L1 <-> L2s)
+ * @notice Cross-chain MAMV token bridge using LayerZero OFT pattern
+ * @dev Enables seamless MAMV transfers across EVM chains (L1 <-> L2s)
  *
  * Supported Chains:
  * - Ethereum (mainnet)
@@ -19,9 +19,9 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - BSC
  *
  * How it works:
- * 1. User locks VERIFY on source chain
+ * 1. User locks MAMV on source chain
  * 2. Bridge emits cross-chain message via LayerZero
- * 3. Destination chain mints/unlocks equivalent VERIFY
+ * 3. Destination chain mints/unlocks equivalent MAMV
  * 4. Reverse process for bridging back
  *
  * Security:
@@ -31,7 +31,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - Fraud proof window
  *
  * Example:
- * // Bridge 1000 VERIFY from Ethereum to Arbitrum
+ * // Bridge 1000 MAMV from Ethereum to Arbitrum
  * verifyToken.approve(bridge, 1000e18);
  * bridge.bridge(1000e18, ARBITRUM_CHAIN_ID, msg.sender);
  */
@@ -112,7 +112,7 @@ contract LayerZeroBridge is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Bridge VERIFY tokens to another chain
+     * @notice Bridge MAMV tokens to another chain
      * @param amount Amount to bridge
      * @param dstChainId Destination LayerZero chain ID
      * @param recipient Recipient address on destination chain

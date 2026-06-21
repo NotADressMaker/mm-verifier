@@ -7,13 +7,13 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title AgentStaking
- * @notice Stake VERIFY tokens to delegate to AI agents
+ * @notice Stake MAMV tokens to delegate to AI agents
  * @dev Users stake tokens to support specific AI agents, share revenue
  *
  * Delegation Model:
- * 1. User stakes VERIFY to support specific AI agent
+ * 1. User stakes MAMV to support specific AI agent
  * 2. Agent performs verifications
- * 3. Agent earns VERIFY rewards from mining
+ * 3. Agent earns MAMV rewards from mining
  * 4. Rewards split between agent operator + delegators
  *
  * Revenue Split:
@@ -21,18 +21,18 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - 30% to agent operator
  *
  * Benefits:
- * - Passive income for VERIFY holders
+ * - Passive income for MAMV holders
  * - Economic backing for agents
  * - Reputation signal (more stake = more trusted)
  * - Slashing protection (shared risk)
  *
  * Example:
  * ```
- * // Stake 1000 VERIFY to GPT-4 agent
+ * // Stake 1000 MAMV to GPT-4 agent
  * agentStaking.stake(gpt4Agent, 1000e18);
  *
  * // Earn share of agent's verification rewards
- * // Agent earns 100 VERIFY → You earn 70% * (your_stake / total_stake)
+ * // Agent earns 100 MAMV → You earn 70% * (your_stake / total_stake)
  *
  * // Unstake anytime
  * agentStaking.unstake(gpt4Agent, 500e18);
@@ -45,7 +45,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
     // Agent pool info
     struct AgentPool {
         address agent;                  // Agent address
-        uint256 totalStaked;            // Total VERIFY staked to this agent
+        uint256 totalStaked;            // Total MAMV staked to this agent
         uint256 accRewardPerShare;      // Accumulated rewards per share (scaled 1e12)
         uint256 lastRewardBlock;        // Last block rewards were distributed
         uint256 operatorShare;          // Operator's share (basis points, default 3000 = 30%)
@@ -67,7 +67,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
 
     // Configuration
     uint256 public defaultOperatorShare = 3000; // 30% to operator
-    uint256 public minDelegation = 10e18;       // Min 10 VERIFY
+    uint256 public minDelegation = 10e18;       // Min 10 MAMV
     uint256 public unstakeCooldown = 7 days;    // 7 day cooldown
 
     // Events
@@ -142,7 +142,7 @@ contract AgentStaking is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Stake VERIFY to agent
+     * @notice Stake MAMV to agent
      * @param agent Agent to delegate to
      * @param amount Amount to stake
      */

@@ -5,7 +5,7 @@ import { executeAuditorCommand } from './auditorCommands';
 export async function runAuditorCli(args: string[]): Promise<void> {
   const command = parseAuditorArgs(args);
   const client = createAuditorClient();
-  const allowNetwork = process.env.MMV_AUDITOR_ALLOW_NETWORK === 'true';
+  const allowNetwork = (process.env.MAMV_AUDITOR_ALLOW_NETWORK || process.env.MMV_AUDITOR_ALLOW_NETWORK) === 'true';
 
   const result = await executeAuditorCommand(command, {
     client,

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-interface ITruthChain {
-    function appendTruthBlock(
+interface IMAMVAnchor {
+    function appendVerificationBlock(
         uint256 taskId,
         bytes32 claimHash,
         bytes32 outcomeHash,

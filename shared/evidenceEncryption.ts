@@ -16,7 +16,7 @@ export function deriveEvidenceKey(params: {
   key_version: string;
 }): Buffer {
   const salt = Buffer.from(params.bundle_hash.replace(/^0x/, ''), 'hex');
-  const info = Buffer.from(`mmv-evidence:${params.key_version}`, 'utf8');
+  const info = Buffer.from(`mamv-evidence:${params.key_version}`, 'utf8');
   return Buffer.from(hkdfSync('sha256', params.master_key, salt, info, 32));
 }
 

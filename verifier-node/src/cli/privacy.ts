@@ -22,7 +22,7 @@ function parseArgs(args: string[]): Record<string, string[]> {
 export async function encryptBundleCli(args: string[]): Promise<void> {
   const [bundlePath] = args.filter((arg) => !arg.startsWith('--'));
   if (!bundlePath) {
-    throw new Error('Usage: mmv encrypt-bundle <bundle.json> --recipients <pubkey...> --out <bundle.encrypted.json>');
+    throw new Error('Usage: mamv encrypt-bundle <bundle.json> --recipients <pubkey...> --out <bundle.encrypted.json>');
   }
 
   const parsed = parseArgs(args);
@@ -54,7 +54,7 @@ export async function encryptBundleCli(args: string[]): Promise<void> {
 export async function decryptBundleCli(args: string[]): Promise<void> {
   const [bundlePath] = args.filter((arg) => !arg.startsWith('--'));
   if (!bundlePath) {
-    throw new Error('Usage: mmv decrypt-bundle <bundle.encrypted.json> --key <hex-private-key> [--out bundle.json]');
+    throw new Error('Usage: mamv decrypt-bundle <bundle.encrypted.json> --key <hex-private-key> [--out bundle.json]');
   }
 
   const parsed = parseArgs(args);

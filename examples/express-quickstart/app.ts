@@ -1,9 +1,9 @@
 /**
- * MMV Express Quickstart Example
+ * MAMV Express Quickstart Example
  *
  * This example demonstrates:
  * 1. Sending a prompt to an LLM
- * 2. Verifying the output with MMV
+ * 2. Verifying the output with MAMV
  * 3. Displaying a "Verified" badge and receipt details
  *
  * Run with: npm start
@@ -38,7 +38,7 @@ interface OnchainVerifyResult {
 
 // Configuration
 const PORT = process.env.PORT ?? 3001;
-const MMV_API_URL = process.env.MMV_API_URL ?? 'http://localhost:3000';
+const MAMV_API_URL = process.env.MAMV_API_URL ?? process.env.MMV_API_URL ?? 'http://localhost:3000';
 const USE_MOCK = process.env.USE_MOCK !== 'false';
 
 // ============================================================================
@@ -66,7 +66,7 @@ async function queryLLM(prompt: string): Promise<string> {
 }
 
 // ============================================================================
-// Mock Verification (when MMV API is not available)
+// Mock Verification (when MAMV API is not available)
 // ============================================================================
 
 function generateMockReceipt(text: string): Receipt {
@@ -171,11 +171,11 @@ app.post('/verify', async (req: Request, res: Response) => {
     let receipt: Receipt;
 
     if (USE_MOCK) {
-      // Use mock verification (for demo without running MMV backend)
+      // Use mock verification (for demo without running MAMV backend)
       receipt = generateMockReceipt(llmResponse);
     } else {
-      // Use real MMV API
-      const response = await fetch(`${MMV_API_URL}/v1/verify`, {
+      // Use real MAMV API
+      const response = await fetch(`${MAMV_API_URL}/v1/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +187,7 @@ app.post('/verify', async (req: Request, res: Response) => {
       });
 
       if (!response.ok) {
-        throw new Error(`MMV API error: ${response.status}`);
+        throw new Error(`MAMV API error: ${response.status}`);
       }
 
       const data = (await response.json()) as { receipt?: Receipt };
@@ -220,7 +220,7 @@ function renderPage(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MMV Quickstart - Verify LLM Output</title>
+  <title>MAMV Quickstart - Verify LLM Output</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -371,7 +371,7 @@ function renderPage(): string {
 </head>
 <body>
   <div class="container">
-    <h1>MMV Quickstart <span class="mode-badge">${USE_MOCK ? 'Mock Mode' : 'Live'}</span></h1>
+    <h1>MAMV Quickstart <span class="mode-badge">${USE_MOCK ? 'Mock Mode' : 'Live'}</span></h1>
     <p class="subtitle">Verify LLM outputs with multi-model consensus</p>
 
     <div class="card">
@@ -521,14 +521,14 @@ function renderPage(): string {
 // Start server
 app.listen(PORT, () => {
   console.log(`
-  MMV Quickstart Example
+  MAMV Quickstart Example
   ======================
 
   Server running at: http://localhost:${PORT}
 
-  Mode: ${USE_MOCK ? 'Mock (no MMV backend required)' : `Live (using ${MMV_API_URL})`}
+  Mode: ${USE_MOCK ? 'Mock (no MAMV backend required)' : `Live (using ${MAMV_API_URL})`}
 
-  To use with real MMV backend:
-    USE_MOCK=false MMV_API_URL=http://localhost:3000 npm start
+  To use with real MAMV backend:
+    USE_MOCK=false MAMV_API_URL=http://localhost:3000 npm start
   `);
 });

@@ -2,7 +2,7 @@
  * Receipt generation module for GenAIL executions
  *
  * This module provides auto-generation of verification receipts
- * for GenAIL script executions within MMV.
+ * for GenAIL script executions within MAMV.
  */
 
 import { createHash } from 'crypto';
@@ -291,15 +291,15 @@ export function validateReceiptAgainstContext(
 }
 
 // ============================================================================
-// MMV API Integration
+// MAMV API Integration
 // ============================================================================
 
 /**
- * Submits execution to MMV for verification and returns updated receipt
+ * Submits execution to MAMV for verification and returns updated receipt
  */
 export async function submitForVerification(
   ctx: MMVExecutionContext,
-  mmvConfig: MMVConfig
+  mamvConfig: MMVConfig
 ): Promise<GenAILVerificationReceipt> {
   // Build initial receipt
   const receipt = buildReceipt(ctx);
@@ -316,19 +316,19 @@ export async function submitForVerification(
     },
   };
 
-  // Submit to MMV API
-  const response = await fetch(`${mmvConfig.base_url}/v1/verify`, {
+  // Submit to MAMV API
+  const response = await fetch(`${mamvConfig.base_url}/v1/verify`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(mmvConfig.api_key ? { Authorization: `Bearer ${mmvConfig.api_key}` } : {}),
+      ...(mamvConfig.api_key ? { Authorization: `Bearer ${mamvConfig.api_key}` } : {}),
     },
     body: JSON.stringify(verifyRequest),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`MMV verification failed: ${error}`);
+    throw new Error(`MAMV verification failed: ${error}`);
   }
 
   const result = await response.json();
@@ -339,17 +339,17 @@ export async function submitForVerification(
     task_id: result.task_id,
     score_bps: result.score_bps ?? 0,
     verdict: result.verdict ?? false,
-    worthy: result.worthy ?? (result.score_bps >= (mmvConfig.min_score_threshold ?? 8000)),
+    worthy: result.worthy ?? (result.score_bps >= (mamvConfig.min_score_threshold ?? 8000)),
     verified_at: Date.now(),
   };
 }
 
 /**
- * Polls MMV API for verification completion
+ * Polls MAMV API for verification completion
  */
 export async function waitForVerification(
   taskId: string,
-  mmvConfig: MMVConfig,
+  mamvConfig: MMVConfig,
   options: {
     pollIntervalMs?: number;
     timeoutMs?: number;
@@ -369,9 +369,9 @@ export async function waitForVerification(
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeout) {
-    const response = await fetch(`${mmvConfig.base_url}/v1/tasks/${taskId}`, {
+    const response = await fetch(`${mamvConfig.base_url}/v1/tasks/${taskId}`, {
       headers: {
-        ...(mmvConfig.api_key ? { Authorization: `Bearer ${mmvConfig.api_key}` } : {}),
+        ...(mamvConfig.api_key ? { Authorization: `Bearer ${mamvConfig.api_key}` } : {}),
       },
     });
 
@@ -385,7 +385,7 @@ export async function waitForVerification(
       return {
         score_bps: task.score_bps,
         verdict: task.verdict,
-        worthy: task.score_bps >= (mmvConfig.min_score_threshold ?? 8000),
+        worthy: task.score_bps >= (mamvConfig.min_score_threshold ?? 8000),
         chain_context: task.chain_context,
       };
     }

@@ -1,14 +1,14 @@
 # Web3 Transformation Guide
 
-Complete guide to the Web3 features added to MMV protocol.
+Complete guide to the Web3 features added to MAMV protocol.
 
 ---
 
 ## 📦 Packages Implemented
 
 ### **Package 1: Decentralized Governance** ✅
-- `VerifyToken.sol` - ERC20Votes governance token
-- `VerifyGovernor.sol` - On-chain governance with OpenZeppelin Governor
+- `MAMVToken.sol` - ERC20Votes governance token
+- `MAMVGovernor.sol` - On-chain governance with OpenZeppelin Governor
 - Timelock integration for delayed execution (48 hours)
 
 ### **Package 2: Tokenomics & Incentives** ✅
@@ -38,8 +38,8 @@ These should already be deployed:
 ### Step 2: Deploy Governance Contracts
 
 ```solidity
-// 1. Deploy VERIFY token
-VerifyToken verifyToken = new VerifyToken(
+// 1. Deploy MAMV token
+MAMVToken verifyToken = new MAMVToken(
     treasuryAddress,      // 40% of supply
     teamVestingAddress,   // 30% of supply (vested)
     miningRewardsAddress, // 20% for mining
@@ -55,7 +55,7 @@ TimelockController timelock = new TimelockController(
 );
 
 // 3. Deploy Governor
-VerifyGovernor governor = new VerifyGovernor(
+MAMVGovernor governor = new MAMVGovernor(
     IVotes(address(verifyToken)),
     timelock
 );
@@ -86,7 +86,7 @@ VerifierMining mining = new VerifierMining(
 );
 
 // 4. Transfer mining rewards tokens to mining contract
-verifyToken.transfer(address(mining), 200_000e18); // 200K VERIFY
+verifyToken.transfer(address(mining), 200_000e18); // 200K MAMV
 ```
 
 ### Step 4: Deploy NFT Contracts
@@ -272,7 +272,7 @@ await governor.execute(targets, values, calldatas, descriptionHash);
 ### For Token Stakers (Revenue Sharing)
 
 ```javascript
-// 1. Stake VERIFY tokens
+// 1. Stake MAMV tokens
 await verifyToken.approve(staking.address, ethers.parseEther("1000"));
 await staking.stake(ethers.parseEther("1000"));
 
@@ -292,7 +292,7 @@ await staking.unstake(ethers.parseEther("500"));
 ```javascript
 // 1. Check pending mining rewards
 const [totalPending, claimableEpochs] = await mining.getPendingRewards(myAddress);
-console.log(`Pending VERIFY: ${ethers.formatEther(totalPending)}`);
+console.log(`Pending MAMV: ${ethers.formatEther(totalPending)}`);
 
 // 2. Claim multiple epochs
 await mining.claimRewards(claimableEpochs);
@@ -326,7 +326,7 @@ const expertURI = await expertNFT.tokenURI(expertTokenId);
 
 ## 📊 Tokenomics Overview
 
-### VERIFY Token Distribution
+### MAMV Token Distribution
 
 | Allocation | Amount | Vesting | Purpose |
 |-----------|--------|---------|---------|
@@ -338,14 +338,14 @@ const expertURI = await expertNFT.tokenURI(expertTokenId);
 
 ### Revenue Streams
 
-1. **Protocol Fees (5%)**: Distributed to VERIFY stakers
+1. **Protocol Fees (5%)**: Distributed to MAMV stakers
 2. **Bond Slashing**: Redistributed to dispute winners
 3. **Expert Stakes**: Economic security for weighted selection
 
 ### Incentive Alignment
 
 - **Stakers**: Earn protocol revenue (WETH)
-- **Verifiers**: Earn mining rewards (VERIFY) based on accuracy
+- **Verifiers**: Earn mining rewards (MAMV) based on accuracy
 - **Experts**: Higher stake requirement (5x), higher selection probability (2x)
 - **Governance**: Token holders control protocol parameters
 
@@ -356,7 +356,7 @@ const expertURI = await expertNFT.tokenURI(expertTokenId);
 ### Governance Security
 
 1. **Timelock Delay**: 48 hours prevents immediate malicious changes
-2. **Proposal Threshold**: 100K VERIFY (10%) prevents spam
+2. **Proposal Threshold**: 100K MAMV (10%) prevents spam
 3. **Quorum**: 4% ensures community participation
 4. **Multisig Admin**: Use Gnosis Safe for initial timelock admin
 
@@ -377,7 +377,7 @@ const expertURI = await expertNFT.tokenURI(expertTokenId);
 ## 🔄 Migration Path from Ownable to Governance
 
 ### Phase 1: Deploy Governance (Week 1)
-1. Deploy VerifyToken, Timelock, Governor
+1. Deploy MAMVToken, Timelock, Governor
 2. Test governance on testnet
 3. Distribute initial tokens
 
@@ -414,7 +414,7 @@ await governor.propose(
 
 ### Governance Tests
 - [ ] Token delegation works
-- [ ] Proposals require 100K VERIFY threshold
+- [ ] Proposals require 100K MAMV threshold
 - [ ] Voting period lasts 7 days
 - [ ] Timelock enforces 48 hour delay
 - [ ] Executed proposals update contracts
@@ -435,7 +435,7 @@ await governor.propose(
 
 ## 📈 Future Enhancements
 
-1. **veVERIFY**: Vote-escrowed tokens for governance weight
+1. **veMAMV**: Vote-escrowed tokens for governance weight
 2. **Bribes**: Incentivize voting on specific proposals
 3. **Cross-chain governance**: LayerZero integration
 4. **NFT marketplace**: Whitelist for badge trading (if made transferable)
@@ -452,7 +452,7 @@ await governor.propose(
 - Solution: Check `badges.hasBadgeType(user, badgeType)` before minting
 
 ### Governance proposal fails
-- Check: Do you have 100K VERIFY delegated?
+- Check: Do you have 100K MAMV delegated?
 - Check: Has voting delay (1 block) passed?
 - Check: Is voting period still active?
 

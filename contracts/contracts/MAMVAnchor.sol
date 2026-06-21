@@ -2,23 +2,23 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title TruthChain
+ * @title MAMVAnchor
  * @notice Append-only hash chain for finalized verification receipts.
  */
-contract TruthChain {
-    bytes32 public truthHead;
+contract MAMVAnchor {
+    bytes32 public verificationHead;
     mapping(bytes32 => bytes32) public prevByBlock; // blockHash -> prevHash
     mapping(uint256 => bytes32) public taskToBlock; // taskId -> blockHash
 
     address public marketplace;
 
-    event TruthBlockAppended(
+    event VerificationBlockAppended(
         uint256 indexed taskId,
         bytes32 indexed blockHash,
         bytes32 prevHash,
         bytes32 claimHash
     );
-    event TruthHeadUpdated(bytes32 oldHead, bytes32 newHead);
+    event VerificationHeadUpdated(bytes32 oldHead, bytes32 newHead);
     event MarketplaceSet(address indexed marketplace);
 
     modifier onlyMarketplace() {
@@ -32,7 +32,7 @@ contract TruthChain {
         emit MarketplaceSet(_marketplace);
     }
 
-    function appendTruthBlock(
+    function appendVerificationBlock(
         uint256 taskId,
         bytes32 claimHash,
         bytes32 outcomeHash,
@@ -41,10 +41,10 @@ contract TruthChain {
     ) external onlyMarketplace returns (bytes32 blockHash) {
         require(taskToBlock[taskId] == bytes32(0), "task already recorded");
 
-        bytes32 prevHash = truthHead;
+        bytes32 prevHash = verificationHead;
         blockHash = keccak256(
             abi.encode(
-                bytes32("MMV_TRUTH_BLOCK_V1"),
+                bytes32("MAMV_VERIFICATION_BLOCK_V1"),
                 taskId,
                 prevHash,
                 claimHash,
@@ -57,9 +57,9 @@ contract TruthChain {
 
         prevByBlock[blockHash] = prevHash;
         taskToBlock[taskId] = blockHash;
-        truthHead = blockHash;
+        verificationHead = blockHash;
 
-        emit TruthBlockAppended(taskId, blockHash, prevHash, claimHash);
-        emit TruthHeadUpdated(prevHash, blockHash);
+        emit VerificationBlockAppended(taskId, blockHash, prevHash, claimHash);
+        emit VerificationHeadUpdated(prevHash, blockHash);
     }
 }

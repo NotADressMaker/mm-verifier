@@ -1,6 +1,6 @@
 # Economic Security Analysis
 
-This document operationalizes MMV’s economic security assumptions into concrete parameters and worked examples tied directly to the on-chain contracts. It is meant to be read alongside the marketplace and dispute contracts to guide parameter tuning and future audits.
+This document operationalizes MAMV’s economic security assumptions into concrete parameters and worked examples tied directly to the on-chain contracts. It is meant to be read alongside the marketplace and dispute contracts to guide parameter tuning and future audits.
 
 ## Threat model
 

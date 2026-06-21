@@ -1,7 +1,7 @@
 {
-  "name": "@llm-verifier/api",
+  "name": "@mamv/api",
   "version": "0.1.0",
-  "description": "REST API and WebSocket server for LLM Verifier",
+  "description": "REST API and WebSocket server for MAMV",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
@@ -27,7 +27,7 @@
     "llm",
     "verification"
   ],
-  "author": "LLM Verifier Team",
+  "author": "MAMV Team",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",

@@ -1,7 +1,7 @@
 {
-  "name": "@llm-verifier/contracts",
+  "name": "@mamv/contracts",
   "version": "0.1.0",
-  "description": "Smart contracts for LLM Verifier marketplace on Arbitrum",
+  "description": "Smart contracts for MAMV marketplace on Arbitrum",
   "main": "index.js",
   "scripts": {
     "compile": "hardhat compile",
@@ -23,7 +23,7 @@
     "arbitrum",
     "chainlink-vrf"
   ],
-  "author": "LLM Verifier Team",
+  "author": "MAMV Team",
   "license": "MIT",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",

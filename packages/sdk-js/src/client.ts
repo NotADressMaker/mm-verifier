@@ -20,7 +20,7 @@ const DEFAULT_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000';
 const DEFAULT_PROGRAM_ID = 'factual-consensus';
 const DEFAULT_PROGRAM_VERSION = '1.0.0';
 
-export interface MMVClientOptions {
+export interface MAMVClientOptions {
   baseUrl: string;
   apiKey?: string;
   fetcher?: typeof fetch;
@@ -46,14 +46,14 @@ export interface VerifyWithProgramParams {
   idempotencyKey?: string;
 }
 
-export class MMVClient {
+export class MAMVClient {
   private baseUrl: string;
   private apiKey?: string;
   private fetcher: typeof fetch;
   private chainId: number;
   private contractAddress: string;
 
-  constructor(options: MMVClientOptions) {
+  constructor(options: MAMVClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.apiKey = options.apiKey;
     this.fetcher = options.fetcher ?? fetch;
@@ -75,7 +75,7 @@ export class MMVClient {
    *
    * @example
    * ```ts
-   * const client = new MMVClient({ baseUrl: 'http://localhost:3000' });
+   * const client = new MAMVClient({ baseUrl: 'http://localhost:3000' });
    * const receipt = await client.verifyOutput('Paris is the capital of France');
    * console.log(receipt.verdict ? 'Verified' : 'Unverified');
    * ```
@@ -163,7 +163,7 @@ export class MMVClient {
   async getRecord(taskId: string): Promise<VerifiedOutputRecord | null> {
     try {
       const response = await this.request<RecordResponse>(
-        `/api/mmv/tasks/${taskId}/record`
+        `/api/mamv/tasks/${taskId}/record`
       );
       return response.record;
     } catch (error: any) {
@@ -198,7 +198,7 @@ export class MMVClient {
     }
 
     const queryString = params.toString();
-    const path = queryString ? `/api/mmv/records?${queryString}` : '/api/mmv/records';
+    const path = queryString ? `/api/mamv/records?${queryString}` : '/api/mamv/records';
 
     return this.request<RecordListResponse>(path);
   }
@@ -208,7 +208,7 @@ export class MMVClient {
    * Checks for Finalized event and returns block/tx info
    */
   async verifyRecordOnChain(taskId: string): Promise<OnChainVerifyResult> {
-    return this.request<OnChainVerifyResult>(`/api/mmv/tasks/${taskId}/verify`);
+    return this.request<OnChainVerifyResult>(`/api/mamv/tasks/${taskId}/verify`);
   }
 
   // ============================================================================
@@ -222,7 +222,7 @@ export class MMVClient {
   async getReceipt(taskId: string): Promise<VerificationReceipt | null> {
     try {
       const response = await this.request<ReceiptResponse>(
-        `/api/mmv/tasks/${taskId}/receipt`
+        `/api/mamv/tasks/${taskId}/receipt`
       );
       return response.receipt;
     } catch (error: any) {
@@ -294,8 +294,8 @@ export class MMVClient {
     }
     const queryString = params.toString();
     const path = queryString
-      ? `/api/mmv/tasks/${taskId}/receipt/verify?${queryString}`
-      : `/api/mmv/tasks/${taskId}/receipt/verify`;
+      ? `/api/mamv/tasks/${taskId}/receipt/verify?${queryString}`
+      : `/api/mamv/tasks/${taskId}/receipt/verify`;
 
     return this.request(path);
   }
@@ -332,7 +332,7 @@ export class MMVClient {
 
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(`MMV API error (${response.status}): ${JSON.stringify(payload)}`);
+      throw new Error(`MAMV API error (${response.status}): ${JSON.stringify(payload)}`);
     }
     return payload as T;
   }

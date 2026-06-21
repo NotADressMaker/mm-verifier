@@ -19,7 +19,7 @@ export function assertWithinRateLimit(
   }
 
   if (existing.count >= limitPerMinute) {
-    throw new Error('MMV rate limit exceeded');
+    throw new Error('MAMV rate limit exceeded');
   }
 
   existing.count += 1;

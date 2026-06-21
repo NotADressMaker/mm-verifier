@@ -49,7 +49,7 @@ contract DynamicExpertNFT is ERC721, Ownable {
     constructor(
         address _marketplace,
         address _auditorRegistry
-    ) ERC721("MM Verify Expert", "VERIFY-EXPERT") Ownable(msg.sender) {
+    ) ERC721("MM Verify Expert", "MAMV-EXPERT") Ownable(msg.sender) {
         marketplace = _marketplace;
         auditorRegistry = _auditorRegistry;
         isSoulbound = true; // Default to soulbound

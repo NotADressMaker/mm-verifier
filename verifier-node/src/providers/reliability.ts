@@ -1,5 +1,5 @@
 /**
- * Provider Reliability Infrastructure for MMV
+ * Provider Reliability Infrastructure for MAMV
  *
  * Handles unreliable LLM providers with:
  * - Circuit breakers (fast-fail when error rates spike)

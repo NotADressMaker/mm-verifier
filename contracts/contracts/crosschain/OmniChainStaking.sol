@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title OmniChainStaking
- * @notice Stake VERIFY on any chain, earn rewards everywhere
+ * @notice Stake MAMV on any chain, earn rewards everywhere
  * @dev Cross-chain staking aggregator using message passing
  *
  * Architecture:
@@ -17,7 +17,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * - Uses LayerZero for cross-chain communication
  *
  * Example Flow:
- * 1. Alice stakes 1000 VERIFY on Arbitrum
+ * 1. Alice stakes 1000 MAMV on Arbitrum
  * 2. Contract sends message to Ethereum (main chain)
  * 3. Ethereum updates global stake count
  * 4. When rewards distributed on any chain, Alice can claim proportionally
@@ -100,7 +100,7 @@ contract OmniChainStaking is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Stake VERIFY tokens
+     * @notice Stake MAMV tokens
      * @param amount Amount to stake
      */
     function stake(uint256 amount) external nonReentrant {
@@ -133,7 +133,7 @@ contract OmniChainStaking is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Unstake VERIFY tokens
+     * @notice Unstake MAMV tokens
      * @param amount Amount to unstake
      */
     function unstake(uint256 amount) external nonReentrant {

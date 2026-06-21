@@ -30,7 +30,7 @@ Multi-model consensus verification for factual claims.
 #### Example Use
 
 ```typescript
-import { verify, FACTUAL_CONSENSUS_PROGRAM } from '@mmv/sdk';
+import { verify, FACTUAL_CONSENSUS_PROGRAM } from '@mamv/sdk';
 
 const receipt = await verify('Paris is the capital of France', {
   programId: FACTUAL_CONSENSUS_PROGRAM.id,

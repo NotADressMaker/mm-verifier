@@ -1,16 +1,16 @@
-# AI Black Box Transparency in MMV
+# AI Black Box Transparency in MAMV
 
 ## Overview
 
-This document evaluates what transparency MMV provides for AI decision-making, what remains opaque, and the trust assumptions users should understand.
+This document evaluates what transparency MAMV provides for AI decision-making, what remains opaque, and the trust assumptions users should understand.
 
-AI systems are often described as "black boxes" because their internal decision-making processes are not directly observable. MMV addresses specific aspects of this opacity through cryptographic commitments, provenance tracking, and on-chain anchoring—while acknowledging the fundamental limitations that remain.
+AI systems are often described as "black boxes" because their internal decision-making processes are not directly observable. MAMV addresses specific aspects of this opacity through cryptographic commitments, provenance tracking, and on-chain anchoring—while acknowledging the fundamental limitations that remain.
 
-## What MMV Provides
+## What MAMV Provides
 
 ### 1. Input/Output Provenance
 
-MMV creates cryptographic commitments to verification inputs and outputs:
+MAMV creates cryptographic commitments to verification inputs and outputs:
 
 | Field | Description | Guarantee |
 |-------|-------------|-----------|
@@ -49,7 +49,7 @@ This provides:
 
 ### 3. On-Chain Anchoring
 
-MMV anchors verification results to immutable blockchain events:
+MAMV anchors verification results to immutable blockchain events:
 
 - **Revealed event**: Records evaluator, score, bundle hash, bundle URI
 - **Finalized event**: Records final score after consensus
@@ -91,7 +91,7 @@ This proves which verification logic was executed.
 
 ### 6. Reasoning Trace Commitments (New)
 
-MMV can capture reasoning steps without exposing raw chain-of-thought:
+MAMV can capture reasoning steps without exposing raw chain-of-thought:
 
 ```typescript
 interface ReasoningTraceStep {
@@ -136,7 +136,7 @@ This allows detection of silent model updates between verifications.
 
 ### 1. Model Internals
 
-**MMV cannot reveal:**
+**MAMV cannot reveal:**
 - Neural network weights
 - Attention patterns
 - Hidden state activations
@@ -144,22 +144,22 @@ This allows detection of silent model updates between verifications.
 
 **Reason:** LLM providers do not expose internals. Even open-weight models have billions of parameters that are not practically interpretable.
 
-**Implication:** MMV proves *what* was computed, not *why* at the neural level.
+**Implication:** MAMV proves *what* was computed, not *why* at the neural level.
 
 ### 2. Provider-Side Computation
 
-**MMV cannot verify:**
+**MAMV cannot verify:**
 - That the provider actually ran the claimed model
 - That the provider used the claimed configuration
 - That responses weren't cached or modified
 
-**Reason:** Computation happens on provider infrastructure. MMV receives API responses, not proof of execution.
+**Reason:** Computation happens on provider infrastructure. MAMV receives API responses, not proof of execution.
 
 **Implication:** Users must trust that providers (OpenAI, Anthropic, etc.) return authentic responses.
 
 ### 3. Verifier Node Integrity
 
-**MMV cannot prove:**
+**MAMV cannot prove:**
 - That verifier nodes executed the verification honestly
 - That verifier nodes didn't manipulate scores or evidence
 
@@ -174,7 +174,7 @@ This allows detection of silent model updates between verifications.
 
 ### 4. Full Reasoning Content
 
-**By design, MMV does not store:**
+**By design, MAMV does not store:**
 - Raw chain-of-thought text in evidence bundles
 - Sensitive intermediate reasoning
 
@@ -199,7 +199,7 @@ This allows detection of silent model updates between verifications.
 | IPFS/Storage | Semi-trusted | Could serve different content for same hash; mitigated by hash verification |
 | End User | Untrusted | Receives receipts and can independently verify hashes |
 
-### What MMV Guarantees
+### What MAMV Guarantees
 
 1. **Data Integrity**: If hashes match, content is authentic
 2. **Immutability**: On-chain records cannot be altered
@@ -207,7 +207,7 @@ This allows detection of silent model updates between verifications.
 4. **Consistency**: Same program fingerprint = same verification logic
 5. **Timing**: Block timestamps prove when verification occurred
 
-### What MMV Does Not Guarantee
+### What MAMV Does Not Guarantee
 
 1. **Correct Execution**: Without ZK proofs, relies on verifier honesty
 2. **Model Authenticity**: Relies on provider honesty
@@ -216,11 +216,11 @@ This allows detection of silent model updates between verifications.
 
 ---
 
-## Comparison: MMV vs Ethereum for AI Accountability
+## Comparison: MAMV vs Ethereum for AI Accountability
 
-Ethereum provides general-purpose transaction transparency. MMV extends this with AI-specific primitives:
+Ethereum provides general-purpose transaction transparency. MAMV extends this with AI-specific primitives:
 
-| Capability | Ethereum | MMV |
+| Capability | Ethereum | MAMV |
 |------------|----------|-----|
 | Transaction immutability | ✅ | ✅ (inherits) |
 | Input/output provenance | ❌ | ✅ Cryptographic commitments |
@@ -231,13 +231,13 @@ Ethereum provides general-purpose transaction transparency. MMV extends this wit
 | Scoring transparency | ❌ | ✅ Breakdown of score components |
 | Evidence bundle audit | ❌ | ✅ Complete verification trail |
 
-MMV does not claim to be "better than Ethereum" in general. It provides AI-specific transparency primitives that Ethereum's transaction model does not address.
+MAMV does not claim to be "better than Ethereum" in general. It provides AI-specific transparency primitives that Ethereum's transaction model does not address.
 
 ---
 
 ## ZK Proof Roadmap
 
-To achieve trust-minimized verification, MMV is designed to integrate zero-knowledge proofs:
+To achieve trust-minimized verification, MAMV is designed to integrate zero-knowledge proofs:
 
 ### Current State
 - Verifier nodes are trusted parties
@@ -297,13 +297,13 @@ Candidate proof systems: RISC Zero, SP1, Noir.
 
 ## Summary
 
-MMV provides transparency for:
+MAMV provides transparency for:
 - **What** was verified (inputs, outputs, hashes)
 - **How** it was verified (programs, scoring, models)
 - **When** it was verified (on-chain timestamps)
 - **That** reasoning occurred (hash commitments)
 
-MMV cannot reveal:
+MAMV cannot reveal:
 - **Why** a model produced an answer (neural internals)
 - **Whether** providers are honest (trust assumption)
 - **Whether** verifiers are honest (without ZK proofs)

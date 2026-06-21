@@ -1,12 +1,12 @@
 import { logger } from '../utils/logger';
-import { MMVAttestation, MMVReceipt, MMVVerificationInput } from '../../../shared/types';
-import { verifyWithMMV } from './mmvVerifier';
-import { hashCanonical, normalizeBytes32 } from './mmvHasher';
-import { hashVerifierVersion, signMMVAttestation } from './mmvAttestation';
-import { loadMMVConfig } from './mmvConfig';
+import { MAMVAttestation, MAMVReceipt, MMVVerificationInput } from '../../../shared/types';
+import { verifyWithMAMV } from './mamvVerifier';
+import { hashCanonical, normalizeBytes32 } from './mamvHasher';
+import { hashVerifierVersion, signMAMVAttestation } from './mamvAttestation';
+import { loadMMVConfig } from './mamvConfig';
 import { getChainIdFromEnv } from '../../../shared/env';
-import { buildMMVReceipt } from './mmvReceipt';
-import { writeMMVAuditRecord } from './mmvAudit';
+import { buildMAMVReceipt } from './mamvReceipt';
+import { writeMMVAuditRecord } from './mamvAudit';
 
 export type DecisionGateRequest = {
   taskId: string;
@@ -17,10 +17,10 @@ export type DecisionGateRequest = {
 };
 
 export type DecisionGateResult = {
-  attestation: MMVAttestation;
+  attestation: MAMVAttestation;
   signature: string;
   selectedOutput: string;
-  receipt: MMVReceipt;
+  receipt: MAMVReceipt;
 };
 
 export async function runDecisionGate(
@@ -40,7 +40,7 @@ export async function runDecisionGate(
     evidence: request.evidence,
   };
 
-  const verification = await verifyWithMMV(verificationInput, request.requesterId);
+  const verification = await verifyWithMAMV(verificationInput, request.requesterId);
 
   const selectedOutput = request.candidates[verification.selectedIndex];
 
@@ -56,21 +56,21 @@ export async function runDecisionGate(
       selectedScore: verification.candidateScores[verification.selectedIndex].score,
       pass: verification.pass,
     });
-    throw new Error('MMV decision gate blocked action');
+    throw new Error('MAMV decision gate blocked action');
   }
 
   const chainId = getChainIdFromEnv();
-  const verifyingContract = process.env.MMV_ATTESTATION_CONTRACT || '0x0000000000000000000000000000000000000000';
-  const signerKey = process.env.MMV_SIGNER_PRIVATE_KEY;
+  const verifyingContract = process.env.MAMV_ATTESTATION_CONTRACT || process.env.MMV_ATTESTATION_CONTRACT || '0x0000000000000000000000000000000000000000';
+  const signerKey = process.env.MAMV_SIGNER_PRIVATE_KEY || process.env.MMV_SIGNER_PRIVATE_KEY;
 
   if (!signerKey) {
-    throw new Error('MMV_SIGNER_PRIVATE_KEY not configured');
+    throw new Error('MAMV_SIGNER_PRIVATE_KEY not configured');
   }
   if (!chainId) {
-    throw new Error('MMV_CHAIN_ID or CHAIN_ID must be configured');
+    throw new Error('MAMV_CHAIN_ID or CHAIN_ID must be configured');
   }
 
-  const attestation: MMVAttestation = {
+  const attestation: MAMVAttestation = {
     taskId: verification.taskId,
     inputHash: verification.inputHash,
     selectedOutputHash: verification.selectedOutputHash,
@@ -82,14 +82,14 @@ export async function runDecisionGate(
     passed: verification.pass,
   };
 
-  const signature = await signMMVAttestation(signerKey, chainId, verifyingContract, attestation);
+  const signature = await signMAMVAttestation(signerKey, chainId, verifyingContract, attestation);
 
   logger.info('Decision gate attestation signed', {
     taskId: request.taskId,
     selectedOutputHash: attestation.selectedOutputHash,
   });
 
-  const receipt = buildMMVReceipt(verification, {
+  const receipt = buildMAMVReceipt(verification, {
     attestation,
     signature,
     chainId,
@@ -97,7 +97,7 @@ export async function runDecisionGate(
   });
 
   await writeMMVAuditRecord({
-    type: 'mmv_attestation',
+    type: 'mamv_attestation',
     taskId: request.taskId,
     inputHash: verification.inputHash,
     selectedOutputHash: attestation.selectedOutputHash,

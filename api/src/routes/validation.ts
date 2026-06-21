@@ -173,7 +173,7 @@ router.get('/demo/protected', (req: Request, res: Response) => {
 
   if (resolvedReceipt) {
     res.setHeader(
-      'X-MMV-Receipt',
+      'X-MAMV-Receipt',
       JSON.stringify({
         requestId: resolvedReceipt.requestId,
         receiptId: resolvedReceipt.receiptId,
@@ -187,10 +187,10 @@ router.get('/demo/protected', (req: Request, res: Response) => {
   <html lang="en">
     <head>
       <meta charset="utf-8" />
-      <title>MMV Protected Demo</title>
+      <title>MAMV Protected Demo</title>
       ${
         resolvedReceipt
-          ? `<meta name="mmv-receipt" content='${JSON.stringify({
+          ? `<meta name="mamv-receipt" content='${JSON.stringify({
               requestId: resolvedReceipt.requestId,
               receiptId: resolvedReceipt.receiptId,
               workHash: resolvedReceipt.workHash,
@@ -200,8 +200,8 @@ router.get('/demo/protected', (req: Request, res: Response) => {
       }
     </head>
     <body>
-      <h1>MMV Protected Endpoint</h1>
-      <p>This endpoint returns MMV receipt metadata for Trust Lens.</p>
+      <h1>MAMV Protected Endpoint</h1>
+      <p>This endpoint returns MAMV receipt metadata for MAMV Lens.</p>
       ${
         resolvedReceipt
           ? `<pre>${JSON.stringify(resolvedReceipt, null, 2)}</pre>`

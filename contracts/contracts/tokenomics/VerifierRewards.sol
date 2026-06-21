@@ -48,7 +48,7 @@ interface IVerifierMarketplaceRewards {
 
 /**
  * @title VerifierRewards
- * @notice Rewards verifiers with MMV Coin for correct final outcomes.
+ * @notice Rewards verifiers with MAMV Coin for correct final outcomes.
  */
 contract VerifierRewards is Ownable {
     uint8 private constant RESOLVED_STATE = 4;

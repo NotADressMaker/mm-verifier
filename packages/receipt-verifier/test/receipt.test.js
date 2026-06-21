@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Wallet } = require('ethers');
 
-test('a third party verifies a receipt without an MMV server', async () => {
+test('a third party verifies a receipt without an MAMV server', async () => {
   const { createReceipt, hashArtifact, verifyReceipt } = await import('../dist/index.js');
   const wallet = Wallet.createRandom();
   const input = { prompt: 'What is the capital of France?' };
@@ -23,13 +23,13 @@ test('a third party verifies a receipt without an MMV server', async () => {
       program_version: '1.0.0',
       evidence_bundle_hash: hashArtifact(evidence),
       evidence_uri: 'ipfs://bafy-test',
-      verifier_id: 'mmv-default-verifier',
+      verifier_id: 'mamv-default-verifier',
     },
     (receiptId) => wallet.signMessage(receiptId)
   );
 
   const result = verifyReceipt(receipt, {
-    verifier_keys: { 'mmv-default-verifier': wallet.address },
+    verifier_keys: { 'mamv-default-verifier': wallet.address },
     input,
     output,
     claim,
@@ -58,13 +58,13 @@ test('tampering with a signed receipt is detected', async () => {
       program_version: '1.0.0',
       evidence_bundle_hash: hashArtifact('evidence'),
       evidence_uri: 'ipfs://bafy-test',
-      verifier_id: 'mmv-default-verifier',
+      verifier_id: 'mamv-default-verifier',
     },
     (receiptId) => wallet.signMessage(receiptId)
   );
 
   const result = verifyReceipt({ ...receipt, score: 0.1 }, {
-    verifier_keys: { 'mmv-default-verifier': wallet.address },
+    verifier_keys: { 'mamv-default-verifier': wallet.address },
   });
   assert.equal(result.valid, false);
   assert.equal(result.checks.receipt_id, false);

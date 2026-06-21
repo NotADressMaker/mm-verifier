@@ -1,4 +1,4 @@
-# MMV Scoring Pipeline
+# MAMV Scoring Pipeline
 
 **Version**: 1.0
 **Status**: Deterministic & Reproducible
@@ -1085,7 +1085,7 @@ These checks emit structured results that populate `Receipt.explain.score_compon
 
 ## Conclusion
 
-The MMV scoring pipeline is:
+The MAMV scoring pipeline is:
 - ✅ **Deterministic**: Same inputs → same outputs
 - ✅ **Reproducible**: Auditors can verify scores
 - ✅ **Transparent**: All steps documented

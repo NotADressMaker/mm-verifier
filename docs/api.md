@@ -1,10 +1,10 @@
-# MMV Verification API (v1)
+# MAMV Verification API (v1)
 
 The v1 API provides a stable, developer-friendly surface for submitting verification tasks, defining verification programs, and polling task status.
 
 ## Versioning & Stability
 
-All v1 endpoints are under `/v1/*` and return `X-MMV-API-Version: 1`. Backward-compatible updates will keep field names stable and add new optional fields only.
+All v1 endpoints are under `/v1/*` and return `X-MAMV-API-Version: 1`. Backward-compatible updates will keep field names stable and add new optional fields only.
 
 ## Idempotency
 

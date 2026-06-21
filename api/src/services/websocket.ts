@@ -22,7 +22,7 @@ export function setupWebSocket(wss: WebSocketServer) {
     ws.send(JSON.stringify({
       type: 'connected',
       clientId,
-      message: 'Connected to LLM Verifier WebSocket',
+      message: 'Connected to MAMV WebSocket',
     }));
 
     // Handle messages from client

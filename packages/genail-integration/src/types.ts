@@ -1,5 +1,5 @@
 /**
- * GenAI Language integration types for MMV
+ * GenAI Language integration types for MAMV
  *
  * This module defines types for wrapping GenAIL runtime with metering,
  * verification receipts, and auditable evidence export.
@@ -137,7 +137,7 @@ export type GenAILAST = GenAILASTNode[];
 // ============================================================================
 
 /**
- * Context passed to GenAIL runtime with MMV hooks
+ * Context passed to GenAIL runtime with MAMV hooks
  */
 export interface MMVExecutionContext {
   /** Unique execution ID */
@@ -164,8 +164,8 @@ export interface MMVExecutionContext {
   /** Whether to auto-verify on completion */
   auto_verify: boolean;
 
-  /** MMV API configuration */
-  mmv_config?: MMVConfig;
+  /** MAMV API configuration */
+  mamv_config?: MMVConfig;
 }
 
 /**
@@ -186,7 +186,7 @@ export interface ModelCallRecord {
 }
 
 /**
- * MMV API configuration
+ * MAMV API configuration
  */
 export interface MMVConfig {
   base_url: string;
@@ -381,11 +381,11 @@ export interface GenAILRuntimeHooks {
 // ============================================================================
 
 /**
- * Configuration for the MMV-wrapped GenAIL runtime
+ * Configuration for the MAMV-wrapped GenAIL runtime
  */
 export interface MMVGenAILConfig {
-  /** MMV API configuration */
-  mmv: MMVConfig;
+  /** MAMV API configuration */
+  mamv: MMVConfig;
 
   /** Metering limits */
   metering_limits?: MeteringLimits;
@@ -404,7 +404,7 @@ export interface MMVGenAILConfig {
 }
 
 /**
- * Result of a GenAIL script execution with MMV
+ * Result of a GenAIL script execution with MAMV
  */
 export interface MMVExecutionResult {
   /** Execution context with all captured data */

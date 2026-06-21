@@ -1,10 +1,11 @@
 {
-  "name": "@llm-verifier/verifier-node",
+  "name": "@mamv/verifier-node",
   "version": "0.1.0",
-  "description": "Verifier node for LLM Verifier - processes verification jobs and submits evaluations",
+  "description": "Verifier node for MAMV - processes verification jobs and submits evaluations",
   "main": "dist/index.js",
   "bin": {
-    "mmv": "dist/cli/mmv.js"
+    "mamv": "dist/cli/mamv.js",
+    "mmv": "dist/cli/mamv.js"
   },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -28,7 +29,7 @@
     "blockchain",
     "ai"
   ],
-  "author": "LLM Verifier Team",
+  "author": "MAMV Team",
   "license": "MIT",
   "dependencies": {
     "ajv": "^8.12.0",

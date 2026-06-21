@@ -1,4 +1,4 @@
-# MMV Tokenomics
+# MAMV Tokenomics
 
 **Version**: 1.0 (MVP)
 **Currency**: WETH (Wrapped ETH on Arbitrum)
@@ -21,7 +21,7 @@
 
 ## Overview
 
-MMV uses **WETH bonds** (not native governance token) to ensure economic accountability. All participants post bonds that can be slashed for malicious behavior.
+MAMV uses **WETH bonds** (not native governance token) to ensure economic accountability. All participants post bonds that can be slashed for malicious behavior.
 
 ### Why WETH?
 
@@ -934,7 +934,7 @@ EV = 0.6 × 0.065 - 0.4 × 0.05
 
 ## Conclusion
 
-MMV's tokenomics creates a **self-reinforcing economic system** where:
+MAMV's tokenomics creates a **self-reinforcing economic system** where:
 
 1. ✅ **Honest behavior is profitable**
    - Verifiers earn 478% monthly ROI

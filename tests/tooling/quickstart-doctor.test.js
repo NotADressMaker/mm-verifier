@@ -18,7 +18,7 @@ function readEnvValue(filePath, key) {
 }
 
 (function testQuickstartEnv() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mmv-quickstart-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mamv-quickstart-'));
   const envFile = path.join(tmpDir, '.env.runtime');
 
   const result = run('bash', ['quickstart.sh', '--env-only'], {
@@ -35,7 +35,7 @@ function readEnvValue(filePath, key) {
 })();
 
 (function testDoctorRealModeMissingEnv() {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mmv-doctor-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mamv-doctor-'));
   const envFile = path.join(tmpDir, '.env.runtime');
 
   fs.writeFileSync(

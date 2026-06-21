@@ -1,18 +1,18 @@
-import { MMVAttestation, MMVReceipt, MMVVerificationResult } from '../../../shared/types';
+import { MAMVAttestation, MAMVReceipt, MMVVerificationResult } from '../../../shared/types';
 
 type AttestationPayload = {
-  attestation: MMVAttestation;
+  attestation: MAMVAttestation;
   signature: string;
   chainId: number;
   verifyingContract: string;
 };
 
-export function buildMMVReceipt(
+export function buildMAMVReceipt(
   result: MMVVerificationResult,
   attestationPayload?: AttestationPayload
-): MMVReceipt {
+): MAMVReceipt {
   if (!result.provenance) {
-    throw new Error('MMV provenance data is required to build receipt');
+    throw new Error('MAMV provenance data is required to build receipt');
   }
 
   return {

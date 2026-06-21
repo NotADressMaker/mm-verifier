@@ -1,5 +1,5 @@
 /**
- * Program Fingerprinting and Metering for MMV "World Computer"
+ * Program Fingerprinting and Metering for MAMV "World Computer"
  *
  * Programs are deterministic verification workflows that can be registered,
  * fingerprinted, and metered. Each program has a unique fingerprint derived

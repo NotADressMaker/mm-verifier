@@ -12,9 +12,9 @@ export interface ChainAnchor {
 }
 
 /**
- * The portable MMV product artifact. Every field needed to identify the
+ * The portable MAMV product artifact. Every field needed to identify the
  * verification run is top-level so a receipt can be stored and exchanged
- * independently of the MMV API.
+ * independently of the MAMV API.
  */
 export interface VerificationReceipt {
   receipt_version: typeof RECEIPT_VERSION;
@@ -40,7 +40,7 @@ export interface UnsignedReceipt
 }
 
 export interface ReceiptVerificationOptions {
-  /** Map verifier_id values to Ethereum addresses. No MMV server lookup occurs. */
+  /** Map verifier_id values to Ethereum addresses. No MAMV server lookup occurs. */
   verifier_keys: Record<string, string>;
   /** Optional original artifacts. When present, their commitments are checked. */
   input?: unknown;

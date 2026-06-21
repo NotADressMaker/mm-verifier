@@ -9,31 +9,31 @@ import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFractio
 import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 
 /**
- * @title VerifyGovernor
- * @notice On-chain governance for MMV protocol
+ * @title MAMVGovernor
+ * @notice On-chain governance for MAMV protocol
  * @dev Implements OpenZeppelin Governor pattern with timelock
  *
  * Parameters:
  * - Voting delay: 1 block (~12 seconds) - Time before voting starts
  * - Voting period: 50,400 blocks (~7 days) - Duration of voting
- * - Proposal threshold: 100,000 VERIFY (10% of supply) - Tokens needed to propose
+ * - Proposal threshold: 100,000 MAMV (10% of supply) - Tokens needed to propose
  * - Quorum: 4% of total supply - Minimum votes needed to pass
  *
  * Features:
- * - Token-weighted voting (1 VERIFY = 1 vote)
+ * - Token-weighted voting (1 MAMV = 1 vote)
  * - Delegation support (holders can delegate voting power)
  * - Timelock execution (48 hour delay for security)
  * - Cancellation support (proposer can cancel before execution)
  *
  * Proposal Lifecycle:
- * 1. Create proposal (requires 100K VERIFY)
+ * 1. Create proposal (requires 100K MAMV)
  * 2. Voting delay (1 block)
  * 3. Voting period (7 days)
  * 4. Queue in timelock (if passed)
  * 5. Timelock delay (48 hours)
  * 6. Execute (anyone can call)
  */
-contract VerifyGovernor is
+contract MAMVGovernor is
     Governor,
     GovernorSettings,
     GovernorCountingSimple,
@@ -46,7 +46,7 @@ contract VerifyGovernor is
         GovernorSettings(
             1,        // voting delay: 1 block
             50400,    // voting period: ~7 days (assuming 12s blocks)
-            100000e18 // proposal threshold: 100K VERIFY (10%)
+            100000e18 // proposal threshold: 100K MAMV (10%)
         )
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4) // 4% quorum
