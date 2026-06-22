@@ -19,6 +19,9 @@ model Verification {
   thresholdBps   Int      @default(7500)
   requireWorthy  Boolean  @default(true)
   anchorRequested Boolean @default(false)
+  anchorVerified Boolean?
+  policyDecision String?
+  policyWarningsJson String?
   status         String   @default("PENDING")
   verdict        Boolean?
   worthy         Boolean  @default(false)
