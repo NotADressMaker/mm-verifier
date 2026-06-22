@@ -10,7 +10,7 @@ import {
 } from '../../../shared/transparency';
 import { ProviderCallResult, ProviderRequest } from '../../../shared/providers/interface';
 import { executeProviderCall } from '../providers/providerControl';
-import { recordProviderError, recordProviderSuccess } from '../providers/trust';
+import { recordProviderError, recordProviderSuccess, getSlashedProviders } from '../providers/trust';
 import { verifierMetrics } from '../observability/metrics';
 
 export interface ModelResponse {
@@ -143,18 +143,49 @@ export async function queryModel(
 }
 
 /**
- * Query multiple models in parallel
+ * Minimum fraction of requested models that must succeed for a result to be
+ * considered a valid quorum. Mirrors the ⅔ supermajority used in BFT consensus.
+ */
+const QUORUM_FRACTION = parseFloat(process.env.QUORUM_FRACTION || '0.6667');
+
+/**
+ * Query multiple models in parallel, enforcing a BFT-style quorum.
+ *
+ * Slashed providers are skipped before dispatch. If fewer than ⌈QUORUM_FRACTION
+ * × requested⌉ models respond successfully the call fails — a bare majority is
+ * not sufficient to produce a trustworthy consensus score.
  */
 export async function queryMultipleModels(
   prompt: string,
   models: string[]
 ): Promise<ModelResponse[]> {
-  logger.info('Querying multiple models', { models, count: models.length });
+  const slashed = getSlashedProviders();
+
+  const eligibleModels = models.filter((m) => {
+    const provider = getModelProvider(m);
+    const key = `${provider}:${m}`;
+    if (slashed.has(key)) {
+      logger.warn('Skipping slashed provider', { model: m, provider });
+      return false;
+    }
+    return true;
+  });
+
+  // Quorum is computed against the original requested set so callers cannot
+  // artificially lower the bar by passing fewer models.
+  const quorumRequired = Math.ceil(models.length * QUORUM_FRACTION);
+
+  logger.info('Querying multiple models', {
+    requested: models.length,
+    eligible: eligibleModels.length,
+    slashed: models.length - eligibleModels.length,
+    quorumRequired,
+  });
 
   const startTime = Date.now();
 
   try {
-    const promises = models.map((model) => queryModel(prompt, model));
+    const promises = eligibleModels.map((model) => queryModel(prompt, model));
     const results = await Promise.allSettled(promises);
 
     const successful: ModelResponse[] = [];
@@ -164,9 +195,9 @@ export async function queryMultipleModels(
       if (result.status === 'fulfilled') {
         successful.push(result.value);
       } else {
-        failed.push(models[index]);
+        failed.push(eligibleModels[index]);
         logger.error('Model query failed', {
-          model: models[index],
+          model: eligibleModels[index],
           error: result.reason,
         });
       }
@@ -176,13 +207,23 @@ export async function queryMultipleModels(
 
     logger.info('Multi-model query completed', {
       total: models.length,
+      eligible: eligibleModels.length,
       successful: successful.length,
       failed: failed.length,
+      quorumRequired,
+      quorumMet: successful.length >= quorumRequired,
       duration,
     });
 
     if (successful.length === 0) {
       throw new Error('All model queries failed');
+    }
+
+    if (successful.length < quorumRequired) {
+      throw new Error(
+        `Quorum not met: ${successful.length}/${models.length} models responded ` +
+          `(required ≥${quorumRequired})`
+      );
     }
 
     return successful;
