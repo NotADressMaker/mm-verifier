@@ -54,7 +54,8 @@
     "packages/genail-integration",
     "apps/dashboard",
     "apps/trust-lens",
-    "services/validator"
+    "services/validator",
+    "apps/mamv-guard"
   ],
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+model Verification {
+  id             String   @id @default(cuid())
+  taskId         String?  @unique
+  prompt         String
+  outputsJson    String
+  metadataJson   String
+  domain         String   @default("general")
+  policyJson     String
+  thresholdBps   Int      @default(7500)
+  requireWorthy  Boolean  @default(true)
+  anchorRequested Boolean @default(false)
+  status         String   @default("PENDING")
+  verdict        Boolean?
+  worthy         Boolean  @default(false)
+  scoreBps       Int?
+  receiptJson    String?
+  evidenceJson   String?
+  receiptHash    String?
+  badgeUrl       String?
+  receiptUrl     String?
+  chainId        Int?
+  contractAddress String?
+  txHash         String?
+  blockNumber    Int?
+  error          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  webhookDeliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id             String @id @default(cuid())
+  verificationId String
+  url            String
+  statusCode     Int?
+  ok             Boolean @default(false)
+  error          String?
+  createdAt      DateTime @default(now())
+  verification   Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+}
