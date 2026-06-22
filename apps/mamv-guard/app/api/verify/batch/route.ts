@@ -1,0 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { parse } from 'csv-parse/sync';
+import { batchRequestSchema, verifyRequestSchema } from '@/lib/schemas';
+import { verifyWithMamv } from '@/lib/verifier';
+import { assertRateLimit } from '@/lib/rate-limit';
+export async function POST(req: NextRequest) { try { assertRateLimit(req); const contentType = req.headers.get('content-type') ?? ''; let items: any[]; if (contentType.includes('text/csv')) { const rows = parse(await req.text(), { columns: true, skip_empty_lines: true }); items = rows.map((r: any) => ({ prompt: r.prompt, outputs: [r.output], metadata: { source: r.source }, policy: { domain: r.domain || 'general', anchor: r.anchor === 'true', thresholdBps: r.threshold ? Number(r.threshold) : undefined } })); } else { const body = batchRequestSchema.parse(await req.json()); items = body.items.map((item: any) => ({ ...item, policy: { ...body.policy, ...item.policy } })); } const results = await Promise.all(items.map((item) => verifyWithMamv(verifyRequestSchema.parse(item)))); return NextResponse.json({ total: results.length, results }); } catch (error: any) { return NextResponse.json({ error: error.message ?? 'Invalid batch request' }, { status: error.status ?? 400 }); } }
