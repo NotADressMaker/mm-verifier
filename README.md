@@ -2,9 +2,27 @@
 
 **Multi-Agent Model Verification**
 
-MAMV is an open accountability layer for AI outputs. It turns model responses into portable verification receipts backed by multi-agent review, evidence bundles, transparent scoring, and optional onchain anchoring.
+MAMV is a verification layer for AI-generated outputs. Developers plug it into AI apps to check answers, sports picks, stock ideas, recommendations, summaries, and agent actions before users rely on them. MAMV returns a score, warnings, evidence, and a portable receipt. The receipt hash can be anchored onchain so anyone can verify the receipt is authentic, unchanged, and timestamped.
 
-MAMV records how an AI output was checked. It does not prove objective truth or guarantee correctness; it packages the verification process, reviewer signals, scores, and evidence into a receipt that applications can store, display, audit, and optionally anchor onchain.
+MAMV checks AI outputs offchain and anchors receipt hashes onchain so anyone can verify the receipt is authentic, unchanged, and timestamped. The blockchain verifies the record, not the truth of the claim: it supports public receipt verification, onchain receipt anchoring, tamper-evident verification records, and independently verifiable receipts without claiming correctness.
+
+```txt
+AI App / Model
+   ↓
+Generated Output
+   ↓
+MAMV Verification Agents
+   ↓
+Score + Warnings + Evidence Bundle
+   ↓
+Signed MAMV Receipt
+   ↓
+Optional Onchain Anchor
+   ↓
+Public Verification
+```
+
+Use MAMV to verify that a MAMV receipt is real and unchanged. The offchain MAMV verification process checks the AI output; onchain anchoring verifies receipt existence, issuer authorization, timestamp, integrity, verification program, evidence hash, and displayed score/status.
 
 See [MAMV Receipt 1.0](docs/RECEIPTS.md) for the portable format and server-independent verification procedure.
 
