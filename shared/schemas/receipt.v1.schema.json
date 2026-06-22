@@ -52,7 +52,13 @@
     "plaintext_verification": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["plaintext_commitment_hash", "signer", "signature", "signed_at", "statement"],
+      "required": [
+        "plaintext_commitment_hash",
+        "signer",
+        "signature",
+        "signed_at",
+        "statement"
+      ],
       "properties": {
         "plaintext_commitment_hash": { "type": "string" },
         "signer": { "type": "string" },
@@ -87,10 +93,19 @@
     "chain_context": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["chain_id", "contract_address", "finalized_at", "block_number", "tx_hash"],
+      "required": [
+        "chain_id",
+        "contract_address",
+        "finalized_at",
+        "block_number",
+        "tx_hash"
+      ],
       "properties": {
         "chain_id": { "type": "integer", "minimum": 1 },
-        "contract_address": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+        "contract_address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$"
+        },
         "finalized_at": { "type": "integer", "minimum": 1 },
         "block_number": { "type": "integer", "minimum": 0 },
         "tx_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
@@ -111,12 +126,23 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["provider", "model", "model_commitment_hash", "inference_config_hash"],
+        "required": [
+          "provider",
+          "model",
+          "model_commitment_hash",
+          "inference_config_hash"
+        ],
         "properties": {
           "provider": { "type": "string" },
           "model": { "type": "string" },
-          "model_commitment_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
-          "inference_config_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+          "model_commitment_hash": {
+            "type": "string",
+            "pattern": "^0x[a-fA-F0-9]{64}$"
+          },
+          "inference_config_hash": {
+            "type": "string",
+            "pattern": "^0x[a-fA-F0-9]{64}$"
+          }
         }
       }
     },
@@ -139,13 +165,31 @@
         "public_inputs": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["input_hash", "output_hash", "model_commitment_hash", "score_bps", "bundle_hash"],
+          "required": [
+            "input_hash",
+            "output_hash",
+            "model_commitment_hash",
+            "score_bps",
+            "bundle_hash"
+          ],
           "properties": {
-            "input_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
-            "output_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
-            "model_commitment_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
+            "input_hash": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$"
+            },
+            "output_hash": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$"
+            },
+            "model_commitment_hash": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$"
+            },
             "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-            "bundle_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+            "bundle_hash": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$"
+            }
           }
         },
         "proof_system": { "type": "string" }
@@ -154,8 +198,8 @@
     "explain": {
       "type": "object",
       "additionalProperties": false,
-        "required": [
-          "version",
+      "required": [
+        "version",
         "score_components",
         "score_components_detail",
         "claim_summary",
@@ -163,11 +207,11 @@
         "checks",
         "checks_fired",
         "uncertain_claims",
-          "score_adjustments",
-          "contradictions_found",
-          "citation_checks",
-          "model_disagreement"
-        ],
+        "score_adjustments",
+        "contradictions_found",
+        "citation_checks",
+        "model_disagreement"
+      ],
       "properties": {
         "version": { "const": "1.0.0" },
         "score_components": {
@@ -178,8 +222,16 @@
             "required": ["name", "score_bps"],
             "properties": {
               "name": { "type": "string", "minLength": 1, "maxLength": 64 },
-              "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-              "weight_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+              "score_bps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "weight_bps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
               "notes": { "type": "string", "maxLength": 2048 }
             }
           }
@@ -194,10 +246,26 @@
             "final_score_bps"
           ],
           "properties": {
-            "coverage_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-            "contradiction_penalty_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-            "citation_quality_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-            "final_score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 }
+            "coverage_bps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "contradiction_penalty_bps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "citation_quality_bps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "final_score_bps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            }
           }
         },
         "claim_summary": {
@@ -205,10 +273,24 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["cluster_id", "canonical_text", "supported_by", "contradicted_by", "citations"],
+            "required": [
+              "cluster_id",
+              "canonical_text",
+              "supported_by",
+              "contradicted_by",
+              "citations"
+            ],
             "properties": {
-              "cluster_id": { "type": "string", "minLength": 1, "maxLength": 128 },
-              "canonical_text": { "type": "string", "minLength": 1, "maxLength": 2048 },
+              "cluster_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "canonical_text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
               "supported_by": {
                 "type": "array",
                 "items": { "type": "string", "minLength": 1 }
@@ -246,7 +328,10 @@
           "additionalProperties": true,
           "properties": {
             "citations": { "type": "object", "additionalProperties": true },
-            "contradictions": { "type": "object", "additionalProperties": true },
+            "contradictions": {
+              "type": "object",
+              "additionalProperties": true
+            },
             "disagreement": { "type": "object", "additionalProperties": true },
             "policy": { "type": "object", "additionalProperties": true }
           }
@@ -259,8 +344,15 @@
             "required": ["id", "severity", "summary"],
             "properties": {
               "id": { "type": "string", "minLength": 1, "maxLength": 128 },
-              "severity": { "type": "string", "enum": ["low", "medium", "high"] },
-              "summary": { "type": "string", "minLength": 1, "maxLength": 2048 },
+              "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
               "claim_id": { "type": "string", "minLength": 1, "maxLength": 128 }
             }
           }
@@ -272,7 +364,11 @@
             "additionalProperties": false,
             "required": ["claim_id", "text", "reason"],
             "properties": {
-              "claim_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "claim_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
               "text": { "type": "string", "minLength": 1, "maxLength": 2048 },
               "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
               "reason": { "type": "string", "minLength": 1, "maxLength": 256 }
@@ -286,11 +382,30 @@
             "additionalProperties": false,
             "required": ["component", "score_bps", "direction"],
             "properties": {
-              "component": { "type": "string", "minLength": 1, "maxLength": 64 },
-              "score_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-              "weight_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-              "contribution_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
-              "direction": { "type": "string", "enum": ["up", "down", "neutral"] },
+              "component": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "score_bps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "weight_bps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "contribution_bps": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "direction": {
+                "type": "string",
+                "enum": ["up", "down", "neutral"]
+              },
               "reason": { "type": "string", "maxLength": 2048 }
             }
           }
@@ -304,8 +419,15 @@
             "properties": {
               "type": { "type": "string", "minLength": 1, "maxLength": 64 },
               "severity": { "type": "string", "minLength": 1, "maxLength": 32 },
-              "summary": { "type": "string", "minLength": 1, "maxLength": 2048 },
-              "evidence_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              }
             }
           }
         },
@@ -317,7 +439,10 @@
             "required": ["claim", "sources", "verdict"],
             "properties": {
               "claim": { "type": "string", "minLength": 1, "maxLength": 2048 },
-              "sources": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "sources": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
               "verdict": { "type": "string", "minLength": 1, "maxLength": 32 },
               "notes": { "type": "string", "maxLength": 2048 }
             }
@@ -328,7 +453,10 @@
           "additionalProperties": false,
           "required": ["models", "agreement_rate"],
           "properties": {
-            "models": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "models": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
             "agreement_rate": { "type": "number", "minimum": 0, "maximum": 1 },
             "clusters": {
               "type": "array",
@@ -344,13 +472,35 @@
         "plaintext_verification": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["plaintext_commitment_hash", "signer", "signature", "signed_at", "statement"],
+          "required": [
+            "plaintext_commitment_hash",
+            "signer",
+            "signature",
+            "signed_at",
+            "statement"
+          ],
           "properties": {
             "plaintext_commitment_hash": { "type": "string" },
             "signer": { "type": "string" },
             "signature": { "type": "string" },
             "signed_at": { "type": "integer" },
             "statement": { "type": "string" }
+          }
+        },
+        "bft_quorum": { "type": "boolean" },
+        "outliers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "vote_merkle_root": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$"
+        },
+        "vote_merkle_proofs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
           }
         },
         "timings_ms": {
