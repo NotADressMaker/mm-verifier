@@ -35,6 +35,7 @@ import {
 import { storeDebugTrace, getDebugTrace } from './debugTraceStore';
 import { verifierMetrics } from '../observability/metrics';
 import { TraceContext } from '../../../shared/observability/tracing';
+import { reportOutcomesToChain } from './onChainModelRegistry';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -453,6 +454,20 @@ export async function startJobProcessor() {
           setTimeout(async () => {
             await revealEvaluationForJob(jobId);
           }, revealDelay);
+
+          // Report per-model outcomes to the on-chain ModelReputationOracle so
+          // reputation scores are updated for every model that participated.
+          const outlierSet = new Set(scoringResult.outliers);
+          const modelOutcomes = responses.map((r) => ({
+            provider: r.provider,
+            model:    r.model,
+            scoreBps: toScoreBps(scoringResult.score),
+            accurate: !outlierSet.has(`${r.provider}:${r.model}`),
+          }));
+          // Fire-and-forget — don't block job completion on oracle tx
+          reportOutcomesToChain(jobId, modelOutcomes).catch((err) =>
+            logger.warn('Oracle reporting failed', { jobId, error: err.message })
+          );
 
           const totalDuration = Date.now() - jobStart;
           verifierMetrics.metrics.jobLatencyMs.labels('start_to_complete').observe(totalDuration);
