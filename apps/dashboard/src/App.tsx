@@ -98,9 +98,9 @@ export default function App() {
 
       <main>
         <section className="intro">
-          <div className="eyebrow"><Icon name="sparkles" size={15} /> AI answer verification</div>
-          <h1>Don’t just trust the answer.<br/><em>Verify every claim.</em></h1>
-          <p>MM-Verifier checks AI-generated answers against their cited sources, then creates a signed, auditable record of what it found.</p>
+          <div className="eyebrow"><Icon name="sparkles" size={15} /> Public receipt verification</div>
+          <h1>Don’t just trust the answer.<br/><em>Verify the receipt.</em></h1>
+          <p>MAMV checks AI outputs offchain and anchors receipt hashes onchain so anyone can verify the receipt is authentic, unchanged, and timestamped.</p>
         </section>
 
         <section className="workspace" id="verification">
@@ -142,17 +142,17 @@ export default function App() {
         </section>
 
         <section className="receipt-section" id="receipts">
-          <div className="receipt-copy"><div className="eyebrow dark"><Icon name="shield" size={15}/> Durable proof</div><h2>A receipt that outlives<br/>the answer.</h2><p>The result is cryptographically signed and bundled with its evidence. Anyone can inspect or independently verify it later—without relying on MM-Verifier.</p><ul><li><Icon name="check" size={15}/> Tamper-evident signature</li><li><Icon name="check" size={15}/> Complete evidence bundle</li><li><Icon name="check" size={15}/> Independently verifiable</li></ul></div>
+          <div className="receipt-copy"><div className="eyebrow dark"><Icon name="shield" size={15}/> Onchain receipt anchoring</div><h2>Tamper-evident verification records<br/>for every checked output.</h2><p>The signed receipt is bundled with evidence, then its hash can be anchored onchain for independently verifiable receipts. Blockchain verifies the record, not the truth of the claim.</p><ul><li><Icon name="check" size={15}/> Verify that a MAMV receipt is real and unchanged</li><li><Icon name="check" size={15}/> Maps to a verification program and evidence hash</li><li><Icon name="check" size={15}/> Public receipt verification without relying on MAMV</li></ul></div>
           <div className="receipt-card">
             <div className="receipt-top"><div className="receipt-brand"><span className="brand-mark small"><Icon name="shield" size={15}/></span><div><strong>Verification receipt</strong><span>MAMV RECEIPT · V1.0</span></div></div><span className="signed"><Icon name="check" size={12}/> SIGNED</span></div>
             <div className="receipt-score"><span>VERIFICATION RESULT</span><strong>Verified: 91% support</strong></div>
             <div className="receipt-data"><div><span>Receipt ID</span><code>mamv_rcpt_01J8Y7K4R6V2AX91Q3EM</code></div><button onClick={copyReceipt} title="Copy receipt ID"><Icon name={copied ? 'check' : 'copy'} size={16}/></button></div>
-            <div className="receipt-meta"><div><span>Issued</span><strong>13 Jun 2026, 14:32 UTC</strong></div><div><span>Claims</span><strong>4 assessed</strong></div><div><span>Evidence hash</span><strong>0x7e4a…9c21</strong></div><div><span>Signer</span><strong>MAMV Network</strong></div></div>
+            <div className="receipt-meta"><div><span>Issued</span><strong>13 Jun 2026, 14:32 UTC</strong></div><div><span>Anchor</span><strong>Onchain timestamp</strong></div><div><span>Evidence hash</span><strong>0x7e4a…9c21</strong></div><div><span>Issuer</span><strong>Authorized verifier</strong></div></div>
             <div className="receipt-actions"><button><Icon name="file" size={16}/> Inspect receipt</button><button><Icon name="download" size={16}/> Evidence bundle</button></div>
           </div>
         </section>
       </main>
-      <footer><div className="brand muted-brand"><span className="brand-mark"><Icon name="shield" size={18}/></span>MM<span>·</span>Verifier</div><p>Trust, but verify—every claim, every time.</p><span>Receipt protocol v1.0</span></footer>
+      <footer><div className="brand muted-brand"><span className="brand-mark"><Icon name="shield" size={18}/></span>MM<span>·</span>Verifier</div><p>Public receipt verification for AI outputs.</p><span>Receipt protocol v1.0</span></footer>
     </div>
   );
 }

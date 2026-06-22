@@ -1,7 +1,7 @@
 {
   "name": "mamv",
   "version": "0.1.0",
-  "description": "Decentralized marketplace for verifying AI model outputs with economic accountability",
+  "description": "Verification layer for AI outputs with portable receipts and optional onchain receipt anchoring",
   "main": "index.js",
   "scripts": {
     "preinstall": "node scripts/preflight.js",
