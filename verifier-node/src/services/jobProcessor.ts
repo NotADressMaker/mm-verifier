@@ -381,6 +381,9 @@ export async function startJobProcessor() {
             receipt.explain.claim_summary = scoringResult.claim_graph.claim_summary;
             receipt.explain.score_components_detail = scoringResult.claim_graph.score_components;
             receipt.explain.highlights = scoringResult.claim_graph.highlights;
+            receipt.explain.bft_quorum = scoringResult.bft_quorum;
+            receipt.explain.outliers = scoringResult.outliers;
+            receipt.explain.vote_merkle_root = scoringResult.vote_merkle_root;
           }
 
           logger.info('Program receipt generated', {

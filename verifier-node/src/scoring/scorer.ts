@@ -4,11 +4,19 @@ import { extractClaims } from './claimExtractor';
 import { calculateConsistency } from './consistencyChecker';
 import { buildClaimGraphAnalysis } from '../../../shared/claim_graph';
 import { getEffectiveWeight } from '../providers/trust';
+import { buildMerkleVoteTree, hashResponse, ModelVote } from './merkleVotes';
+import { toScoreBps } from '../utils/score';
 
 export interface ScoringResult {
   score: number; // 0-100
   verdict: 'reliable' | 'mixed' | 'unreliable';
   confidence: number; // 0-1
+  /** Whether ≥⅔ of weighted stake reached consensus (BFT supermajority). */
+  bft_quorum: boolean;
+  /** Models excluded as statistical outliers before consensus was computed. */
+  outliers: string[];
+  /** Merkle root of individual model votes — provable on-chain. */
+  vote_merkle_root: string;
   breakdown: {
     consistency: number;
     agreement: number;
@@ -57,19 +65,69 @@ export async function scoreVerification(
   });
 
   try {
+    // --- Outlier detection -----------------------------------------------
+    // Compute a per-model consistency score (avg Jaccard similarity to all
+    // peers). Models that deviate more than 2σ below the mean are treated as
+    // Byzantine outliers and excluded from consensus, but their votes are
+    // still recorded in the Merkle tree so they can be disputed on-chain.
+    const peerScores = computePeerConsistencyScores(responses);
+    const peerMean = peerScores.reduce((a, b) => a + b, 0) / Math.max(1, peerScores.length);
+    const peerVariance =
+      peerScores.reduce((a, b) => a + Math.pow(b - peerMean, 2), 0) /
+      Math.max(1, peerScores.length);
+    const peerStdDev = Math.sqrt(peerVariance);
+    const outlierThreshold = peerMean - 2 * peerStdDev;
+
+    const outlierIds: string[] = [];
+    const inConsensusResponses = responses.filter((r, i) => {
+      if (peerScores[i] < outlierThreshold) {
+        outlierIds.push(`${r.provider}:${r.model}`);
+        return false;
+      }
+      return true;
+    });
+
+    // Fall back to all responses if outlier removal would leave us with fewer
+    // than 2 — we need at least a pair to form any consensus.
+    const consensusResponses = inConsensusResponses.length >= 2 ? inConsensusResponses : responses;
+
+    if (outlierIds.length > 0) {
+      logger.warn('Outlier models excluded from consensus', { outliers: outlierIds });
+    }
+
+    // --- BFT supermajority check -----------------------------------------
+    // Total stake = sum of effective weights across all (non-outlier) responses.
+    // Supermajority requires ≥⅔ of that stake to agree on a verdict.
+    const totalWeight = consensusResponses.reduce(
+      (s, r) => s + getEffectiveWeight(r.provider, r.model),
+      0
+    );
+    const BFT_THRESHOLD = 2 / 3;
+
+    // --- Merkle vote tree ------------------------------------------------
+    // Built from ALL responses (including outliers) so any model can prove its
+    // vote on-chain even if it was excluded from consensus.
+    const votes: ModelVote[] = responses.map((r) => ({
+      model_id: `${r.provider}:${r.model}`,
+      response_hash: hashResponse(r.response),
+      score_bps: toScoreBps(peerScores[responses.indexOf(r)] ?? 0),
+    }));
+    const { root: voteMerkleRoot } = buildMerkleVoteTree(votes);
+
+    // --- Core scoring (on consensus set only) ----------------------------
     // Extract claims from each response
-    const allClaims = responses.map((r) => extractClaims(r.response));
+    const allClaims = consensusResponses.map((r) => extractClaims(r.response));
 
     // Calculate inter-model consistency
-    const consistency = calculateConsistency(responses);
+    const consistency = calculateConsistency(consensusResponses);
 
     const claimGraphAnalysis = buildClaimGraphAnalysis({
-      responses: responses.map((response) => ({
+      responses: consensusResponses.map((response) => ({
         model_id: `${response.provider}:${response.model}`,
         text: response.response,
       })),
     });
-    const providerWeights = responses.map((response) =>
+    const providerWeights = consensusResponses.map((response) =>
       getEffectiveWeight(response.provider, response.model)
     );
     const weightedAgreement =
@@ -81,6 +139,14 @@ export async function scoreVerification(
           Math.max(1, providerWeights.reduce((sum, value) => sum + value, 0))
         : 0;
     const agreementRatio = Math.min(1, Math.max(claimGraphAnalysis.agreement_ratio, weightedAgreement));
+
+    // BFT supermajority: fraction of stake that supports the majority position
+    const agreeingWeight = consensusResponses.reduce((s, r, i) => {
+      const w = providerWeights[i] ?? 1;
+      return s + (peerScores[responses.indexOf(r)] >= peerMean ? w : 0);
+    }, 0);
+    const bftQuorum = totalWeight > 0 && agreeingWeight / totalWeight >= BFT_THRESHOLD;
+
     const contradictions = claimGraphAnalysis.contradiction_count;
     const totalClaims = claimGraphAnalysis.total_claims;
     const citationCoverage = claimGraphAnalysis.citation_coverage;
@@ -140,8 +206,10 @@ export async function scoreVerification(
     const confidence = Math.max(0, 1 - stdDev / 50);
 
     // Determine verdict
+    // "reliable" requires both a high score AND a BFT supermajority so a single
+    // high-weight provider cannot unilaterally push the verdict to reliable.
     let verdict: 'reliable' | 'mixed' | 'unreliable';
-    if (finalScore >= 80) {
+    if (finalScore >= 80 && bftQuorum) {
       verdict = 'reliable';
     } else if (finalScore >= 50) {
       verdict = 'mixed';
@@ -166,12 +234,18 @@ export async function scoreVerification(
       score: finalScore,
       verdict,
       confidence,
+      bftQuorum,
+      outliers: outlierIds,
+      voteMerkleRoot,
     });
 
     return {
       score: finalScore,
       verdict,
       confidence,
+      bft_quorum: bftQuorum,
+      outliers: outlierIds,
+      vote_merkle_root: voteMerkleRoot,
       breakdown: {
         consistency,
         agreement,
@@ -215,6 +289,25 @@ export function calculateSimilarityBonus(consistency: number, responseCount: num
 
   const normalizedSimilarity = (Math.min(100, consistency) - 70) / 30;
   return Math.round(normalizedSimilarity * 10);
+}
+
+/**
+ * For each model, compute its average Jaccard similarity to all peer models.
+ * Models with anomalously low peer scores are flagged as Byzantine outliers.
+ */
+function computePeerConsistencyScores(responses: ModelResponse[]): number[] {
+  if (responses.length < 2) return responses.map(() => 1);
+  const texts = responses.map((r) => r.response.toLowerCase());
+  return texts.map((t, i) => {
+    let total = 0;
+    let count = 0;
+    for (let j = 0; j < texts.length; j++) {
+      if (j === i) continue;
+      total += calculateTextSimilarity(t, texts[j]);
+      count++;
+    }
+    return count > 0 ? total / count : 1;
+  });
 }
 
 /**
