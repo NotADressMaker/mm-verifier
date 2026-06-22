@@ -8,17 +8,20 @@
  * 3. Audit the evidence bundle
  */
 
-import { hashCanonical, canonicalize } from './canonicalJson';
-import { ProgramDefinitionWithLimits, computeProgramFingerprint } from './programs';
-import { VerifiedPlaintextStatement } from './types';
+import { hashCanonical, canonicalize } from "./canonicalJson";
+import {
+  ProgramDefinitionWithLimits,
+  computeProgramFingerprint,
+} from "./programs";
+import { VerifiedPlaintextStatement } from "./types";
 
 // ============================================================================
 // Receipt Version
 // ============================================================================
 
-export const RECEIPT_VERSION = '1.0.0' as const;
-export const EXPLAIN_VERSION = '1.0.0' as const;
-export const RECEIPT_SCHEMA_VERSION = '1' as const;
+export const RECEIPT_VERSION = "1.0.0" as const;
+export const EXPLAIN_VERSION = "1.0.0" as const;
+export const RECEIPT_SCHEMA_VERSION = "1" as const;
 
 // ============================================================================
 // Verification Receipt
@@ -85,7 +88,7 @@ export interface VerificationReceipt {
   evidence: {
     bundle_hash: `0x${string}`;
     bundle_uri: string;
-    bundle_version: '0.1' | '0.2' | '0.3';
+    bundle_version: "0.1" | "0.2" | "0.3";
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -215,7 +218,7 @@ export interface ReceiptExplain {
     canonical_text: string;
     supported_by: string[];
     contradicted_by: string[];
-    severity?: 'LOW' | 'MED' | 'HIGH';
+    severity?: "LOW" | "MED" | "HIGH";
     citations: Array<{
       url: string;
       domain?: string;
@@ -226,7 +229,7 @@ export interface ReceiptExplain {
   checks: Record<string, unknown>;
   checks_fired: Array<{
     id: string;
-    severity: 'low' | 'medium' | 'high';
+    severity: "low" | "medium" | "high";
     summary: string;
     claim_id?: string;
   }>;
@@ -241,7 +244,7 @@ export interface ReceiptExplain {
     score_bps: number;
     weight_bps?: number;
     contribution_bps?: number;
-    direction: 'up' | 'down' | 'neutral';
+    direction: "up" | "down" | "neutral";
     reason?: string;
   }>;
   contradictions_found: Array<{
@@ -264,6 +267,10 @@ export interface ReceiptExplain {
   debug_trace_uri?: string;
   debug_trace?: Record<string, unknown>;
   plaintext_verification?: VerifiedPlaintextStatement;
+  bft_quorum?: boolean;
+  outliers?: string[];
+  vote_merkle_root?: `0x${string}`;
+  vote_merkle_proofs?: Record<string, string[]>;
   timings_ms?: {
     fetch?: number;
     program_run?: number;
@@ -279,24 +286,24 @@ export interface ReceiptExplain {
  * Fields included in receipt hash (order matters for determinism)
  */
 const RECEIPT_HASH_FIELDS = [
-  'schema_version',
-  'version',
-  'receipt_version',
-  'task_id',
-  'generated_at',
-  'input_hash',
-  'output_hash',
-  'score_bps',
-  'verdict',
-  'worthy',
-  'program',
-  'evidence',
-  'metering',
-  'provenance',
-  'model_commitments',
-  'reasoning_trace',
-  'explain',
-  'plaintext_verification',
+  "schema_version",
+  "version",
+  "receipt_version",
+  "task_id",
+  "generated_at",
+  "input_hash",
+  "output_hash",
+  "score_bps",
+  "verdict",
+  "worthy",
+  "program",
+  "evidence",
+  "metering",
+  "provenance",
+  "model_commitments",
+  "reasoning_trace",
+  "explain",
+  "plaintext_verification",
   // Note: zk_proof is NOT included in hash (it proves the hash)
 ] as const;
 
@@ -304,7 +311,7 @@ const RECEIPT_HASH_FIELDS = [
  * Normalize receipt for hashing
  */
 function normalizeReceiptForHash(
-  receipt: VerificationReceipt
+  receipt: VerificationReceipt,
 ): Record<string, unknown> {
   const normalized: Record<string, unknown> = {};
 
@@ -325,7 +332,9 @@ function normalizeReceiptForHash(
  * @param receipt - The verification receipt
  * @returns 0x-prefixed keccak256 hash
  */
-export function computeReceiptHash(receipt: VerificationReceipt): `0x${string}` {
+export function computeReceiptHash(
+  receipt: VerificationReceipt,
+): `0x${string}` {
   const normalized = normalizeReceiptForHash(receipt);
   return hashCanonical(normalized) as `0x${string}`;
 }
@@ -349,12 +358,12 @@ export interface BuildReceiptParams {
   score_bps: number;
   bundle_hash: `0x${string}`;
   bundle_uri: string;
-  bundle_version?: '0.1' | '0.2' | '0.3';
+  bundle_version?: "0.1" | "0.2" | "0.3";
   llm_provider: string;
   llm_model: string;
   program?: ProgramDefinitionWithLimits & { program_id?: string };
   program_hash?: string;
-  metering?: VerificationReceipt['metering'];
+  metering?: VerificationReceipt["metering"];
   verifier_node?: string;
   software_version?: string;
   worthy_threshold_bps?: number;
@@ -367,29 +376,28 @@ export interface BuildReceiptParams {
 export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   const worthyThreshold = params.worthy_threshold_bps ?? 8000;
   const passThreshold = 5000;
-  const explain: ReceiptExplain =
-    params.explain ?? {
-      version: EXPLAIN_VERSION,
-      score_components: [],
-      score_components_detail: {
-        coverage_bps: 0,
-        contradiction_penalty_bps: 0,
-        citation_quality_bps: 0,
-        final_score_bps: 0,
-      },
-      claim_summary: [],
-      highlights: [],
-      checks: {},
-      checks_fired: [],
-      uncertain_claims: [],
-      score_adjustments: [],
-      contradictions_found: [],
-      citation_checks: [],
-      model_disagreement: {
-        models: [],
-        agreement_rate: 0,
-      },
-    };
+  const explain: ReceiptExplain = params.explain ?? {
+    version: EXPLAIN_VERSION,
+    score_components: [],
+    score_components_detail: {
+      coverage_bps: 0,
+      contradiction_penalty_bps: 0,
+      citation_quality_bps: 0,
+      final_score_bps: 0,
+    },
+    claim_summary: [],
+    highlights: [],
+    checks: {},
+    checks_fired: [],
+    uncertain_claims: [],
+    score_adjustments: [],
+    contradictions_found: [],
+    citation_checks: [],
+    model_disagreement: {
+      models: [],
+      agreement_rate: 0,
+    },
+  };
 
   const receipt: VerificationReceipt = {
     schema_version: RECEIPT_SCHEMA_VERSION,
@@ -405,7 +413,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     evidence: {
       bundle_hash: params.bundle_hash,
       bundle_uri: params.bundle_uri,
-      bundle_version: params.bundle_version ?? '0.2',
+      bundle_version: params.bundle_version ?? "0.2",
     },
     provenance: {
       llm_provider: params.llm_provider,
@@ -422,7 +430,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     receipt.program = {
       id: params.program.program_id ?? `prog_${fingerprint.slice(2, 10)}`,
       version: params.program.version,
-      hash: params.program_hash ?? fingerprint.replace(/^0x/, ''),
+      hash: params.program_hash ?? fingerprint.replace(/^0x/, ""),
     };
   }
 
@@ -439,7 +447,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
  */
 export function attachChainContext(
   receipt: VerificationReceipt,
-  context: NonNullable<VerificationReceipt['chain_context']>
+  context: NonNullable<VerificationReceipt["chain_context"]>,
 ): VerificationReceipt {
   return {
     ...receipt,
@@ -452,7 +460,7 @@ export function attachChainContext(
  */
 export function attachSignature(
   receipt: VerificationReceipt,
-  signature: NonNullable<VerificationReceipt['signature']>
+  signature: NonNullable<VerificationReceipt["signature"]>,
 ): VerificationReceipt {
   return {
     ...receipt,
@@ -475,16 +483,16 @@ export interface ReceiptValidationResult {
 export function validateReceipt(receipt: unknown): ReceiptValidationResult {
   const errors: string[] = [];
 
-  if (!receipt || typeof receipt !== 'object') {
-    return { valid: false, errors: ['Receipt must be an object'] };
+  if (!receipt || typeof receipt !== "object") {
+    return { valid: false, errors: ["Receipt must be an object"] };
   }
 
   const r = receipt as Record<string, unknown>;
   const receiptVersion = r.receipt_version as string | undefined;
-  const isLegacy = receiptVersion === '1.0';
+  const isLegacy = receiptVersion === "1.0";
 
   // Version check
-  if (receiptVersion !== RECEIPT_VERSION && receiptVersion !== '1.0') {
+  if (receiptVersion !== RECEIPT_VERSION && receiptVersion !== "1.0") {
     errors.push(`receipt_version must be "${RECEIPT_VERSION}"`);
   }
 
@@ -497,77 +505,86 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
   }
 
   // Required fields
-  if (typeof r.task_id !== 'string' || r.task_id.length === 0) {
-    errors.push('task_id is required');
+  if (typeof r.task_id !== "string" || r.task_id.length === 0) {
+    errors.push("task_id is required");
   }
 
-  if (typeof r.generated_at !== 'number' || r.generated_at <= 0) {
-    errors.push('generated_at must be a positive unix timestamp');
+  if (typeof r.generated_at !== "number" || r.generated_at <= 0) {
+    errors.push("generated_at must be a positive unix timestamp");
   }
 
   // Hash fields
-  const hashFields = ['input_hash', 'output_hash'] as const;
+  const hashFields = ["input_hash", "output_hash"] as const;
   for (const field of hashFields) {
     const value = r[field];
-    if (typeof value !== 'string' || !value.match(/^0x[0-9a-fA-F]{64}$/)) {
+    if (typeof value !== "string" || !value.match(/^0x[0-9a-fA-F]{64}$/)) {
       errors.push(`${field} must be a 0x-prefixed 32-byte hex string`);
     }
   }
 
   // Score validation
-  if (typeof r.score_bps !== 'number' || r.score_bps < 0 || r.score_bps > 10000) {
-    errors.push('score_bps must be between 0 and 10000');
+  if (
+    typeof r.score_bps !== "number" ||
+    r.score_bps < 0 ||
+    r.score_bps > 10000
+  ) {
+    errors.push("score_bps must be between 0 and 10000");
   }
 
-  if (typeof r.verdict !== 'boolean') {
-    errors.push('verdict must be a boolean');
+  if (typeof r.verdict !== "boolean") {
+    errors.push("verdict must be a boolean");
   }
 
-  if (typeof r.worthy !== 'boolean') {
-    errors.push('worthy must be a boolean');
+  if (typeof r.worthy !== "boolean") {
+    errors.push("worthy must be a boolean");
   }
 
   // Evidence validation
-  if (!r.evidence || typeof r.evidence !== 'object') {
-    errors.push('evidence is required');
+  if (!r.evidence || typeof r.evidence !== "object") {
+    errors.push("evidence is required");
   } else {
     const e = r.evidence as Record<string, unknown>;
-    if (typeof e.bundle_hash !== 'string' || !e.bundle_hash.match(/^0x[0-9a-fA-F]{64}$/)) {
-      errors.push('evidence.bundle_hash must be a 0x-prefixed 32-byte hex string');
+    if (
+      typeof e.bundle_hash !== "string" ||
+      !e.bundle_hash.match(/^0x[0-9a-fA-F]{64}$/)
+    ) {
+      errors.push(
+        "evidence.bundle_hash must be a 0x-prefixed 32-byte hex string",
+      );
     }
-    if (typeof e.bundle_uri !== 'string' || e.bundle_uri.length === 0) {
-      errors.push('evidence.bundle_uri is required');
+    if (typeof e.bundle_uri !== "string" || e.bundle_uri.length === 0) {
+      errors.push("evidence.bundle_uri is required");
     }
   }
 
   // Provenance validation
-  if (!r.provenance || typeof r.provenance !== 'object') {
-    errors.push('provenance is required');
+  if (!r.provenance || typeof r.provenance !== "object") {
+    errors.push("provenance is required");
   } else {
     const p = r.provenance as Record<string, unknown>;
-    if (typeof p.llm_provider !== 'string') {
-      errors.push('provenance.llm_provider is required');
+    if (typeof p.llm_provider !== "string") {
+      errors.push("provenance.llm_provider is required");
     }
-    if (typeof p.llm_model !== 'string') {
-      errors.push('provenance.llm_model is required');
+    if (typeof p.llm_model !== "string") {
+      errors.push("provenance.llm_model is required");
     }
   }
 
   if (!isLegacy) {
-    if (!r.explain || typeof r.explain !== 'object') {
-      errors.push('explain is required');
+    if (!r.explain || typeof r.explain !== "object") {
+      errors.push("explain is required");
     }
 
     if (r.program !== undefined) {
       const program = r.program as Record<string, unknown>;
-      if (typeof program.id !== 'string') {
-        errors.push('program.id is required');
+      if (typeof program.id !== "string") {
+        errors.push("program.id is required");
       }
-      if (typeof program.version !== 'string') {
-        errors.push('program.version is required');
+      if (typeof program.version !== "string") {
+        errors.push("program.version is required");
       }
-      if (typeof program.hash !== 'string') {
-        errors.push('program.hash is required');
+      if (typeof program.hash !== "string") {
+        errors.push("program.hash is required");
       }
     }
   }
@@ -581,7 +598,9 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
 /**
  * Type guard for VerificationReceipt
  */
-export function isVerificationReceipt(value: unknown): value is VerificationReceipt {
+export function isVerificationReceipt(
+  value: unknown,
+): value is VerificationReceipt {
   return validateReceipt(value).valid;
 }
 
@@ -592,7 +611,10 @@ export function isVerificationReceipt(value: unknown): value is VerificationRece
 /**
  * Compare two receipts for equivalence (ignoring chain_context and signature)
  */
-export function receiptsMatch(a: VerificationReceipt, b: VerificationReceipt): boolean {
+export function receiptsMatch(
+  a: VerificationReceipt,
+  b: VerificationReceipt,
+): boolean {
   return computeReceiptHash(a) === computeReceiptHash(b);
 }
 
@@ -601,7 +623,7 @@ export function receiptsMatch(a: VerificationReceipt, b: VerificationReceipt): b
  */
 export function verifyReceiptHash(
   receipt: VerificationReceipt,
-  expectedHash: `0x${string}`
+  expectedHash: `0x${string}`,
 ): boolean {
   return computeReceiptHash(receipt) === expectedHash;
 }

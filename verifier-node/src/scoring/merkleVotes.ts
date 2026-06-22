@@ -1,9 +1,10 @@
-import { keccak256, toUtf8Bytes, solidityPacked } from 'ethers';
+import { keccak256, toUtf8Bytes, solidityPacked } from "ethers";
 
 export interface ModelVote {
-  model_id: string;   // "provider:model"
+  vote_id?: string; // unique proof key; defaults to `${model_id}:${response_hash}`
+  model_id: string; // "provider:model"
   response_hash: string; // keccak256 of raw response text
-  score_bps: number;  // 0-10000
+  score_bps: number; // 0-10000
 }
 
 /**
@@ -13,9 +14,9 @@ export interface ModelVote {
 export function hashVoteLeaf(vote: ModelVote): string {
   return keccak256(
     solidityPacked(
-      ['string', 'bytes32', 'uint16'],
-      [vote.model_id, vote.response_hash, vote.score_bps]
-    )
+      ["string", "bytes32", "uint16"],
+      [vote.model_id, vote.response_hash, vote.score_bps],
+    ),
   );
 }
 
@@ -35,18 +36,29 @@ export function hashResponse(text: string): string {
  * regardless of the order models respond.
  */
 export function buildMerkleVoteTree(votes: ModelVote[]): {
-  root: string;
+  root: `0x${string}`;
   leaves: string[];
-  proofs: Record<string, string[]>; // model_id → proof path
+  proofs: Record<string, string[]>; // vote_id → proof path
 } {
   if (votes.length === 0) {
-    const empty = keccak256(toUtf8Bytes(''));
+    const empty = keccak256(toUtf8Bytes("")) as `0x${string}`;
     return { root: empty, leaves: [], proofs: {} };
   }
 
-  const rawLeaves = votes.map((v) => ({ model_id: v.model_id, leaf: hashVoteLeaf(v) }));
-  // Stable sort by leaf hash — deterministic across runs
-  rawLeaves.sort((a, b) => (a.leaf < b.leaf ? -1 : 1));
+  const rawLeaves = votes.map((v, index) => ({
+    proofKey: v.vote_id ?? `${v.model_id}:${v.response_hash}:${index}`,
+    leaf: hashVoteLeaf(v),
+  }));
+  // Stable sort by leaf hash and unique proof key — deterministic across runs
+  rawLeaves.sort((a, b) =>
+    a.leaf === b.leaf
+      ? a.proofKey < b.proofKey
+        ? -1
+        : 1
+      : a.leaf < b.leaf
+        ? -1
+        : 1,
+  );
 
   const leaves = rawLeaves.map((l) => l.leaf);
 
@@ -64,7 +76,7 @@ export function buildMerkleVoteTree(votes: ModelVote[]): {
     current = next;
   }
 
-  const root = current[0];
+  const root = current[0] as `0x${string}`;
 
   // Build proofs for each leaf
   const proofs: Record<string, string[]> = {};
@@ -74,12 +86,12 @@ export function buildMerkleVoteTree(votes: ModelVote[]): {
     for (let level = 0; level < tree.length - 1; level++) {
       const sibling =
         idx % 2 === 0
-          ? tree[level][idx + 1] ?? tree[level][idx]
+          ? (tree[level][idx + 1] ?? tree[level][idx])
           : tree[level][idx - 1];
       proof.push(sibling);
       idx = Math.floor(idx / 2);
     }
-    proofs[rawLeaves[li].model_id] = proof;
+    proofs[rawLeaves[li].proofKey] = proof;
   }
 
   return { root, leaves, proofs };
@@ -88,7 +100,11 @@ export function buildMerkleVoteTree(votes: ModelVote[]): {
 /**
  * Verify a single leaf is in the tree. Mirrors the OZ MerkleProof.verify logic.
  */
-export function verifyMerkleProof(leaf: string, proof: string[], root: string): boolean {
+export function verifyMerkleProof(
+  leaf: string,
+  proof: string[],
+  root: string,
+): boolean {
   let computed = leaf;
   for (const sibling of proof) {
     computed = sortedPairHash(computed, sibling);
@@ -98,5 +114,5 @@ export function verifyMerkleProof(leaf: string, proof: string[], root: string): 
 
 function sortedPairHash(a: string, b: string): string {
   const [left, right] = a <= b ? [a, b] : [b, a];
-  return keccak256(solidityPacked(['bytes32', 'bytes32'], [left, right]));
+  return keccak256(solidityPacked(["bytes32", "bytes32"], [left, right]));
 }
