@@ -8,6 +8,7 @@ interface IMAMVAnchor {
         bytes32 programHash;
         bytes32 subjectHash;
         uint16 scoreBps;
+        uint8 status;
         address issuer;
         uint64 anchoredAt;
         string uri;
@@ -19,12 +20,23 @@ interface IMAMVAnchor {
         bytes32 programHash,
         bytes32 subjectHash,
         uint16 scoreBps,
+        uint8 status,
         string calldata uri
     ) external;
 
     function isAnchored(bytes32 receiptHash) external view returns (bool);
 
     function getAnchor(bytes32 receiptHash) external view returns (AnchorRecord memory);
+
+    function verifyAnchor(
+        bytes32 receiptHash,
+        bytes32 evidenceHash,
+        bytes32 programHash,
+        bytes32 subjectHash,
+        uint16 scoreBps,
+        uint8 status,
+        address issuer
+    ) external view returns (bool);
 
     function appendVerificationBlock(
         uint256 taskId,

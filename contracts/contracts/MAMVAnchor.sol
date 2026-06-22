@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title MAMVAnchor
- * @notice Optional onchain receipt anchoring for MAMV Receipt v1.
- * @dev Stores compact, non-sensitive proof metadata only. Raw prompts, model
- * outputs, evidence documents, provider traces, secrets, and PII must remain
- * offchain and may be referenced via a URI/CID when appropriate.
+ * @notice Public receipt verification and onchain receipt anchoring for MAMV receipts.
+ * @dev Stores compact tamper-evident verification records only. Do not store raw prompts,
+ * raw AI outputs, private evidence, user identifiers, API keys, or secrets. MAMV checks AI
+ * outputs offchain; blockchain verifies the record, not the truth of the claim.
  */
-contract MAMVAnchor is Ownable {
+contract MAMVAnchor is AccessControl {
     struct AnchorRecord {
         bytes32 receiptHash;
         bytes32 evidenceHash;
         bytes32 programHash;
         bytes32 subjectHash;
         uint16 scoreBps;
+        uint8 status;
         address issuer;
         uint64 anchoredAt;
         string uri;
@@ -29,19 +30,19 @@ contract MAMVAnchor is Ownable {
     mapping(bytes32 => bytes32) public prevByBlock; // blockHash -> prevHash; legacy hash-chain compatibility
     mapping(uint256 => bytes32) public taskToBlock; // taskId -> blockHash; legacy marketplace compatibility
 
-    mapping(address => bool) public anchorers;
     mapping(bytes32 => AnchorRecord) private anchors;
 
     event ReceiptAnchored(
         bytes32 indexed receiptHash,
         bytes32 indexed evidenceHash,
-        bytes32 indexed programHash,
+        bytes32 programHash,
         bytes32 subjectHash,
         uint16 scoreBps,
+        uint8 status,
         address indexed issuer,
+        uint64 anchoredAt,
         string uri
     );
-    event AnchorerSet(address indexed anchorer, bool allowed);
     event VerificationBlockAppended(
         uint256 indexed taskId,
         bytes32 indexed blockHash,
@@ -50,7 +51,6 @@ contract MAMVAnchor is Ownable {
     );
     event VerificationHeadUpdated(bytes32 oldHead, bytes32 newHead);
 
-    error NotAnchorer(address caller);
     error EmptyReceiptHash();
     error ReceiptAlreadyAnchored(bytes32 receiptHash);
     error ReceiptNotAnchored(bytes32 receiptHash);
@@ -58,25 +58,25 @@ contract MAMVAnchor is Ownable {
     error InvalidAnchorer(address anchorer);
     error TaskAlreadyRecorded(uint256 taskId);
 
-    modifier onlyAnchorer() {
-        if (!anchorers[msg.sender]) revert NotAnchorer(msg.sender);
-        _;
-    }
-
-    constructor(address initialAnchorer) Ownable(msg.sender) {
-        anchorers[msg.sender] = true;
-        emit AnchorerSet(msg.sender, true);
+    constructor(address initialAnchorer) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ANCHORER_ROLE, msg.sender);
 
         if (initialAnchorer != address(0) && initialAnchorer != msg.sender) {
-            anchorers[initialAnchorer] = true;
-            emit AnchorerSet(initialAnchorer, true);
+            _grantRole(ANCHORER_ROLE, initialAnchorer);
         }
     }
 
-    function setAnchorer(address anchorer, bool allowed) external onlyOwner {
+    /**
+     * @notice Convenience admin wrapper for legacy callers that previously used owner-based anchorer management.
+     */
+    function setAnchorer(address anchorer, bool allowed) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (anchorer == address(0)) revert InvalidAnchorer(anchorer);
-        anchorers[anchorer] = allowed;
-        emit AnchorerSet(anchorer, allowed);
+        if (allowed) {
+            _grantRole(ANCHORER_ROLE, anchorer);
+        } else {
+            _revokeRole(ANCHORER_ROLE, anchorer);
+        }
     }
 
     function anchorReceipt(
@@ -85,9 +85,10 @@ contract MAMVAnchor is Ownable {
         bytes32 programHash,
         bytes32 subjectHash,
         uint16 scoreBps,
+        uint8 status,
         string calldata uri
-    ) external onlyAnchorer {
-        _anchorReceipt(receiptHash, evidenceHash, programHash, subjectHash, scoreBps, msg.sender, uri);
+    ) external onlyRole(ANCHORER_ROLE) {
+        _anchorReceipt(receiptHash, evidenceHash, programHash, subjectHash, scoreBps, status, msg.sender, uri);
     }
 
     function isAnchored(bytes32 receiptHash) external view returns (bool) {
@@ -100,9 +101,24 @@ contract MAMVAnchor is Ownable {
         return record;
     }
 
+    function verifyAnchor(
+        bytes32 receiptHash,
+        bytes32 evidenceHash,
+        bytes32 programHash,
+        bytes32 subjectHash,
+        uint16 scoreBps,
+        uint8 status,
+        address issuer
+    ) external view returns (bool) {
+        AnchorRecord memory record = anchors[receiptHash];
+        return record.anchoredAt != 0 && record.evidenceHash == evidenceHash && record.programHash == programHash
+            && record.subjectHash == subjectHash && record.scoreBps == scoreBps && record.status == status
+            && record.issuer == issuer;
+    }
+
     /**
      * @notice Backwards-compatible adapter for the existing marketplace hash-chain flow.
-     * @dev New integrations should call anchorReceipt with an offchain MAMV Receipt v1 hash.
+     * @dev New integrations should call anchorReceipt with an offchain MAMV receipt hash.
      */
     function appendVerificationBlock(
         uint256 taskId,
@@ -110,7 +126,7 @@ contract MAMVAnchor is Ownable {
         bytes32 outcomeHash,
         bytes32 evidenceBundleHash,
         bytes32 programHash
-    ) external onlyAnchorer returns (bytes32 blockHash) {
+    ) external onlyRole(ANCHORER_ROLE) returns (bytes32 blockHash) {
         if (taskToBlock[taskId] != bytes32(0)) revert TaskAlreadyRecorded(taskId);
 
         bytes32 prevHash = verificationHead;
@@ -131,7 +147,7 @@ contract MAMVAnchor is Ownable {
         taskToBlock[taskId] = blockHash;
         verificationHead = blockHash;
 
-        _anchorReceipt(blockHash, evidenceBundleHash, programHash, claimHash, 0, msg.sender, "");
+        _anchorReceipt(blockHash, evidenceBundleHash, programHash, claimHash, 0, 0, msg.sender, "");
 
         emit VerificationBlockAppended(taskId, blockHash, prevHash, claimHash);
         emit VerificationHeadUpdated(prevHash, blockHash);
@@ -143,6 +159,7 @@ contract MAMVAnchor is Ownable {
         bytes32 programHash,
         bytes32 subjectHash,
         uint16 scoreBps,
+        uint8 status,
         address issuer,
         string memory uri
     ) internal {
@@ -150,17 +167,19 @@ contract MAMVAnchor is Ownable {
         if (anchors[receiptHash].anchoredAt != 0) revert ReceiptAlreadyAnchored(receiptHash);
         if (scoreBps > MAX_SCORE_BPS) revert InvalidScore(scoreBps);
 
+        uint64 anchoredAt = uint64(block.timestamp);
         anchors[receiptHash] = AnchorRecord({
             receiptHash: receiptHash,
             evidenceHash: evidenceHash,
             programHash: programHash,
             subjectHash: subjectHash,
             scoreBps: scoreBps,
+            status: status,
             issuer: issuer,
-            anchoredAt: uint64(block.timestamp),
+            anchoredAt: anchoredAt,
             uri: uri
         });
 
-        emit ReceiptAnchored(receiptHash, evidenceHash, programHash, subjectHash, scoreBps, issuer, uri);
+        emit ReceiptAnchored(receiptHash, evidenceHash, programHash, subjectHash, scoreBps, status, issuer, anchoredAt, uri);
     }
 }

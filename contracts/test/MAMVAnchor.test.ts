@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { MockWETH, VerifierMarketplace, MAMVAnchor } from "../typechain-types";
 
 describe("MAMVAnchor integration", function () {
@@ -185,10 +186,10 @@ describe("MAMVAnchor integration", function () {
     await expect(
       mamvAnchor
         .connect(verifier1)
-        .anchorReceipt(receiptHash, evidenceHash, programHash, subjectHash, 8750, uri)
+        .anchorReceipt(receiptHash, evidenceHash, programHash, subjectHash, 8750, 1, uri)
     )
       .to.emit(mamvAnchor, "ReceiptAnchored")
-      .withArgs(receiptHash, evidenceHash, programHash, subjectHash, 8750, verifier1.address, uri);
+      .withArgs(receiptHash, evidenceHash, programHash, subjectHash, 8750, 1, verifier1.address, anyValue, uri);
 
     expect(await mamvAnchor.isAnchored(receiptHash)).to.equal(true);
 
@@ -198,30 +199,53 @@ describe("MAMVAnchor integration", function () {
     expect(record.programHash).to.equal(programHash);
     expect(record.subjectHash).to.equal(subjectHash);
     expect(record.scoreBps).to.equal(8750);
+    expect(record.status).to.equal(1);
     expect(record.issuer).to.equal(verifier1.address);
     expect(record.uri).to.equal(uri);
     expect(record.anchoredAt).to.be.greaterThan(0);
+    expect(
+      await mamvAnchor.verifyAnchor(
+        receiptHash,
+        evidenceHash,
+        programHash,
+        subjectHash,
+        8750,
+        1,
+        verifier1.address
+      )
+    ).to.equal(true);
+    expect(
+      await mamvAnchor.verifyAnchor(
+        receiptHash,
+        evidenceHash,
+        programHash,
+        subjectHash,
+        8700,
+        1,
+        verifier1.address
+      )
+    ).to.equal(false);
   });
 
   it("rejects unauthorized, duplicate, zero-hash, and invalid-score anchors", async function () {
     const receiptHash = ethers.keccak256(ethers.toUtf8Bytes("receipt-v1"));
 
     await expect(
-      mamvAnchor.connect(verifier1).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "")
-    ).to.be.revertedWithCustomError(mamvAnchor, "NotAnchorer");
+      mamvAnchor.connect(verifier1).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, 0, "")
+    ).to.be.revertedWithCustomError(mamvAnchor, "AccessControlUnauthorizedAccount");
 
     await expect(
-      mamvAnchor.connect(owner).anchorReceipt(ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "")
+      mamvAnchor.connect(owner).anchorReceipt(ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, 0, "")
     ).to.be.revertedWithCustomError(mamvAnchor, "EmptyReceiptHash");
 
     await expect(
-      mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 10_001, "")
+      mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 10_001, 0, "")
     ).to.be.revertedWithCustomError(mamvAnchor, "InvalidScore");
 
-    await mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "");
+    await mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, 0, "");
 
     await expect(
-      mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, "")
+      mamvAnchor.connect(owner).anchorReceipt(receiptHash, ethers.ZeroHash, ethers.ZeroHash, ethers.ZeroHash, 1, 0, "")
     ).to.be.revertedWithCustomError(mamvAnchor, "ReceiptAlreadyAnchored");
   });
 
