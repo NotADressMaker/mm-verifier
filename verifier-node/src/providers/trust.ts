@@ -10,7 +10,14 @@ const baseWeights: ProviderWeights = (() => {
   }
 })();
 
-const penalties = new Map<string, number>();
+// Penalty record stores the value at last update + timestamp so we can apply
+// time-based exponential decay without a polling loop.
+interface PenaltyRecord {
+  value: number;
+  lastUpdatedAt: number;
+}
+
+const penaltyRecords = new Map<string, PenaltyRecord>();
 
 // Providers whose cumulative penalty exceeded SLASH_THRESHOLD are excluded from
 // consensus until SLASH_RECOVERY_MS has elapsed without another failure.
@@ -23,8 +30,37 @@ interface SlashRecord {
 }
 const slashRecords = new Map<string, SlashRecord>();
 
+// Penalty half-life: 6 hours of clean operation halves accumulated penalty.
+// Mirrors the "inactivity leak" recovery dynamic in Ethereum PoS where
+// validators naturally recover weight over time after going offline.
+const PENALTY_HALF_LIFE_MS = 6 * 60 * 60 * 1000;
+
+// Correlated failure window: if multiple providers fail within this window, each
+// gets a quadratic amplification (√N multiplier) on their penalty.  This mirrors
+// Ethereum's quadratic slashing rule for coordinated misbehaviour.
+const CORRELATION_WINDOW_MS = 60_000; // 60 s
+
+// Rolling log of recent failures for correlation detection — entries older than
+// CORRELATION_WINDOW_MS are pruned lazily on every error.
+const recentFailureLog: Array<{ key: string; at: number }> = [];
+
 function keyFor(providerId: string, model: string) {
   return `${providerId}:${model}`;
+}
+
+/**
+ * Return the current penalty value for `key` after applying exponential time
+ * decay from the stored lastUpdatedAt timestamp.
+ */
+function getCurrentPenalty(key: string): number {
+  const record = penaltyRecords.get(key);
+  if (!record) return 0;
+  const ageMs = Date.now() - record.lastUpdatedAt;
+  return record.value * Math.pow(0.5, ageMs / PENALTY_HALF_LIFE_MS);
+}
+
+function setPenalty(key: string, value: number): void {
+  penaltyRecords.set(key, { value: Math.min(1.0, Math.max(0, value)), lastUpdatedAt: Date.now() });
 }
 
 function isSlashed(key: string): boolean {
@@ -33,32 +69,58 @@ function isSlashed(key: string): boolean {
   if (Date.now() >= record.recoveryAt) {
     // Probationary re-entry: clear slash, reset penalty to just below threshold
     slashRecords.delete(key);
-    penalties.set(key, SLASH_THRESHOLD - 0.1);
+    setPenalty(key, SLASH_THRESHOLD - 0.1);
     return false;
   }
   return true;
 }
 
+/**
+ * Count distinct provider:model keys (excluding `selfKey`) that failed within
+ * the last CORRELATION_WINDOW_MS.  Prunes stale entries as a side-effect.
+ */
+function countCorrelatedFailures(selfKey: string, now: number): number {
+  // Prune entries outside the window
+  while (recentFailureLog.length > 0 && recentFailureLog[0].at < now - CORRELATION_WINDOW_MS) {
+    recentFailureLog.shift();
+  }
+  const unique = new Set(recentFailureLog.filter((e) => e.key !== selfKey).map((e) => e.key));
+  return unique.size;
+}
+
 export function recordProviderError(providerId: string, model: string, severity: 'soft' | 'hard') {
   const key = keyFor(providerId, model);
+  const now = Date.now();
+
   if (isSlashed(key)) {
     // Extend recovery window on additional failures while slashed
     const record = slashRecords.get(key);
     if (record) {
-      record.recoveryAt = Date.now() + SLASH_RECOVERY_MS;
+      record.recoveryAt = now + SLASH_RECOVERY_MS;
     }
     return;
   }
 
-  const current = penalties.get(key) ?? 0;
-  const delta = severity === 'hard' ? 0.2 : 0.1;
+  // Correlated failure amplification: √(N+1) where N = other providers that also
+  // failed in the last 60 s.  A solo failure gets 1× (√1); two providers failing
+  // together each get ~1.41× (√2); five correlated failures → ~2.45×.
+  const correlated = countCorrelatedFailures(key, now);
+  const correlationMultiplier = Math.sqrt(correlated + 1);
+
+  const baseDelta = severity === 'hard' ? 0.2 : 0.1;
+  const delta = Math.min(0.5, baseDelta * correlationMultiplier);
+
+  const current = getCurrentPenalty(key);
   const next = Math.min(1.0, current + delta);
-  penalties.set(key, next);
+  setPenalty(key, next);
+
+  // Log this failure for future correlation checks
+  recentFailureLog.push({ key, at: now });
 
   if (next >= SLASH_THRESHOLD && !slashRecords.has(key)) {
     slashRecords.set(key, {
-      slashedAt: Date.now(),
-      recoveryAt: Date.now() + SLASH_RECOVERY_MS,
+      slashedAt: now,
+      recoveryAt: now + SLASH_RECOVERY_MS,
     });
   }
 }
@@ -66,15 +128,17 @@ export function recordProviderError(providerId: string, model: string, severity:
 export function recordProviderSuccess(providerId: string, model: string) {
   const key = keyFor(providerId, model);
   if (isSlashed(key)) return; // cannot earn recovery credit while slashed
-  const current = penalties.get(key) ?? 0;
-  penalties.set(key, Math.max(0, current - 0.05));
+  // Time decay already handles most of the recovery; a successful call gives a
+  // small additional nudge to encourage fast recovery after transient errors.
+  const current = getCurrentPenalty(key);
+  setPenalty(key, Math.max(0, current - 0.05));
 }
 
 export function getEffectiveWeight(providerId: string, model: string): number {
   const key = keyFor(providerId, model);
   if (isSlashed(key)) return 0;
   const base = baseWeights[key] ?? baseWeights[providerId] ?? 1;
-  const penalty = penalties.get(key) ?? 0;
+  const penalty = getCurrentPenalty(key);
   return Math.max(0.1, base * (1 - penalty));
 }
 

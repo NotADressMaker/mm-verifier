@@ -66,17 +66,22 @@ export async function scoreVerification(
 
   try {
     // --- Outlier detection -----------------------------------------------
-    // Compute a per-model consistency score (avg Jaccard similarity to all
-    // peers). Models that deviate more than 2σ below the mean are treated as
-    // Byzantine outliers and excluded from consensus, but their votes are
-    // still recorded in the Merkle tree so they can be disputed on-chain.
+    // We use stake-weighted Median Absolute Deviation (MAD) rather than the
+    // classic mean ± 2σ approach.  The arithmetic mean can be dragged by a
+    // single malicious or misconfigured model, making σ-based thresholds
+    // gameable.  The weighted median is robust (breakdown point ≈ 50%) and
+    // stake-weighting means high-reputation providers anchor the definition
+    // of "normal" — matching how validator-weighted voting works in PoS.
     const peerScores = computePeerConsistencyScores(responses);
-    const peerMean = peerScores.reduce((a, b) => a + b, 0) / Math.max(1, peerScores.length);
-    const peerVariance =
-      peerScores.reduce((a, b) => a + Math.pow(b - peerMean, 2), 0) /
-      Math.max(1, peerScores.length);
-    const peerStdDev = Math.sqrt(peerVariance);
-    const outlierThreshold = peerMean - 2 * peerStdDev;
+    const peerWeightsForOutlier = responses.map((r) => getEffectiveWeight(r.provider, r.model));
+    const weightedMedian = computeWeightedMedian(peerScores, peerWeightsForOutlier);
+    const absDeviations = peerScores.map((s) => Math.abs(s - weightedMedian));
+    const mad = computeWeightedMedian(absDeviations, peerWeightsForOutlier);
+    // 2.5× MAD is the standard robust equivalent of 2σ for normally-distributed
+    // data; we bias slightly permissive (2.5 vs 2) because LLM responses are
+    // noisier than Gaussian and we prefer false-negatives over false-positives
+    // in outlier removal.
+    const outlierThreshold = weightedMedian - 2.5 * mad;
 
     const outlierIds: string[] = [];
     const inConsensusResponses = responses.filter((r, i) => {
@@ -206,10 +211,23 @@ export async function scoreVerification(
     const confidence = Math.max(0, 1 - stdDev / 50);
 
     // Determine verdict
-    // "reliable" requires both a high score AND a BFT supermajority so a single
-    // high-weight provider cannot unilaterally push the verdict to reliable.
+    // "reliable" requires: high score AND BFT supermajority AND responses from
+    // at least 2 distinct providers.  The diversity requirement prevents a single
+    // provider running multiple model aliases from achieving finality alone —
+    // analogous to requiring validators from different operators in PoS to avoid
+    // cartelisation.
+    const agreeingProviders = new Set(
+      consensusResponses
+        .filter((r, i) => {
+          const origIdx = responses.indexOf(r);
+          return peerScores[origIdx >= 0 ? origIdx : i] >= outlierThreshold;
+        })
+        .map((r) => r.provider)
+    );
+    const hasProviderDiversity = agreeingProviders.size >= 2;
+
     let verdict: 'reliable' | 'mixed' | 'unreliable';
-    if (finalScore >= 80 && bftQuorum) {
+    if (finalScore >= 80 && bftQuorum && hasProviderDiversity) {
       verdict = 'reliable';
     } else if (finalScore >= 50) {
       verdict = 'mixed';
@@ -227,7 +245,10 @@ export async function scoreVerification(
         factualAccuracy,
         similarityBonus,
       },
-      responses.length
+      responses.length,
+      bftQuorum,
+      hasProviderDiversity,
+      agreeingProviders.size
     );
 
     logger.info('Scoring completed', {
@@ -235,6 +256,8 @@ export async function scoreVerification(
       verdict,
       confidence,
       bftQuorum,
+      hasProviderDiversity,
+      agreeingProviders: [...agreeingProviders],
       outliers: outlierIds,
       voteMerkleRoot,
     });
@@ -289,6 +312,30 @@ export function calculateSimilarityBonus(consistency: number, responseCount: num
 
   const normalizedSimilarity = (Math.min(100, consistency) - 70) / 30;
   return Math.round(normalizedSimilarity * 10);
+}
+
+/**
+ * Compute the weighted median of `values` given parallel `weights`.
+ * Weights need not sum to 1.  Returns the unweighted median when all weights
+ * are equal.  This is the standard "sorted-cumulative-weight" algorithm.
+ */
+function computeWeightedMedian(values: number[], weights: number[]): number {
+  if (values.length === 0) return 0;
+  if (values.length === 1) return values[0];
+
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  if (totalWeight === 0) return values.reduce((a, b) => a + b, 0) / values.length;
+
+  const indexed = values.map((v, i) => ({ v, w: weights[i] ?? 1 }));
+  indexed.sort((a, b) => a.v - b.v);
+
+  let cumulative = 0;
+  const half = totalWeight / 2;
+  for (const { v, w } of indexed) {
+    cumulative += w;
+    if (cumulative >= half) return v;
+  }
+  return indexed[indexed.length - 1].v;
 }
 
 /**
@@ -415,7 +462,10 @@ function generateReasoning(
     factualAccuracy: number;
     similarityBonus: number;
   },
-  modelCount: number
+  modelCount: number,
+  bftQuorum: boolean,
+  hasProviderDiversity: boolean,
+  agreeingProviderCount: number
 ): string {
   const parts: string[] = [];
 
@@ -438,15 +488,26 @@ function generateReasoning(
   }
 
   if (breakdown.similarityBonus > 0) {
-    parts.push(
-      `Similar answers earned a ${breakdown.similarityBonus}-point consensus bonus.`
-    );
+    parts.push(`Similar answers earned a ${breakdown.similarityBonus}-point consensus bonus.`);
   }
 
   if (breakdown.citationQuality >= 80) {
     parts.push('Well-cited with quality sources.');
   } else if (breakdown.citationQuality > 0) {
     parts.push('Some citations provided.');
+  }
+
+  // BFT / finality summary
+  if (bftQuorum && hasProviderDiversity) {
+    parts.push(
+      `BFT supermajority achieved with ${agreeingProviderCount} independent provider(s) — verdict is finalised.`
+    );
+  } else if (!bftQuorum) {
+    parts.push('BFT supermajority not reached; verdict cannot be finalised.');
+  } else if (!hasProviderDiversity) {
+    parts.push(
+      'Agreeing responses came from a single provider; provider diversity requirement not met for finalisation.'
+    );
   }
 
   return parts.join(' ');
