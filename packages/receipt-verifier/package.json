@@ -1,7 +1,7 @@
 {
   "name": "@mamv/receipt-verifier",
   "version": "0.1.0",
-  "description": "Create and independently verify portable MAMV receipts",
+  "description": "Open-source AI verification with portable MAMV trust receipts and optional tamper-evident onchain anchoring",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [

@@ -1,46 +1,39 @@
 # MAMV JavaScript SDK
 
-Minimal, typed client for the MAMV verification API.
+Copy-paste friendly client for MAMV AI verification and portable trust receipts.
 
-## Install (workspace)
-
-```bash
-npm install
-```
-
-## Usage
+## Verify an AI answer and get a receipt
 
 ```ts
 import { MAMVClient } from '@mamv/sdk';
 
 const client = new MAMVClient({ baseUrl: 'http://localhost:3000' });
 
-const response = await client.verifyText({
-  prompt: 'Summarize the article.',
-  models: ['gpt-4.1-mini'],
-  taskType: 'general',
-  idempotencyKey: 'demo-1',
+const task = await client.verifyText({
+  prompt: 'AI answer to check: The James Webb Space Telescope launched on December 25, 2021.',
+  models: ['mock-llm'],
+  taskType: 'factual-qa',
 });
 
-console.log(response.task_id, response.status);
+const receipt = await client.getReceipt(task.task_id);
+console.log(receipt?.verification_status, receipt?.confidence_score);
 ```
 
-## Program-based verification
+## Display receipt status
 
 ```ts
-const response = await client.verifyWithProgram({
-  prompt: 'Check the compliance statement.',
-  models: ['gpt-4.1-mini'],
-  taskType: 'policy-compliance',
-  program: {
-    name: 'Compliance Check',
-    version: '1.0.0',
-    inputs: [{ name: 'statement', type: 'string', required: true }],
-    outputs: [{ name: 'verdict', type: 'boolean' }],
-    steps: [
-      { type: 'prompt', description: 'Ask the model to evaluate the statement.' },
-      { type: 'score', description: 'Score based on policy rules.' },
-    ],
-  },
-});
+function label(receipt) {
+  return receipt.verification_status ?? (receipt.verdict ? 'Likely' : 'Unverified');
+}
 ```
+
+## Verify a receipt later
+
+```ts
+const result = await client.verifyReceiptOnChain(receipt.task_id, receipt.receipt_hash);
+console.log(result.verified);
+```
+
+Onchain anchoring is optional and tamper-evident; it does not prove the AI answer is correct.
+
+See `examples/receipt-first.ts` for a complete demo flow.

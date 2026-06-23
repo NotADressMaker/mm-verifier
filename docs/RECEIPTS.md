@@ -1,74 +1,28 @@
-# MAMV Receipt 1.0
+# MAMV receipts
 
-The receipt is MAMV's product: the artifact people trust, pass around, store,
-verify, and display. An API response is only a delivery mechanism for a
-receipt.
+A MAMV receipt is the center of the product. It is a portable record that explains how an AI output was checked.
 
-```json
-{
-  "receipt_version": "1.0",
-  "receipt_id": "0x...",
-  "created_at": "2026-06-13T12:00:00Z",
-  "input_hash": "0x...",
-  "output_hash": "0x...",
-  "claim_hash": "0x...",
-  "verdict": "supported",
-  "score": 0.91,
-  "program_id": "factuality-v1",
-  "program_version": "1.0.0",
-  "evidence_bundle_hash": "0x...",
-  "evidence_uri": "ipfs://...",
-  "verifier_id": "mamv-default-verifier",
-  "signature": "0x...",
-  "chain_anchor": {
-    "enabled": false,
-    "chain_id": null,
-    "tx_hash": null
-  }
-}
-```
+## Product flow
 
-## Can a third party verify this without trusting our server?
+1. User submits an AI output or claim.
+2. MAMV runs verification.
+3. MAMV returns a receipt.
+4. The receipt can be viewed, shared, downloaded, and independently verified.
 
-**Yes, with independently obtained artifacts and verifier keys.** The
-`@mamv/receipt-verifier` package performs local computation and makes no network
-requests:
+## Public fields
 
-1. Validate the closed Receipt 1.0 schema.
-2. Recompute `receipt_id` as the keccak256 hash of canonical JSON containing
-   every top-level field except `receipt_id`, `signature`, and `chain_anchor`.
-3. Recover the Ethereum signer from the signature over `receipt_id` and compare
-   it with a verifier key obtained independently of the receipt-serving API.
-4. Optionally hash the input, output, claim, and downloaded evidence bundle and
-   compare all four commitments.
-5. If anchored, compare `chain_id` and `tx_hash` with transaction data obtained
-   from an independent RPC or block explorer.
+Receipts are hardened to support: `receipt_id`, `created_at`, checked input/output, claim summary, verification status, confidence score, warnings/risk flags, provider/model votes, outliers, quorum status, evidence/source metadata, receipt hash, signer metadata, vote Merkle roots/proofs, and optional onchain anchor fields (`chain_id`, `contract_address`, `tx_hash`, `block_number`, `anchor_status`).
 
-```typescript
-import { verifyReceipt } from '@mamv/receipt-verifier';
+UI and docs prefer `quorum_status`. Existing `bft_quorum` fields remain accepted for backward compatibility and should be described as a BFT-style weighted quorum or supermajority quorum, not full Byzantine consensus unless the deployment truly provides that.
 
-const result = verifyReceipt(receipt, {
-  verifier_keys: {
-    'mamv-default-verifier': process.env.TRUSTED_MAMV_VERIFIER_ADDRESS!,
-  },
-  input,
-  output,
-  claim,
-  evidence_bundle: evidenceBundle,
-});
-```
+## Receipt labels
 
-The distinction is important: a valid signature proves which verifier issued
-the committed verdict; it does not prove that the verdict is objectively true.
-Evidence replay, program reproducibility, key governance, and optional chain
-anchoring provide progressively stronger assurance.
+- **Verified:** strong support and quorum met.
+- **Likely:** good support with lower confidence than Verified.
+- **Mixed:** meaningful support and meaningful uncertainty.
+- **Unverified:** verification did not establish enough support.
+- **Risky:** high-severity warnings, contradictions, or low score.
 
-## Canonicalization and commitments
+## Verification
 
-Objects are recursively key-sorted, arrays retain their order, `undefined`
-object properties are omitted, and the resulting UTF-8 JSON is hashed with
-keccak256. Producers and consumers must use these exact rules.
-
-The chain anchor is excluded from `receipt_id` because anchoring happens after
-issuance. Verifiers must check an enabled anchor separately. The signature is
-also excluded to avoid a circular commitment.
+To verify a receipt, recompute the canonical receipt hash, compare it with `receipt_hash`/`receipt_id`, verify signer metadata if present, and compare optional onchain anchor metadata against an independently fetched transaction.

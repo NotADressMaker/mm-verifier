@@ -12,6 +12,9 @@ import {
   getCacheStats,
 } from '../services/recordsService';
 import { WORTHY_MIN_BPS } from '../../../shared/verifiedOutput';
+import { computeReceiptHash } from '../../../shared/receipt';
+import { getMockReceipt } from '../services/mockVerifier';
+import { isMockVerifierEnabled } from '../utils/mockMode';
 
 const router = Router();
 
@@ -105,6 +108,35 @@ router.post('/guard', mamvValidators, async (req: Request, res: Response) => {
       message: error.message,
     });
   }
+});
+
+
+/**
+ * GET /api/mamv/tasks/:taskId/receipt
+ * Fetch a portable receipt by task ID (mock/demo store in local mode).
+ */
+router.get('/tasks/:taskId/receipt', [param('taskId').isString().notEmpty()], async (req: Request, res: Response) => {
+  if (!isMockVerifierEnabled()) {
+    return res.status(501).json({ error: 'Not Implemented', message: 'Receipt store lookup is deployment-specific outside mock mode' });
+  }
+  const receipt = await getMockReceipt(req.params.taskId);
+  if (!receipt) return res.status(404).json({ error: 'Not Found', message: 'Receipt not found' });
+  return res.status(200).json({ receipt });
+});
+
+/**
+ * GET /api/mamv/tasks/:taskId/receipt/verify
+ * Recompute the receipt hash and optionally compare a caller-provided hash.
+ */
+router.get('/tasks/:taskId/receipt/verify', [param('taskId').isString().notEmpty(), query('receipt_hash').optional().isString()], async (req: Request, res: Response) => {
+  if (!isMockVerifierEnabled()) {
+    return res.status(501).json({ error: 'Not Implemented', message: 'Receipt verification endpoint requires a configured receipt store' });
+  }
+  const receipt = await getMockReceipt(req.params.taskId) as any;
+  if (!receipt) return res.status(404).json({ error: 'Not Found', message: 'Receipt not found' });
+  const receipt_hash = computeReceiptHash(receipt);
+  const expected = typeof req.query.receipt_hash === 'string' ? req.query.receipt_hash : receipt.receipt_hash;
+  return res.status(200).json({ verified: !expected || expected.toLowerCase() === receipt_hash.toLowerCase(), receipt_hash, errors: expected && expected.toLowerCase() !== receipt_hash.toLowerCase() ? ['receipt hash mismatch'] : [] });
 });
 
 // ============================================================================
