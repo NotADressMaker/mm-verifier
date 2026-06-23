@@ -82,6 +82,20 @@ const validReceipt = {
     llm_provider: 'openai',
     llm_model: 'gpt-4',
   },
+  receipt_id: '0x' + '44'.repeat(32),
+  created_at: '2024-01-01T00:00:00Z',
+  claim_summary: 'A public claim summary',
+  verification_status: 'Likely',
+  confidence_score: 0.9,
+  warnings: [{ code: 'citation_gap', severity: 'medium', message: 'One citation needs review.' }],
+  votes: [{ provider: 'openai', model: 'gpt-4', vote: 'support', score_bps: 9000 }],
+  outliers: [],
+  quorum_status: { met: true, method: 'supermajority', threshold_bps: 6667, observed_bps: 9000, participant_count: 1 },
+  vote_merkle_root: '0x' + '55'.repeat(32),
+  vote_merkle_proofs: { vote1: ['0x' + '66'.repeat(32)] },
+  evidence_sources: [{ url: 'https://example.com', title: 'Example', domain: 'example.com' }],
+  receipt_hash: '0x' + '77'.repeat(32),
+  onchain_anchor: { anchor_status: 'not_anchored' },
   explain: {
     version: '1.0.0',
     score_components: [],
@@ -111,6 +125,18 @@ describe('Schema validation (API)', () => {
     const result = validateReceiptV1(validReceipt);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('accepts receipt explain fields and absent optional anchor data', () => {
+    const { onchain_anchor, ...withoutAnchor } = validReceipt as any;
+    const result = validateReceiptV1(withoutAnchor);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects malformed public receipt fields', () => {
+    const invalid = { ...validReceipt, confidence_score: 2, quorum_status: { met: true, method: 'full_byzantine_consensus' } };
+    const result = validateReceiptV1(invalid);
+    expect(result.valid).toBe(false);
   });
 
   it('rejects oversized task_id', () => {

@@ -1,7 +1,7 @@
 {
   "name": "mamv",
   "version": "0.1.0",
-  "description": "Verification layer for AI outputs with portable receipts and optional onchain receipt anchoring",
+  "description": "Open-source AI verification with portable MAMV trust receipts and optional tamper-evident onchain anchoring",
   "main": "index.js",
   "scripts": {
     "preinstall": "node scripts/preflight.js",

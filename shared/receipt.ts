@@ -40,11 +40,26 @@ export interface VerificationReceipt {
   /** Schema version for forward compatibility */
   receipt_version: typeof RECEIPT_VERSION;
 
-  /** Task identifier (on-chain) */
+  /** Public portable receipt identifier (computed from the canonical receipt hash when available) */
+  receipt_id?: string;
+
+  /** Task identifier (on-chain or API job id) */
   task_id: string;
 
   /** Unix timestamp when receipt was generated */
   generated_at: number;
+
+  /** ISO-8601 timestamp for public receipt viewers */
+  created_at?: string;
+
+  /** Human-readable submitted input when storage policy allows it */
+  input_checked?: string;
+
+  /** Human-readable AI output or claim that was checked when storage policy allows it */
+  output_checked?: string;
+
+  /** Short plain-language summary of the claim/output reviewed */
+  claim_summary?: string;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Input/Output Hashes
@@ -68,6 +83,39 @@ export interface VerificationReceipt {
 
   /** Score meets "worthy" threshold (default 8000 bps) */
   worthy: boolean;
+
+  /** Public label for receipt viewers: Verified, Likely, Mixed, Unverified, or Risky */
+  verification_status?: "Verified" | "Likely" | "Mixed" | "Unverified" | "Risky";
+
+  /** Confidence score normalized from 0..1 for public UI/SDK use */
+  confidence_score?: number;
+
+  /** Public warnings and risk flags surfaced by the verification run */
+  warnings?: Array<{ code: string; severity: "low" | "medium" | "high"; message: string }>;
+
+  /** Provider/model votes considered by the verifier */
+  votes?: Array<{ provider: string; model: string; vote: "support" | "contradict" | "abstain" | "uncertain"; score_bps?: number; rationale?: string }>;
+
+  /** Outputs or model votes flagged as outliers */
+  outliers?: Array<{ id: string; provider?: string; model?: string; reason: string; score_bps?: number }>;
+
+  /** Public quorum status. bft_quorum remains available in explain for compatibility. */
+  quorum_status?: { met: boolean; method: "single_verifier" | "supermajority" | "bft_style_weighted"; threshold_bps?: number; observed_bps?: number; participant_count?: number };
+
+  vote_merkle_root?: `0x${string}`;
+  vote_merkle_proofs?: Record<string, string[]>;
+
+  /** Source/evidence metadata safe to show without raw bundle access */
+  evidence_sources?: Array<{ url?: string; title?: string; domain?: string; content_hash?: `0x${string}`; retrieved_at?: number; notes?: string }>;
+
+  /** Canonical receipt hash for independent verification */
+  receipt_hash?: `0x${string}`;
+
+  /** Optional signer metadata without exposing private signing internals */
+  signer?: { id?: string; address?: `0x${string}`; signature?: `0x${string}`; signed_at?: number; scheme?: string };
+
+  /** Optional onchain anchoring metadata. Anchoring makes the receipt tamper-evident; it does not prove the answer true. */
+  onchain_anchor?: { chain_id?: number; contract_address?: `0x${string}`; tx_hash?: `0x${string}`; block_number?: number; anchor_status: "not_anchored" | "pending" | "anchored" | "failed" };
 
   // ─────────────────────────────────────────────────────────────────────────
   // Program Reference
@@ -291,11 +339,26 @@ const RECEIPT_HASH_FIELDS = [
   "receipt_version",
   "task_id",
   "generated_at",
+  "created_at",
+  "input_checked",
+  "output_checked",
+  "claim_summary",
   "input_hash",
   "output_hash",
   "score_bps",
   "verdict",
   "worthy",
+  "verification_status",
+  "confidence_score",
+  "warnings",
+  "votes",
+  "outliers",
+  "quorum_status",
+  "vote_merkle_root",
+  "vote_merkle_proofs",
+  "evidence_sources",
+  "signer",
+  "onchain_anchor",
   "program",
   "evidence",
   "metering",
@@ -405,11 +468,22 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     receipt_version: RECEIPT_VERSION,
     task_id: params.task_id,
     generated_at: Math.floor(Date.now() / 1000),
+    created_at: new Date().toISOString(),
     input_hash: params.input_hash,
     output_hash: params.output_hash,
     score_bps: params.score_bps,
     verdict: params.score_bps >= passThreshold,
     worthy: params.score_bps >= worthyThreshold,
+    verification_status: params.score_bps >= 9000 ? "Verified" : params.score_bps >= 7500 ? "Likely" : params.score_bps >= 5000 ? "Mixed" : params.score_bps >= 3000 ? "Unverified" : "Risky",
+    confidence_score: Math.round((params.score_bps / 10000) * 100) / 100,
+    warnings: explain.checks_fired.map((check) => ({ code: check.id, severity: check.severity, message: check.summary })),
+    votes: explain.model_disagreement.models.map((model) => ({ provider: params.llm_provider, model, vote: params.score_bps >= 5000 ? "support" : "contradict", score_bps: params.score_bps })),
+    outliers: (explain.outliers ?? []).map((id) => ({ id, reason: "Flagged by verifier disagreement analysis" })),
+    quorum_status: { met: Boolean(explain.bft_quorum ?? params.score_bps >= 5000), method: "supermajority", threshold_bps: 6667, observed_bps: Math.round((explain.model_disagreement.agreement_rate ?? 0) * 10000), participant_count: explain.model_disagreement.models.length },
+    vote_merkle_root: explain.vote_merkle_root,
+    vote_merkle_proofs: explain.vote_merkle_proofs,
+    evidence_sources: explain.claim_summary.flatMap((claim) => claim.citations.map((citation) => ({ url: citation.url, domain: citation.domain, title: citation.title }))),
+    onchain_anchor: { anchor_status: "not_anchored" },
     evidence: {
       bundle_hash: params.bundle_hash,
       bundle_uri: params.bundle_uri,
@@ -439,6 +513,8 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     receipt.metering = params.metering;
   }
 
+  receipt.receipt_hash = computeReceiptHash(receipt);
+  receipt.receipt_id = receipt.receipt_hash;
   return receipt;
 }
 
