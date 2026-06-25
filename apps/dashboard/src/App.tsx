@@ -91,23 +91,32 @@ export default function App() {
         <nav className="nav-links" aria-label="Main navigation">
           <a className="active" href="#verification">Verification</a>
           <a href="#receipts">Receipts</a>
+          <a href="#network">Network</a>
           <a href="#docs">Docs</a>
         </nav>
-        <div className="network-pill"><span className="pulse-dot" /> Network operational</div>
+        <div className="network-pill"><span className="pulse-dot" /> Arbitrum Sepolia · 2s finality</div>
       </header>
 
       <main>
         <section className="intro">
-          <div className="eyebrow"><Icon name="sparkles" size={15} /> AI verification receipts</div>
-          <h1>See how an AI answer was checked.<br/><em>Share the receipt.</em></h1>
-          <p>AI answers can be wrong, unsupported, or hard to audit. MAMV checks model outputs and returns a portable trust receipt with status, confidence, warnings, evidence, votes, and an audit trail.</p>
+          <div className="eyebrow"><Icon name="sparkles" size={15} /> Decentralized AI verification protocol</div>
+          <h1>Consensus-checked AI outputs.<br/><em>Anchored onchain.</em></h1>
+          <p>AI answers can be wrong, unsupported, or hard to audit. MAMV routes outputs through an open verifier mesh, records quorum-backed receipts, and anchors evidence hashes to make every check portable, tamper-evident, and independently verifiable.</p>
+          <div className="hero-actions"><a href="#verification">Run verification</a><a href="#network">Explore network</a></div>
+        </section>
+
+        <section className="chain-strip" aria-label="Protocol telemetry">
+          <div><span>TVL secured</span><strong>$8.4M</strong></div>
+          <div><span>Verifier nodes</span><strong>128</strong></div>
+          <div><span>Receipts anchored</span><strong>2.7M</strong></div>
+          <div><span>Dispute window</span><strong>24h</strong></div>
         </section>
 
         <section className="workspace" id="verification">
           <div className="answer-panel">
             <div className="panel-heading">
               <div><span className="step-number">1</span><div><h2>Paste an AI answer</h2><p>Submitted with 4 cited sources</p></div></div>
-              <span className="source-engine">AI SEARCH</span>
+              <span className="source-engine">IPFS://EVIDENCE</span>
             </div>
             <div className="question"><span>QUESTION</span><p>What are the key facts about the James Webb Space Telescope?</p></div>
             <article className="answer-copy">
@@ -119,12 +128,12 @@ export default function App() {
           </div>
 
           <aside className="result-panel">
-            <div className="panel-heading compact"><div><span className="step-number">2</span><div><h2>MAMV verification result</h2><p>Completed in 2.4 seconds</p></div></div></div>
+            <div className="panel-heading compact"><div><span className="step-number">2</span><div><h2>MAMV verification result</h2><p>4 of 5 verifier quorum · block 6,912,044</p></div></div></div>
             <div className="score-block">
               <div className="score-ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52"/><circle className="progress" cx="60" cy="60" r="52" pathLength="100"/></svg><div><strong>91%</strong><span>SUPPORT</span></div></div>
-              <div className="score-copy"><span className="verified-badge"><Icon name="check" size={14}/> VERIFIED</span><h3>Receipt ready</h3><p>The receipt explains what was checked, what MAMV concluded, and how to verify it later.</p></div>
+              <div className="score-copy"><span className="verified-badge"><Icon name="check" size={14}/> VERIFIED</span><h3>Receipt ready</h3><p>The receipt packages verifier votes, the evidence Merkle root, and chain anchor needed to verify it later.</p></div>
             </div>
-            <div className="metric-row"><div><strong>3</strong><span>Supported</span></div><div><strong>1</strong><span>Partial</span></div><div><strong>0</strong><span>Unsupported</span></div></div>
+            <div className="metric-row"><div><strong>4/5</strong><span>Quorum</span></div><div><strong>0.42</strong><span>ETH staked</span></div><div><strong>12</strong><span>Confirmations</span></div></div>
             <div className="claim-results">
               {claims.map((claim) => <button key={claim.id} className={openClaim === claim.id ? 'selected' : ''} onClick={() => setOpenClaim(claim.id)}><span className={`claim-icon ${claim.state}`}><Icon name={claim.state === 'supported' ? 'check' : 'alert'} size={14}/></span><span><b>Claim {claim.id}</b><small>{claim.state === 'supported' ? 'Supported' : 'Partially supported'}</small></span><Icon name="chevron" size={15}/></button>)}
             </div>
@@ -141,18 +150,39 @@ export default function App() {
           </div>
         </section>
 
+        <section className="network-section" id="network">
+          <div className="section-heading"><span className="step-number">4</span><div><h2>Web3 verification layer</h2><p>Every receipt is designed to be checked without trusting the dashboard.</p></div></div>
+          <div className="network-grid">
+            <article className="network-card gradient-card">
+              <span>MERKLE ROOT</span>
+              <strong>0x9ac4…e81f</strong>
+              <p>Evidence bundles are hashed locally, pinned to decentralized storage, and committed as a compact root.</p>
+            </article>
+            <article className="network-card">
+              <span>VERIFIER MESH</span>
+              <strong>5 independent nodes</strong>
+              <p>Auditors stake against signed votes, making bad attestations challengeable during the dispute window.</p>
+            </article>
+            <article className="network-card">
+              <span>ANCHOR CONTRACT</span>
+              <strong>BundleRegistry</strong>
+              <p>Receipts include contract, chain ID, block number, and transaction hash for public verification.</p>
+            </article>
+          </div>
+        </section>
+
         <section className="receipt-section" id="receipts">
           <div className="receipt-copy"><div className="eyebrow dark"><Icon name="shield" size={15}/> Onchain receipt anchoring</div><h2>Portable receipts<br/>for every checked output.</h2><p>The receipt can be viewed, shared, downloaded, and independently verified. Optional onchain anchoring makes the receipt tamper-evident for higher-stakes accountability; it does not prove the AI answer is true.</p><ul><li><Icon name="check" size={15}/> Verify that a MAMV receipt is real and unchanged</li><li><Icon name="check" size={15}/> Includes confidence, warnings, source metadata, votes, and quorum status</li><li><Icon name="check" size={15}/> AI verification receipts without relying on MAMV</li></ul></div>
           <div className="receipt-card">
             <div className="receipt-top"><div className="receipt-brand"><span className="brand-mark small"><Icon name="shield" size={15}/></span><div><strong>Verification receipt</strong><span>MAMV RECEIPT · V1.0</span></div></div><span className="signed"><Icon name="check" size={12}/> SIGNED</span></div>
             <div className="receipt-score"><span>VERIFICATION RESULT</span><strong>Verified: 91% support</strong></div>
             <div className="receipt-data"><div><span>Receipt ID</span><code>mamv_rcpt_01J8Y7K4R6V2AX91Q3EM</code></div><button onClick={copyReceipt} title="Copy receipt ID"><Icon name={copied ? 'check' : 'copy'} size={16}/></button></div>
-            <div className="receipt-meta"><div><span>Issued</span><strong>13 Jun 2026, 14:32 UTC</strong></div><div><span>Anchor</span><strong>Onchain timestamp</strong></div><div><span>Evidence hash</span><strong>0x7e4a…9c21</strong></div><div><span>Issuer</span><strong>Authorized verifier</strong></div></div>
+            <div className="receipt-meta"><div><span>Issued</span><strong>13 Jun 2026, 14:32 UTC</strong></div><div><span>Chain</span><strong>Arbitrum Sepolia</strong></div><div><span>Evidence root</span><strong>0x7e4a…9c21</strong></div><div><span>Tx hash</span><strong>0x2b91…47af</strong></div></div>
             <div className="receipt-actions"><button><Icon name="file" size={16}/> Verify receipt</button><button><Icon name="download" size={16}/> Download receipt JSON</button></div>
           </div>
         </section>
       </main>
-      <footer><div className="brand muted-brand"><span className="brand-mark"><Icon name="shield" size={18}/></span>MAMV</div><p>AI verification receipts for AI outputs.</p><span>Receipt protocol v1.0</span></footer>
+      <footer><div className="brand muted-brand"><span className="brand-mark"><Icon name="shield" size={18}/></span>MAMV</div><p>Decentralized AI verification receipts for AI outputs.</p><span>Receipt protocol v1.0 · Chain ID 421614</span></footer>
     </div>
   );
 }
