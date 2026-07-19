@@ -25,6 +25,9 @@ export const RECEIPT_VERSION = "1.0.0" as const;
 export const EXPLAIN_VERSION = "1.0.0" as const;
 export const RECEIPT_SCHEMA_VERSION = "1" as const;
 
+/** Hash scheme: legacy receipts omit this field; context-v1 binds assessment conditions. */
+export type ReceiptContextVersion = "legacy" | "context-v1";
+
 // ============================================================================
 // Verification Receipt
 // ============================================================================
@@ -88,6 +91,18 @@ export interface VerificationReceipt {
 
   /** Evidence verdict; see docs/VERDICTS.md. */
   verification_status?: Verdict;
+
+  /** Legacy receipts keep their original hash scheme. New context receipts bind this data. */
+  context_version?: ReceiptContextVersion;
+  verification_context?: {
+    verification_program_id: string; verification_program_version: string; evidence_scope: string;
+    policy_thresholds: Record<string, unknown>; source_independence_rules: Record<string, unknown>;
+    jurisdiction_locale?: string | null; domain?: string; run_timestamp: string; software_version?: string;
+  };
+  claims?: Array<{ id: string; original_text: string; normalized_text: string; claim_type: string; materiality_weight: number; status: string; version: number }>;
+  evidence_relations?: Array<{ claim_id: string; evidence_id: string; relation_type: string; weight?: number; source_independence_group?: string; rationale?: string }>;
+  limitations?: string[];
+  verdict_explanation?: string;
 
   /** Confidence score normalized from 0..1 for public UI/SDK use */
   confidence_score?: number;
@@ -351,6 +366,12 @@ const RECEIPT_HASH_FIELDS = [
   "verdict",
   "worthy",
   "verification_status",
+  "context_version",
+  "verification_context",
+  "claims",
+  "evidence_relations",
+  "limitations",
+  "verdict_explanation",
   "confidence_score",
   "warnings",
   "votes",

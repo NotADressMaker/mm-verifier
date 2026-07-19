@@ -76,3 +76,7 @@ See `docs/ABOUT.md`, `docs/VERDICTS.md`, `docs/RECEIPTS.md`, `docs/API.md`, `doc
 ## MAMV Education MVP
 
 The dashboard includes an education vertical slice at `/education`. Use **Check an AI Answer** for student-answer review or **Review Teaching Material** for educator content. Start with `MOCK_VERIFIER=true`; education responses are visibly labeled deterministic demo mode and do not need paid provider credentials. See [Education documentation](docs/EDUCATION.md). MAMV provides evidence and confidence signals, not guarantees of truth, originality, fairness, or academic acceptability.
+
+## Verification context
+
+Receipts can bind a verdict to a frozen verification program, evidence scope, claims, evidence relations, and limitations. See [Verification Context](docs/VERIFICATION_CONTEXT.md) and the [verdict policy](docs/VERDICTS.md).

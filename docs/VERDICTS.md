@@ -36,3 +36,7 @@ The rules below are applied in order. The first matching rule is the verdict.
 5. A missing, malformed, inaccessible, or out-of-scope evidence bundle requires **Unable to verify** rather than a favorable verdict.
 
 Legacy receipt labels (`Verified`, `Likely`, `Mixed`, `Unverified`, and `Risky`) are deprecated. New receipts must use the six verdicts above.
+
+## Verification context
+
+For context-v1 receipts, these measurements and the exact program version, evidence scope, and source-independence rules are frozen with the receipt. See [Verification Context](VERIFICATION_CONTEXT.md).
