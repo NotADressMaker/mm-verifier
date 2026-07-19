@@ -35,8 +35,12 @@ export async function queryGoogle(
     const startTime = Date.now();
 
     const generativeModel = genAI.getGenerativeModel({ model });
-
-    const result = await generativeModel.generateContent(request.prompt);
+    // The pinned Google SDK does not expose system instructions, so prepend
+    // the same verifier policy to the user content rather than dropping it.
+    const prompt = request.system_prompt
+      ? `${request.system_prompt}\n\nStatement or task to verify:\n${request.prompt}`
+      : request.prompt;
+    const result = await generativeModel.generateContent(prompt);
     const response = result.response.text();
 
     const duration = Date.now() - startTime;

@@ -12,6 +12,7 @@ import { ProviderCallResult, ProviderRequest } from '../../../shared/providers/i
 import { executeProviderCall } from '../providers/providerControl';
 import { recordProviderError, recordProviderSuccess, getSlashedProviders } from '../providers/trust';
 import { verifierMetrics } from '../observability/metrics';
+import { FACTUAL_WORLD_ANALYSIS_SYSTEM_PROMPT } from './verificationPrompt';
 
 export interface ModelResponse {
   response: string;
@@ -67,6 +68,7 @@ export async function queryModel(
     const request: ProviderRequest = {
       prompt,
       model,
+      system_prompt: FACTUAL_WORLD_ANALYSIS_SYSTEM_PROMPT,
       temperature: inferenceConfig?.temperature ?? DEFAULT_INFERENCE_CONFIG.temperature,
       max_tokens: inferenceConfig?.max_tokens ?? DEFAULT_INFERENCE_CONFIG.max_tokens,
     };

@@ -1,7 +1,7 @@
 {
   "name": "Factual Consensus",
   "version": "1.0.0",
-  "description": "Multi-model consensus verification for factual claims.",
+  "description": "Multi-model consensus verification for factual claims that compares evidentially distinguishable possible worlds.",
   "inputs": [
     {
       "name": "evidence_bundle",
@@ -33,7 +33,7 @@
     {
       "id": "consensus",
       "type": "consensus",
-      "description": "Assess cross-model agreement and contradictions."
+      "description": "For each claim, compare the possible world in which the evidence supports it with rival worlds in which it is false or incomplete, then assess whether the evidence distinguishes them."
     },
     {
       "id": "scoring",
@@ -58,6 +58,26 @@
   "thresholds": {
     "pass_bps": 5000,
     "worthy_bps": 8000
+  },
+  "possibility_space": {
+    "id": "factual-consensus-evidential-worlds",
+    "version": "1",
+    "interpretation_alternatives": [
+      {
+        "id": "ordinary-reading",
+        "label": "Ordinary reading",
+        "description": "The statement is read using its ordinary language, scope, and timeframe."
+      },
+      {
+        "id": "qualified-reading",
+        "label": "Qualified reading",
+        "description": "The statement is read with material limits, exceptions, scope, or timeframe made explicit."
+      }
+    ],
+    "claim_types": ["factual", "citation"],
+    "evidence_relation_types": ["supports", "contradicts", "qualifies", "contextualizes", "duplicates", "derives_from", "inconclusive"],
+    "assessment_outcomes": ["Supported", "Contradicted", "Mixed", "Unable to verify"],
+    "boundary_outcomes": ["INSUFFICIENT_EVIDENCE_COVERAGE", "SOURCE_INDEPENDENCE_UNAVAILABLE", "REQUIRED_SOURCE_INACCESSIBLE", "AMBIGUOUS_INTERPRETATION", "MALFORMED_EVIDENCE", "MATERIAL_CLAIM_UNASSESSABLE"]
   },
   "receipt": {
     "schema_version": "1",
