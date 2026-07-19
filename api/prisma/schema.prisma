@@ -50,6 +50,7 @@ model VerificationTask {
   evaluations   Evaluation[]
   disputes      Dispute[]
   webhookDeliveries WebhookDelivery[]
+  verificationReceipts VerificationReceipt[]
 
   @@index([status])
   @@index([requester])
@@ -138,6 +139,8 @@ model Organization {
   apiKeys OrganizationApiKey[]
   tasks VerificationTask[]
   auditEvents AuditEvent[]
+  verificationPrograms VerificationProgram[]
+  verificationReceipts VerificationReceipt[]
 }
 
 enum OrganizationStatus {
@@ -492,4 +495,118 @@ model CalibrationModel {
 
   @@index([isActive])
   @@index([version])
+}
+
+// Verification context records are append-only. Database triggers in the migration
+// reject mutation of completed receipts, snapshots, programs, claims, and relations.
+model VerificationProgram {
+  id String @id @default(uuid())
+  organizationId String
+  name String
+  description String @db.Text
+  version Int
+  domain String
+  claimExtractionPolicy Json
+  evidenceAdmissibilityRules Json
+  sourceIndependenceRules Json
+  materialityRules Json
+  contradictionRules Json
+  verdictThresholds Json
+  abstentionRules Json
+  modelRoles Json
+  jurisdictionLocale String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+  createdBy String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  receipts VerificationReceipt[]
+  @@unique([organizationId, name, version])
+  @@index([organizationId, name, archivedAt])
+}
+
+model VerificationReceipt {
+  id String @id @default(uuid())
+  organizationId String
+  taskId String?
+  verificationProgramId String?
+  status String @default("PENDING")
+  contextVersion String @default("context-v1")
+  contextSnapshot Json?
+  receiptHash String?
+  verdict String?
+  verdictExplanation String? @db.Text
+  evidenceCoverage Float?
+  supportedClaimRatio Float?
+  contradictedClaimRatio Float?
+  independentSupportCount Int @default(0)
+  unresolvedMaterialContradictions Int @default(0)
+  limitations Json?
+  signerMetadata Json?
+  onchainAnchorMetadata Json?
+  previousReceiptId String?
+  reverifyReason String?
+  contextChanged Boolean @default(false)
+  programChanged Boolean @default(false)
+  evidenceChanged Boolean @default(false)
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task VerificationTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  verificationProgram VerificationProgram? @relation(fields: [verificationProgramId], references: [id], onDelete: Restrict)
+  previousReceipt VerificationReceipt? @relation("ReceiptReverification", fields: [previousReceiptId], references: [id], onDelete: Restrict)
+  reverifications VerificationReceipt[] @relation("ReceiptReverification")
+  claims VerificationClaim[]
+  transitions VerificationTransition[]
+  @@index([organizationId, createdAt])
+  @@index([organizationId, taskId])
+}
+
+model VerificationClaim {
+  id String @id @default(uuid())
+  receiptId String
+  parentClaimId String?
+  sourceSpan Json?
+  originalText String @db.Text
+  normalizedText String @db.Text
+  claimType String
+  materialityWeight Float
+  assumptions Json?
+  scope Json?
+  status String
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  receipt VerificationReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  parentClaim VerificationClaim? @relation("ClaimLineage", fields: [parentClaimId], references: [id], onDelete: Restrict)
+  childClaims VerificationClaim[] @relation("ClaimLineage")
+  evidenceRelations EvidenceRelation[]
+  @@index([receiptId, createdAt])
+}
+
+model EvidenceRelation {
+  id String @id @default(uuid())
+  claimId String
+  evidenceId String
+  relationType String
+  weight Float?
+  rationale String? @db.Text
+  sourceIndependenceGroup String?
+  reviewerOrModelProvenance Json?
+  createdAt DateTime @default(now())
+  claim VerificationClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  @@index([claimId, relationType])
+}
+
+model VerificationTransition {
+  id String @id @default(uuid())
+  receiptId String
+  claimId String?
+  previousState Json?
+  nextState Json
+  reason String @db.Text
+  triggeringEvidenceOrAction Json?
+  actor String
+  createdAt DateTime @default(now())
+  receipt VerificationReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  @@index([receiptId, createdAt])
 }

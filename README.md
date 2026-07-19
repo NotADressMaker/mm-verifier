@@ -77,14 +77,6 @@ See `docs/ABOUT.md`, `docs/VERDICTS.md`, `docs/RECEIPTS.md`, `docs/API.md`, `doc
 
 The dashboard includes an education vertical slice at `/education`. Use **Check an AI Answer** for student-answer review or **Review Teaching Material** for educator content. Start with `MOCK_VERIFIER=true`; education responses are visibly labeled deterministic demo mode and do not need paid provider credentials. See [Education documentation](docs/EDUCATION.md). MAMV provides evidence and confidence signals, not guarantees of truth, originality, fairness, or academic acceptability.
 
-## Organization dashboard
+## Verification context
 
-The dashboard at the application root is the organization workspace for authenticated MAMV customers. It uses the server-side organization context on every request; the browser never selects a tenant by sending an unverified organization ID.
-
-- **Create an organization:** provision an organization and owner membership through the existing authentication/provisioning flow.
-- **Switch organizations:** choose a workspace from the organization switcher. MAMV validates the selected membership server-side, then requires a fresh signed session before loading the new context.
-- **Manage members:** owners and admins can add existing MAMV users, change permitted roles, and remove members. The API prevents removal or demotion of the final owner.
-- **Manage API keys:** owners and admins can create scoped, optional-expiration keys, copy the plaintext material once, and revoke keys. The dashboard only ever receives the plaintext key in the create response.
-- **Manage branding:** owners and admins can edit the organization name, display name, logo URL, receipt prefix, and enabled branding features in **Settings**. The API accepts only its explicit mutable settings allowlist.
-
-Set `VITE_AUTH_TOKEN` to an authenticated organization session token when running the dashboard locally. The dashboard passes this token as a bearer credential and renders organization-scoped receipts, activity, API keys, and membership data.
+Receipts can bind a verdict to a frozen verification program, evidence scope, claims, evidence relations, and limitations. See [Verification Context](docs/VERIFICATION_CONTEXT.md) and the [verdict policy](docs/VERDICTS.md).

@@ -1,0 +1,13 @@
+import { describe, expect, it } from '@jest/globals';
+import { CONTEXT_SNAPSHOT_FIELDS, EXCLUDED_PUBLIC_CONTEXT_SNAPSHOT_FIELDS, PUBLIC_CONTEXT_SNAPSHOT_FIELDS, assertCompletedReceiptImmutable, contextReceiptHash, contextVerdict, independentSupportCount, publicContext } from '../src/services/verificationContext';
+
+describe('verification context invariants', () => {
+ const snapshot = { verification_program_id:'p', verification_program_version:1, verification_program_snapshot:{secret:true}, organization_id:'org', evidence_scope:'reviewed sources', enabled_providers_models:['x'], policy_thresholds:{coverage:.5}, source_independence_rules:{groups:true}, jurisdiction_locale:null, domain:'general', run_timestamp:'2026-01-01T00:00:00Z', software_version:'test' } as const;
+ it('requires every internal snapshot field to be explicitly public or excluded', () => expect(new Set([...PUBLIC_CONTEXT_SNAPSHOT_FIELDS, ...EXCLUDED_PUBLIC_CONTEXT_SNAPSHOT_FIELDS])).toEqual(new Set(CONTEXT_SNAPSHOT_FIELDS)));
+ it('publishes only the allowlisted context fields', () => { const value=publicContext(snapshot); expect(value).toHaveProperty('evidence_scope'); expect(value).not.toHaveProperty('organization_id'); expect(value).not.toHaveProperty('verification_program_snapshot'); });
+ it('rejects completed receipt mutation', () => expect(() => assertCompletedReceiptImmutable({status:'COMPLETED'}, {verdict:'Supported'})).toThrow('immutable'));
+ it('counts distinct evidence groups but excludes model agreement', () => expect(independentSupportCount([{relationType:'supports', provenanceKind:'model', sourceIndependenceGroup:'m', evidenceId:'vote'}, {relationType:'supports', provenanceKind:'evidence', sourceIndependenceGroup:'a', evidenceId:'e1'}, {relationType:'supports', provenanceKind:'evidence', sourceIndependenceGroup:'a', evidenceId:'e2'}])).toBe(1));
+ it.each(['coverage_below_threshold','evidence_inaccessible_or_malformed','material_claim_unassessable','claim_type_rules_missing','source_independence_unestablished'] as const)('returns Unable to verify at the %s boundary', boundary => expect(contextVerdict({supportedClaimRatio:1,contradictedClaimRatio:0,evidenceCoverage:1,independentSupportCount:2,hasMaterialContradiction:false,boundary}).verdict).toBe('Unable to verify'));
+ it('does not infer support from absent evidence', () => expect(contextVerdict({supportedClaimRatio:1,contradictedClaimRatio:0,evidenceCoverage:0,independentSupportCount:2,hasMaterialContradiction:false}).verdict).toBe('Unable to verify'));
+ it('hashes canonical context deterministically', () => expect(contextReceiptHash(snapshot)).toBe(contextReceiptHash({...snapshot})));
+});
