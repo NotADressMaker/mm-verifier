@@ -37,7 +37,7 @@ export const RECEIPT_SCHEMA_VERSION = "1" as const;
 export type ReceiptContextVersion = "legacy" | "context-v1" | "context-v2";
 export type InterpretationAmbiguityStatus = "unambiguous" | "assumption_recorded" | "user_clarification_required" | "multiple_interpretations_verified";
 export type EvidenceRelationType = "supports" | "contradicts" | "qualifies" | "contextualizes" | "duplicates" | "derives_from" | "inconclusive";
-export type VerificationBoundaryCode = "INSUFFICIENT_EVIDENCE_COVERAGE" | "UNSUPPORTED_CLAIM_TYPE" | "SOURCE_INDEPENDENCE_UNAVAILABLE" | "REQUIRED_SOURCE_INACCESSIBLE" | "AMBIGUOUS_INTERPRETATION" | "MALFORMED_EVIDENCE" | "PROGRAM_RULE_MISSING" | "MATERIAL_CLAIM_UNASSESSABLE" | "RIVAL_WORLDS_INDISTINGUISHABLE" | "POSSIBILITY_SPACE_INCOMPLETE" | "WORLD_LIMIT_REACHED" | "DISTINGUISHING_EVIDENCE_UNAVAILABLE" | "EQUIVALENT_WORLDS_UNMERGED";
+export type VerificationBoundaryCode = "INSUFFICIENT_EVIDENCE_COVERAGE" | "UNSUPPORTED_CLAIM_TYPE" | "SOURCE_INDEPENDENCE_UNAVAILABLE" | "REQUIRED_SOURCE_INACCESSIBLE" | "AMBIGUOUS_INTERPRETATION" | "MALFORMED_EVIDENCE" | "PROGRAM_RULE_MISSING" | "MATERIAL_CLAIM_UNASSESSABLE" | "RIVAL_WORLDS_INDISTINGUISHABLE" | "POSSIBILITY_SPACE_INCOMPLETE" | "WORLD_LIMIT_REACHED" | "DISTINGUISHING_EVIDENCE_UNAVAILABLE" | "EQUIVALENT_WORLDS_UNMERGED" | "STATEMENT_TYPE_UNCERTAIN" | "IMPLIED_CONTENT_AMBIGUOUS" | "QUOTATION_SOURCE_UNAVAILABLE" | "REFERENCE_AMBIGUOUS" | "REFERENCE_CONFLICTING" | "INDEXICAL_UNRESOLVED";
 
 /** Conditions captured with a context-v1 assessment. This is part of the receipt commitment. */
 export interface VerificationContext {
@@ -151,9 +151,10 @@ export interface VerificationReceipt {
   receipt_hash_version?: "legacy-v1" | "context-v1" | "context-v2";
   verification_context?: VerificationContext;
   verification_program_snapshot?: VerificationProgramSnapshot;
-  claims?: Array<{ id: string; original_text: string; normalized_text: string; claim_type: string; materiality_weight: number; status: string; version: number; assumptions?: string[]; scope?: string | null; parent_claim_id?: string | null; derived_from_claim_ids?: string[]; source_span?: { start: number; end: number } }>;
-  evidence_relations?: Array<{ claim_id: string; evidence_id: string; relation_type: EvidenceRelationType; weight?: number; source_independence_group?: string; rationale?: string }>;
+  claims?: Array<{ id: string; original_text: string; normalized_text: string; claim_type: string; materiality_weight: number; status: string; version: number; assumptions?: string[]; scope?: string | null; parent_claim_id?: string | null; derived_from_claim_ids?: string[]; source_span?: { start: number; end: number }; statement_type?: import('./pragmatics').StatementTypeClassification; content?: import('./pragmatics').ClaimContent; content_role?: 'literal'|'implied'|'hedge_disclosure'|'hedged_content'; verdict_label?: string }>;
+  evidence_relations?: Array<{ claim_id: string; evidence_id: string; relation_type: EvidenceRelationType; evidence_relation_basis?: import('./possibilityAwareVerification').EvidenceRelationBasis | 'unspecified'; basis_detail?: string; weight?: number; source_independence_group?: string; rationale?: string }>;
   verification_boundaries?: VerificationBoundary[];
+  reference_consistency_checks?: import('./pragmatics').ReferenceConsistencyCheck[];
   previous_receipt_id?: string;
   reverify_reason?: string;
   change_summary?: ReceiptChangeSummary;

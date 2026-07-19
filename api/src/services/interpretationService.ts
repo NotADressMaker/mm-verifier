@@ -2,6 +2,7 @@
  * Produces audit-safe interpretation candidates before claim extraction.  It
  * intentionally does not score truth: confidence only ranks reading quality.
  */
+import { extractStatements } from '../../../shared/pragmatics';
 export type AmbiguityStatus = 'unambiguous' | 'assumption_recorded' | 'user_clarification_required' | 'multiple_interpretations_verified';
 
 export interface InterpretationCandidate {
@@ -9,7 +10,7 @@ export interface InterpretationCandidate {
   summary: string;
   domain?: string;
   assumptions: string[];
-  candidate_claims: Array<{ text: string; claim_type: string }>;
+  candidate_claims: Array<{ text: string; claim_type: string; statement_type?: import('../../../shared/pragmatics').StatementTypeClassification; content?: import('../../../shared/pragmatics').ClaimContent; content_role?: 'literal'|'implied'|'hedge_disclosure'|'hedged_content'; parent_claim_id?: string }>;
   confidence?: number;
 }
 
@@ -22,9 +23,10 @@ export interface InterpretationResult {
 
 const MATERIAL_AMBIGUITY = /\b(it|they|this|that|current|latest|best|safe|near|soon|may|might)\b/i;
 
-function claimsFor(text: string): Array<{ text: string; claim_type: string }> {
-  return text.split(/(?<=[.!?])\s+/).map((claim) => claim.trim()).filter(Boolean)
-    .map((claim) => ({ text: claim, claim_type: /\b(should|must|safe|legal|allowed)\b/i.test(claim) ? 'policy' : 'factual' }));
+function claimsFor(text: string): InterpretationCandidate['candidate_claims'] {
+  // Classification deliberately occurs before world/claim generation so worlds inherit
+  // separate literal, implied, and hedge records rather than attempting to split a verdict later.
+  return extractStatements(text).map((claim) => ({ text: claim.content.literal_content, claim_type: /\b(should|must|safe|legal|allowed)\b/i.test(claim.original_text) ? 'policy' : 'factual', statement_type: claim.statement_type, content: claim.content, content_role: claim.role, parent_claim_id: claim.parent_claim_id }));
 }
 
 /** Deterministic baseline used when a model-backed interpreter is unavailable. */

@@ -570,6 +570,9 @@ model VerificationClaim {
   originalText String @db.Text
   normalizedText String @db.Text
   claimType String
+  statementType Json?
+  claimContent Json?
+  contentRole String?
   materialityWeight Float
   assumptions Json?
   scope Json?
@@ -588,6 +591,8 @@ model EvidenceRelation {
   claimId String
   evidenceId String
   relationType String
+  evidenceRelationBasis String @default("unspecified")
+  basisDetail String? @db.Text
   weight Float?
   rationale String? @db.Text
   sourceIndependenceGroup String?

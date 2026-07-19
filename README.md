@@ -1,5 +1,7 @@
 # MAMV: Trust receipts for AI answers
 
+MAMV separates literal statements from clearly implied statements, recognizes quotations, hypotheticals, and hedges, and checks reference consistency before treating repeated names as the same fact. See [Statement handling and reference consistency](docs/PRAGMATICS_LAYER.md).
+
 ## Every AI answer comes with a trust receipt.
 
 Before an AI answer goes to your boss, into a report, or out to the public, you need to know what supports it—and be able to show that you checked it. MAMV gives every reviewed AI answer a portable trust receipt: a clear record of what was checked, what the review found, and how someone else can inspect it.

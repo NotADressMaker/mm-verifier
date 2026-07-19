@@ -4,7 +4,7 @@ import { buildPossibilitySpace, assessAllWorlds, evaluateWorldDistinction, stabi
 const now = '2026-07-19T00:00:00.000Z'; const hash = `0x${'b'.repeat(64)}` as `0x${string}`;
 const world = (id: string, interpretation: string) => ({ id, interpretation, world_type: 'interpretive' as const, assumptions: ['The date refers to the report date.'], material_difference: interpretation, distinguishing_conditions: ['An official dated record'], predicted_observations: ['A dated record exists'], status: 'candidate' as const });
 const claim = (world_ids: string[]): WorldClaim => ({ id: 'claim-1', organization_id: 'org-a', verification_run_id: 'run-a', world_ids, original_text: 'The report was published Tuesday.', normalized_text: 'report publication date', claim_type: 'factual', assumptions: ['Publication means public availability.'], scope: 'the named report', materiality_weight: 1, status: 'active', version: 1, created_at: now, updated_at: now });
-const relation = (world_id: string, type: WorldEvidenceRelation['relation_type'], group = 'source-1'): WorldEvidenceRelation => ({ id: `${world_id}-${type}`, organization_id: 'org-a', verification_run_id: 'run-a', world_id, claim_id: 'claim-1', evidence_id: 'evidence-1', relation_type: type, rationale: 'Dated primary record.', source_independence_group: group, provenance: { method: 'primary-record' }, created_at: now });
+const relation = (world_id: string, type: WorldEvidenceRelation['relation_type'], group = 'source-1'): WorldEvidenceRelation => ({ id: `${world_id}-${type}`, organization_id: 'org-a', verification_run_id: 'run-a', world_id, claim_id: 'claim-1', evidence_id: 'evidence-1', relation_type: type, evidence_relation_basis: 'referential', rationale: 'Dated primary record.', source_independence_group: group, provenance: { method: 'primary-record' }, created_at: now });
 
 describe('possibility-aware verification', () => {
   it('builds an unambiguous single-world assessment and immutable context-v2 receipt', () => {
@@ -17,6 +17,17 @@ describe('possibility-aware verification', () => {
   it('does not count duplicate, model-only, qualification, or inconclusive relations as independent support', () => {
     const w = world('w1', 'ordinary reading'), c = claim(['w1']); const a = assessAllWorlds([w], [c], [relation('w1', 'supports', 'same'), { ...relation('w1', 'duplicates', 'same'), id: 'duplicate' }, { ...relation('w1', 'qualifies', 'other'), id: 'qualified' }, { ...relation('w1', 'inconclusive', 'third'), id: 'inconclusive' }, { ...relation('w1', 'supports', 'model'), id: 'model', provenance: { model: 'model-a' } }])[0];
     expect(a.independent_support_count).toBe(1); expect(a.qualified_claim_ids).toEqual(['claim-1']); expect(a.inconclusive_claim_ids).toEqual(['claim-1']);
+  });
+  it('keeps quotation accuracy distinct and does not verify hypothetical antecedents', () => {
+    const w = world('w1', 'ordinary reading');
+    const quotation = { ...claim(['w1']), id: 'quote', statement_type: { statement_type: 'quotation' as const, confidence: .99, rationale: 'quoted source' } };
+    const hypothetical = { ...claim(['w1']), id: 'if', statement_type: { statement_type: 'hypothetical' as const, confidence: .99, rationale: 'conditional' } };
+    const relations = [{ ...relation('w1', 'supports'), claim_id: 'quote' }, { ...relation('w1', 'supports'), id: 'if-support', claim_id: 'if' }];
+    const assessment = assessAllWorlds([w], [quotation, hypothetical], relations);
+    const stabilized = stabilizeClaims([quotation, hypothetical], relations, assessment, { distinguishable: true, surviving_world_ids: ['w1'], rejected_world_ids: [], unresolved_differences: [], next_information_needed: [], recommended_action: 'produce_verdict' });
+    expect(stabilized.find(x => x.source_claim_ids[0] === 'quote')?.verdict_label).toBe('Accurately quoted');
+    expect(stabilized.find(x => x.source_claim_ids[0] === 'if')?.status).toBe('unable_to_verify');
+    expect(relations[0].evidence_relation_basis).toBe('referential');
   });
   it('caps worlds and returns a retrieval boundary for unresolved rival scenarios', () => {
     expect(() => buildPossibilitySpace({ input_summary: 'x', organization_id: 'o', program_id: 'p', program_version: '1', program_fingerprint: hash, worlds: Array.from({ length: 5 }, (_, i) => world(`w${i}`, `reading ${i}`)) })).toThrow('world count');
