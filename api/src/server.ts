@@ -19,6 +19,7 @@ import { verifyV1Routes } from './routes/v1/verify';
 import { programV1Routes } from './routes/v1/programs';
 import { tasksV1Routes } from './routes/v1/tasks';
 import { schemaV1Routes } from './routes/v1/schemas';
+import { educationV1Routes } from './routes/v1/education';
 import { validationRoutes } from './routes/validation';
 import { initializeBlockchain } from './services/blockchain';
 import { initializeJobBoardIndexer } from './services/jobBoardIndexer';
@@ -47,7 +48,7 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: process.env.EDUCATION_MAX_PAYLOAD || '100kb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestContextMiddleware);
 
@@ -85,6 +86,7 @@ app.use('/api/mamv', mamvRoutes);
 app.use('/api/mmv', mamvRoutes);
 app.use('/api/validation', validationRoutes);
 app.use('/v1/verify', verifyV1Routes);
+app.use('/v1/education', limiter, educationV1Routes);
 app.use('/v1/programs', programV1Routes);
 app.use('/v1/tasks', tasksV1Routes);
 app.use('/v1', schemaV1Routes);

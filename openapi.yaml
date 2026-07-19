@@ -257,6 +257,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReceiptVerifyResult'
 
+  /v1/education/verify:
+    post:
+      summary: Verify educational AI content with privacy-conscious demo cross-checking
+      operationId: verifyEducation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode, content, subject, education_level, content_type, privacy_acknowledged]
+              properties:
+                mode: { type: string, enum: [student_answer, teacher_content, research_summary, exam_preparation] }
+                question: { type: string }
+                content: { type: string, maxLength: 50000 }
+                subject: { type: string }
+                education_level: { type: string, enum: [elementary, middle-school, high-school, undergraduate, graduate, adult-learning] }
+                content_type: { type: string }
+                privacy_acknowledged: { type: boolean, description: Must be true. }
+      responses:
+        '201': { description: Education result and portable receipt }
+        '400': { description: Structured validation error }
+
 components:
   schemas:
     ProgramIO:

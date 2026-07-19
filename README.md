@@ -59,3 +59,7 @@ Use the receipt verifier package or API to recompute the receipt hash, check sig
 - **Future protocol:** decentralized verifier marketplace, provider reputation, disputes/challenges, and staking/slashing if applicable.
 
 See `docs/ABOUT.md`, `docs/RECEIPTS.md`, `docs/API.md`, `docs/ANCHORING.md`, and `docs/ROADMAP.md` for details.
+
+## MAMV Education MVP
+
+The dashboard includes an education vertical slice at `/education`. Use **Check an AI Answer** for student-answer review or **Review Teaching Material** for educator content. Start with `MOCK_VERIFIER=true`; education responses are visibly labeled deterministic demo mode and do not need paid provider credentials. See [Education documentation](docs/EDUCATION.md). MAMV provides evidence and confidence signals, not guarantees of truth, originality, fairness, or academic acceptability.
