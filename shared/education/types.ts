@@ -1,10 +1,12 @@
+import type { Verdict } from '../verdicts';
+
 export const EDUCATION_MODES = ['student_answer', 'teacher_content', 'research_summary', 'exam_preparation'] as const;
 export const EDUCATION_LEVELS = ['elementary', 'middle-school', 'high-school', 'undergraduate', 'graduate', 'adult-learning'] as const;
-export const SUPPORT_LEVELS = ['strongly_supported', 'mostly_supported', 'mixed_evidence', 'weakly_supported', 'insufficient_evidence'] as const;
+export const SUPPORT_LEVELS = ['Supported', 'Mostly supported', 'Mixed evidence', 'Unsupported', 'Contradicted', 'Unable to verify'] as const;
 export const CLAIM_CLASSIFICATIONS = ['supported', 'partially_supported', 'disputed', 'unsupported', 'uncertain', 'not_evaluated'] as const;
 export type EducationMode = typeof EDUCATION_MODES[number];
 export type EducationLevel = typeof EDUCATION_LEVELS[number];
-export type SupportLevel = typeof SUPPORT_LEVELS[number];
+export type SupportLevel = Verdict;
 export type ClaimClassification = typeof CLAIM_CLASSIFICATIONS[number];
 export interface EducationSource { title?: string; url?: string; citation?: string; }
 export interface EducationVerifyRequest {

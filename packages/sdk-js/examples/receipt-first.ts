@@ -16,7 +16,7 @@ async function main() {
   if (!receipt) throw new Error('Receipt was not available yet. Poll or call waitForFinal in production.');
 
   console.log('Receipt:', receipt.receipt_id ?? receipt.task_id);
-  console.log('Status:', receipt.verification_status ?? (receipt.verdict ? 'Likely' : 'Unverified'));
+  console.log('Status:', receipt.verification_status ?? 'Unable to verify');
   console.log('Confidence:', receipt.confidence_score ?? receipt.score_bps / 10000);
   console.log('Warnings:', receipt.warnings ?? receipt.explain.checks_fired);
 

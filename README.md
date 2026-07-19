@@ -41,7 +41,7 @@ A receipt includes public fields such as `receipt_id`, `created_at`, checked inp
 ```json
 {
   "receipt_id": "0x...",
-  "verification_status": "Likely",
+  "verification_status": "Mostly supported",
   "confidence_score": 0.86,
   "quorum_status": { "met": true, "method": "supermajority" },
   "onchain_anchor": { "anchor_status": "not_anchored" }
@@ -58,7 +58,7 @@ Use the receipt verifier package or API to recompute the receipt hash, check sig
 - **Higher-stakes/accountability:** signed receipts, optional onchain anchoring, public receipt explorer.
 - **Future protocol:** decentralized verifier marketplace, provider reputation, disputes/challenges, and staking/slashing if applicable.
 
-See `docs/ABOUT.md`, `docs/RECEIPTS.md`, `docs/API.md`, `docs/ANCHORING.md`, and `docs/ROADMAP.md` for details.
+See `docs/ABOUT.md`, `docs/VERDICTS.md`, `docs/RECEIPTS.md`, `docs/API.md`, `docs/ANCHORING.md`, and `docs/ROADMAP.md` for details.
 
 ## MAMV Education MVP
 

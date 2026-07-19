@@ -848,11 +848,12 @@
     "verification_status": {
       "type": "string",
       "enum": [
-        "Verified",
-        "Likely",
-        "Mixed",
-        "Unverified",
-        "Risky"
+        "Supported",
+        "Mostly supported",
+        "Mixed evidence",
+        "Unsupported",
+        "Contradicted",
+        "Unable to verify"
       ]
     },
     "confidence_score": {
