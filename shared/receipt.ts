@@ -22,7 +22,7 @@ import {
   VerificationPossibilitySpace,
   validateVerificationPossibilitySpace,
 } from './possibilitySpace';
-import type { WorldAssessment, DistinctionCheck, StabilizedClaim, WorldEvidenceRelation } from './possibilityAwareVerification';
+import type { WorldAssessment, DistinctionCheck, StabilizedClaim, ClaimRivalryHistory, WorldEvidenceRelation } from './possibilityAwareVerification';
 
 // ============================================================================
 // Receipt Version
@@ -163,6 +163,8 @@ export interface VerificationReceipt {
   world_assessments?: WorldAssessment[];
   distinction_check?: DistinctionCheck;
   stabilized_claims?: StabilizedClaim[];
+  /** Descriptive challenge/re-verification histories, not probabilities of truth. */
+  claim_rivalry_history?: ClaimRivalryHistory[];
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
 
@@ -438,6 +440,7 @@ const RECEIPT_HASH_FIELDS = [
   "world_assessments",
   "distinction_check",
   "stabilized_claims",
+  "claim_rivalry_history",
   "selected_world_ids",
   "unresolved_world_ids",
   "limitations",
@@ -489,7 +492,7 @@ function normalizeReceiptForHash(
 function normalizeHashValue(field: string, value: unknown): unknown {
   const sortById = (items: unknown[], key = 'id') => [...items].sort((a, b) => String((a as Record<string, unknown>)[key] ?? '').localeCompare(String((b as Record<string, unknown>)[key] ?? '')));
   if (field === 'selected_world_ids' || field === 'unresolved_world_ids') return [...value as string[]].sort();
-  if (field === 'world_assessments' || field === 'stabilized_claims' || field === 'claims') return sortById(value as unknown[]);
+  if (field === 'world_assessments' || field === 'stabilized_claims' || field === 'claim_rivalry_history' || field === 'claims') return sortById(value as unknown[], field === 'claim_rivalry_history' ? 'claim_id' : 'id');
   if (field === 'evidence_relations') return sortById(value as unknown[], 'id');
   if (field === 'possibility_space') {
     const space = value as VerificationPossibilitySpace;
@@ -583,6 +586,7 @@ export interface BuildReceiptParams {
   world_assessments?: WorldAssessment[];
   distinction_check?: DistinctionCheck;
   stabilized_claims?: StabilizedClaim[];
+  claim_rivalry_history?: ClaimRivalryHistory[];
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
 }
@@ -696,6 +700,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   receipt.world_assessments = params.world_assessments;
   receipt.distinction_check = params.distinction_check;
   receipt.stabilized_claims = params.stabilized_claims;
+  receipt.claim_rivalry_history = params.claim_rivalry_history;
   receipt.selected_world_ids = params.selected_world_ids;
   receipt.unresolved_world_ids = params.unresolved_world_ids;
 

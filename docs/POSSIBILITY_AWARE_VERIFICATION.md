@@ -22,6 +22,12 @@ MAMV does not claim to create reality or determine metaphysical truth. It compar
 5. The distinction check either selects a conclusion, asks for distinguishing evidence or clarification, assesses several compatible scenarios, or returns `Unable to verify`.
 6. A claim is stabilized only after scope and assumptions are explicit and it has survived cross-scenario comparison. The resulting context-v2 receipt commits the possibility-space snapshot, assessments, distinction result, stabilized claims, boundaries, and selected/unresolved scenarios.
 
+## Rivalry and stability history
+
+A receipt may include a per-claim `claim_rivalry_history`. It records the number of assessments, **re-verification depth** (later assessments after the first), distinct rival scenarios actually considered, and whether each genuine rivalry challenge was survived, contradicted, or left unresolved. A run that considered no rival scenario is retained as an assessment, but it does **not** count as a genuine rivalry challenge.
+
+The history is deliberately descriptive: it is not a confidence score, calibration result, or probability that a claim is true. In particular, repeated runs using the same program or an unchallenged claim must not be presented as independent confirmation. Consumers should display the history alongside its program fingerprints, scenario IDs, evidence-relation IDs, and limitations so that it remains auditable.
+
 ## Limits and safety
 
 The default policy permits at most four scenarios and two rounds. `minimum_material_difference` defaults to `0.2`; programs may configure all three values. The program metering limits (`max_execution_ms`, `max_llm_calls`, `max_total_tokens`, and retrieval limits) remain a hard ceiling independent of rounds. This prevents a difficult input from spending unbounded resources.
