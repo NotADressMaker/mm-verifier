@@ -19,6 +19,15 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...\n');
 
+  // Two tenants and a shared user demonstrate server-side membership switching.
+  const alpha = await prisma.organization.upsert({ where: { slug: 'acme-labs' }, update: {}, create: { slug: 'acme-labs', name: 'Acme Labs' } });
+  const beta = await prisma.organization.upsert({ where: { slug: 'northstar' }, update: {}, create: { slug: 'northstar', name: 'Northstar Research', plan: 'PRO' } });
+  const users = await Promise.all(['owner@example.test', 'admin@example.test', 'member@example.test', 'viewer@example.test'].map((email) => prisma.user.upsert({ where: { email }, update: {}, create: { externalId: email, email } })));
+  await prisma.organizationMembership.createMany({ data: [
+    { organizationId: alpha.id, userId: users[0].id, role: 'OWNER' }, { organizationId: beta.id, userId: users[0].id, role: 'OWNER' },
+    { organizationId: alpha.id, userId: users[1].id, role: 'ADMIN' }, { organizationId: alpha.id, userId: users[2].id, role: 'MEMBER' }, { organizationId: alpha.id, userId: users[3].id, role: 'VIEWER' },
+  ], skipDuplicates: true });
+
   // ============================================================================
   // 1. CALIBRATION MODEL
   // ============================================================================
@@ -170,6 +179,7 @@ async function main() {
       confidence: 0.99,
       verdict: 'RELIABLE',
       requester: '0x1111111111111111111111111111111111111111',
+      organizationId: alpha.id,
       verifier: '0x1234567890123456789012345678901234567890',
       evidenceCid: 'QmTaskEvidence1',
       explainabilityCid: 'QmExplain1',
@@ -188,6 +198,7 @@ async function main() {
       confidence: 0.95,
       verdict: 'UNRELIABLE',
       requester: '0x2222222222222222222222222222222222222222',
+      organizationId: beta.id,
       verifier: '0x1234567890123456789012345678901234567890',
       evidenceCid: 'QmTaskEvidence2',
       explainabilityCid: 'QmExplain2',
@@ -206,6 +217,7 @@ async function main() {
       confidence: 0.82,
       verdict: 'RELIABLE',
       requester: '0x3333333333333333333333333333333333333333',
+      organizationId: alpha.id,
       verifier: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
       evidenceCid: 'QmTaskEvidence3',
       explainabilityCid: 'QmExplain3',
@@ -219,6 +231,7 @@ async function main() {
       taskHash: crypto.createHash('sha256').update('task4').digest('hex'),
       status: TaskStatus.EVALUATING,
       requester: '0x4444444444444444444444444444444444444444',
+      organizationId: beta.id,
       verifier: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
     },
   });

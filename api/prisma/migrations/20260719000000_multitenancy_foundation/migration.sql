@@ -1,0 +1,21 @@
+-- Safe, transactional PostgreSQL backfill. Existing deployments receive one default tenant.
+BEGIN;
+CREATE TYPE "OrganizationStatus" AS ENUM ('ACTIVE', 'SUSPENDED');
+CREATE TYPE "OrganizationPlan" AS ENUM ('STARTER', 'PRO', 'ENTERPRISE');
+CREATE TYPE "OrganizationRole" AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'VIEWER');
+CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "externalId" TEXT NOT NULL UNIQUE, "email" TEXT UNIQUE, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Organization" ("id" TEXT PRIMARY KEY, "slug" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL, "status" "OrganizationStatus" NOT NULL DEFAULT 'ACTIVE', "plan" "OrganizationPlan" NOT NULL DEFAULT 'STARTER', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+INSERT INTO "Organization" ("id","slug","name") VALUES ('00000000-0000-0000-0000-000000000001','default','Default Organization') ON CONFLICT ("slug") DO NOTHING;
+ALTER TABLE "VerificationTask" ADD COLUMN IF NOT EXISTS "organizationId" TEXT;
+UPDATE "VerificationTask" SET "organizationId" = '00000000-0000-0000-0000-000000000001' WHERE "organizationId" IS NULL;
+ALTER TABLE "VerificationTask" ALTER COLUMN "organizationId" SET NOT NULL;
+ALTER TABLE "VerificationTask" ADD CONSTRAINT "VerificationTask_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT;
+CREATE INDEX IF NOT EXISTS "VerificationTask_organizationId_createdAt_idx" ON "VerificationTask"("organizationId", "createdAt");
+CREATE INDEX IF NOT EXISTS "VerificationTask_organizationId_status_idx" ON "VerificationTask"("organizationId", "status");
+CREATE TABLE "OrganizationMembership" ("id" TEXT PRIMARY KEY, "organizationId" TEXT NOT NULL REFERENCES "Organization"("id") ON DELETE CASCADE, "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "role" "OrganizationRole" NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE("organizationId", "userId"));
+CREATE TABLE "OrganizationSettings" ("organizationId" TEXT PRIMARY KEY REFERENCES "Organization"("id") ON DELETE CASCADE, "displayName" TEXT, "logoUrl" TEXT, "primaryDomain" TEXT, "receiptPrefix" TEXT, "publicReceiptsEnabled" BOOLEAN NOT NULL DEFAULT false, "walletLoginEnabled" BOOLEAN NOT NULL DEFAULT false, "onchainAnchoringEnabled" BOOLEAN NOT NULL DEFAULT false, "educationFeaturesEnabled" BOOLEAN NOT NULL DEFAULT false, "customBrandingEnabled" BOOLEAN NOT NULL DEFAULT false);
+CREATE TABLE "OrganizationApiKey" ("id" TEXT PRIMARY KEY, "organizationId" TEXT NOT NULL REFERENCES "Organization"("id") ON DELETE CASCADE, "name" TEXT NOT NULL, "keyPrefix" TEXT NOT NULL, "keyHash" TEXT NOT NULL UNIQUE, "scopes" TEXT[] NOT NULL, "createdByUserId" TEXT NOT NULL REFERENCES "User"("id"), "lastUsedAt" TIMESTAMP(3), "expiresAt" TIMESTAMP(3), "revokedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "OrganizationApiKey_organizationId_createdAt_idx" ON "OrganizationApiKey"("organizationId", "createdAt");
+CREATE TABLE "AuditEvent" ("id" TEXT PRIMARY KEY, "organizationId" TEXT NOT NULL REFERENCES "Organization"("id") ON DELETE CASCADE, "actorUserId" TEXT, "action" TEXT NOT NULL, "metadata" JSONB, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "AuditEvent_organizationId_createdAt_idx" ON "AuditEvent"("organizationId", "createdAt");
+COMMIT;

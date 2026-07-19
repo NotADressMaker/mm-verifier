@@ -12,6 +12,8 @@ export const verificationQueue = new Queue('verification-jobs', REDIS_URL);
  */
 export async function queueVerificationJob(jobData: {
   jobId: string;
+  /** Tenant is part of every payload and must be checked by a worker before persistence. */
+  organizationId?: string;
   prompt: string;
   promptHash: string;
   models: string[];
@@ -60,6 +62,8 @@ export async function queueVerificationJob(jobData: {
  * Note: This would typically run in the verifier node, not the API
  */
 verificationQueue.process('verify', async (job) => {
+  // Legacy queue entries predate tenancy. New tenant-aware producers must include this field.
+  if (job.data.organizationId !== undefined && typeof job.data.organizationId !== 'string') throw new Error('Invalid organization context');
   logger.info('Processing verification job', { jobId: job.data.jobId });
 
   // This is a placeholder - actual processing happens in verifier nodes

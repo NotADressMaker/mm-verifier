@@ -38,6 +38,8 @@ model VerificationTask {
 
   // Metadata
   requester     String   // Ethereum address or API key
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   verifier      String?  // Assigned verifier address
 
   // IPFS references
@@ -53,6 +55,8 @@ model VerificationTask {
   @@index([requester])
   @@index([createdAt])
   @@index([taskHash])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
 }
 
 enum TaskStatus {
@@ -107,6 +111,110 @@ model Evaluation {
   @@index([taskId])
   @@index([verifier])
   @@index([createdAt])
+}
+
+// Tenant identities are deliberately application identities; wallet addresses remain
+// attributes of a user and are not used as a tenant boundary.
+model User {
+  id String @id @default(uuid())
+  externalId String @unique
+  email String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  memberships OrganizationMembership[]
+  createdApiKeys OrganizationApiKey[]
+}
+
+model Organization {
+  id String @id @default(uuid())
+  slug String @unique
+  name String
+  status OrganizationStatus @default(ACTIVE)
+  plan OrganizationPlan @default(STARTER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  memberships OrganizationMembership[]
+  settings OrganizationSettings?
+  apiKeys OrganizationApiKey[]
+  tasks VerificationTask[]
+  auditEvents AuditEvent[]
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+enum OrganizationPlan {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+enum ReceiptVisibility {
+  PRIVATE
+  ORGANIZATION
+  PUBLIC
+}
+
+model OrganizationMembership {
+  id String @id @default(uuid())
+  organizationId String
+  userId String
+  role OrganizationRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model OrganizationSettings {
+  organizationId String @id
+  displayName String?
+  logoUrl String?
+  primaryDomain String?
+  receiptPrefix String?
+  publicReceiptsEnabled Boolean @default(false)
+  walletLoginEnabled Boolean @default(false)
+  onchainAnchoringEnabled Boolean @default(false)
+  educationFeaturesEnabled Boolean @default(false)
+  customBrandingEnabled Boolean @default(false)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model OrganizationApiKey {
+  id String @id @default(uuid())
+  organizationId String
+  name String
+  keyPrefix String
+  keyHash String @unique
+  scopes String[]
+  createdByUserId String
+  lastUsedAt DateTime?
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  @@index([organizationId, createdAt])
+  @@index([keyPrefix])
+}
+
+model AuditEvent {
+  id String @id @default(uuid())
+  organizationId String
+  actorUserId String?
+  action String
+  metadata Json?
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId, createdAt])
 }
 
 // ============================================================================
