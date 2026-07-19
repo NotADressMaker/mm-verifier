@@ -1,6 +1,13 @@
 # Contributing to MAMV
 
-Thank you for your interest in contributing to MAMV! This document provides guidelines and instructions for contributing.
+Thank you for helping improve MAMV. This guide explains the contribution path, local quality bar, and expectations for changes.
+
+## Before you start
+
+- Read the [security policy](SECURITY.md). Do not report vulnerabilities in public issues.
+- Search existing issues before starting substantial work. For a feature or broad change, open an issue first so maintainers can align on the approach.
+- Use the issue and pull-request templates; they provide the information reviewers need.
+- The default branch is `main`. Do not commit directly to it; submit a pull request from a focused branch.
 
 ## Code of Conduct
 
@@ -30,7 +37,7 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 1. **Fork the repository** and create a feature branch:
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feature/your-feature-name main
    ```
 
 2. **Make your changes** following our coding standards:
@@ -41,32 +48,14 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 
 3. **Test your changes**:
    ```bash
-   # Run contract tests
-   cd contracts && npm test
-
-   # Run API tests
-   cd api && npm test
-
-   # Run verifier node tests
-   cd verifier-node && npm test
-   ```
-
-   **Quality checks (API + verifier node)**:
-   ```bash
-   cd api
    npm run lint
-   npm run format:check
    npm run typecheck
-
-   cd ../verifier-node
-   npm run lint
-   npm run format:check
-   npm run typecheck
+   npm test
    ```
 
 4. **Commit your changes**:
    - Use clear, descriptive commit messages
-   - Follow conventional commits format:
+   - Follow conventional-commit prefixes:
      - `feat:` for new features
      - `fix:` for bug fixes
      - `docs:` for documentation
@@ -83,7 +72,15 @@ We are committed to providing a welcoming and inclusive environment. Please be r
    - What changes you made and why
    - How to test the changes
    - Screenshots or examples if applicable
-   - Reference any related issues
+   - Reference any related issues (for example, `Fixes #123`)
+   - Confirm that no secrets, credentials, or private receipt data are included
+
+7. **Keep the pull request reviewable**:
+   - Rebase or merge `main` when requested so required checks run against the current base.
+   - Address review comments and resolve conversations.
+   - Use one purpose per pull request; split unrelated changes.
+
+Maintainers require a passing CI suite and one approving review before merging. See [the release guide](docs/RELEASING.md) for the protected-branch and release policy.
 
 ## Development Setup
 

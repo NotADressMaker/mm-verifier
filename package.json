@@ -43,8 +43,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/michaelmannen3-oss/LLM-Verifier.git"
+    "url": "git+https://github.com/michaelmannen3-oss/MAMV.git"
   },
+  "bugs": {
+    "url": "https://github.com/michaelmannen3-oss/MAMV/issues"
+  },
+  "homepage": "https://github.com/michaelmannen3-oss/MAMV#readme",
   "workspaces": [
     "contracts",
     "api",

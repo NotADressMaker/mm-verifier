@@ -6,9 +6,9 @@ concurrency:
 
 on:
   push:
-    branches: ["main", "master", "claude/multi-mamv-IDKkb"]
+    branches: ["main"]
   pull_request:
-    branches: ["main", "master", "claude/multi-mamv-IDKkb"]
+    branches: ["main"]
 
 jobs:
   lint-typecheck:
