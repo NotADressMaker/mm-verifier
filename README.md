@@ -1,16 +1,25 @@
-# MAMV
+# MAMV: Trust receipts for AI answers
 
-MAMV helps people see how an AI answer was checked. AI answers can be wrong, unsupported, or hard to audit; MAMV reviews model outputs, records the verification process, and packages the result as a portable MAMV trust receipt.
+## Every AI answer comes with a trust receipt.
+
+Before an AI answer goes to your boss, into a report, or out to the public, you need to know what supports it—and be able to show that you checked it. MAMV gives every reviewed AI answer a portable trust receipt: a clear record of what was checked, what the review found, and how someone else can inspect it.
 
 MAMV does **AI verification**, not truth magic. Optional **onchain anchoring** can make a receipt tamper-evident for higher-stakes accountability, but blockchain anchoring does not prove an AI answer is correct.
 
-## Why it matters
+## What a trust receipt helps you do
 
-A MAMV receipt gives teams and readers an audit trail for an AI output:
+A MAMV receipt gives teams and readers a practical answer to the questions that matter:
+
+- **Can I trust this AI answer?** See the support level, confidence signals, warnings, and evidence behind the review.
+- **Will my boss or audience believe it?** Share a portable record of what was checked instead of asking them to take your word for it.
+- **Can I safely publish this?** Surface gaps and limitations before an answer is used in a product, report, workflow, or decision.
+- **How do I prove I checked it?** Let anyone inspect the receipt and independently verify its hash or signature.
+
+Behind each receipt, MAMV runs verification against configured models, sources, and checks:
 
 1. Submit an AI answer or claim.
-2. MAMV runs verification against configured models, sources, and checks.
-3. MAMV returns a portable receipt.
+2. MAMV reviews it against configured models, sources, and checks.
+3. MAMV returns a portable trust receipt.
 4. Anyone can view, share, download, and independently verify the receipt hash/signature.
 
 ## Quickstart
@@ -20,7 +29,7 @@ npm install
 npm run dev
 ```
 
-Create a mocked verification receipt in local development:
+Create a mocked trust receipt in local development:
 
 ```bash
 curl -X POST http://localhost:3000/api/verify \
