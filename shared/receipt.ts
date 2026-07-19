@@ -16,6 +16,12 @@ import {
   computeProgramFingerprint,
 } from "./programs";
 import { VerifiedPlaintextStatement } from "./types";
+import {
+  DEFAULT_VERIFICATION_POSSIBILITY_SPACE,
+  interpretationIsDeclared,
+  VerificationPossibilitySpace,
+  validateVerificationPossibilitySpace,
+} from './possibilitySpace';
 
 // ============================================================================
 // Receipt Version
@@ -39,6 +45,8 @@ export interface VerificationContext {
   evidence_scope: string;
   policy_thresholds: Record<string, unknown>;
   source_independence_rules: Record<string, unknown>;
+  /** The program's declared alternatives, relations, outcomes, and boundaries. */
+  possibility_space?: VerificationPossibilitySpace;
   domain?: string;
   jurisdiction_locale?: string | null;
   enabled_models?: Array<{ provider: string; model: string; role: string }>;
@@ -477,6 +485,13 @@ function contextValidationErrors(context: unknown): string[] {
   const errors = requiredStrings.filter((key) => typeof value[key] !== "string" || !(value[key] as string).trim()).map((key) => `verification_context.${key} is required`);
   if (!value.policy_thresholds || typeof value.policy_thresholds !== "object" || Array.isArray(value.policy_thresholds)) errors.push("verification_context.policy_thresholds is required");
   if (!value.source_independence_rules || typeof value.source_independence_rules !== "object" || Array.isArray(value.source_independence_rules)) errors.push("verification_context.source_independence_rules is required");
+  errors.push(...validateVerificationPossibilitySpace(value.possibility_space).map((error) => `verification_context.${error}`));
+  if (value.interpretation && typeof value.interpretation === 'object' && value.possibility_space && typeof value.possibility_space === 'object') {
+    const interpretation = value.interpretation as Record<string, unknown>;
+    if (typeof interpretation.selected_interpretation_id !== 'string' || !interpretationIsDeclared(value.possibility_space as VerificationPossibilitySpace, interpretation.selected_interpretation_id)) {
+      errors.push('verification_context.interpretation.selected_interpretation_id must be declared by possibility_space');
+    }
+  }
   return errors;
 }
 
@@ -624,6 +639,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     evidence_scope: "submitted evidence bundle",
     policy_thresholds: {},
     source_independence_rules: {},
+    possibility_space: params.program?.possibility_space ?? DEFAULT_VERIFICATION_POSSIBILITY_SPACE,
     run_timestamp: receipt.created_at!,
     software_version: params.software_version,
   };

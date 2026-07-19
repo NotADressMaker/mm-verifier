@@ -83,6 +83,8 @@ export interface ProgramDefinition {
   scoring: ProgramScoringDefinition;
   thresholds: ProgramThresholds;
   receipt: ProgramReceiptDefinition;
+  /** The explicit distinctions and outcomes this program may use. */
+  possibility_space?: import('./possibilitySpace').VerificationPossibilitySpace;
 }
 
 export interface ProgramSummary {
@@ -216,6 +218,7 @@ export const ProgramDefinitionSchema = {
     scoring: ProgramScoringSchema,
     thresholds: ProgramThresholdsSchema,
     receipt: ProgramReceiptSchema,
+    possibility_space: { type: 'object', additionalProperties: true },
   },
 } as const;
 

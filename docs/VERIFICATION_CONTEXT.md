@@ -16,6 +16,12 @@ Before extracting claims, MAMV records the candidate reading that was selected a
 
 Evidence is assessed through an explicit relationship to a claim: it can support, contradict, qualify, contextualize, duplicate, derive from, or remain inconclusive. Duplicate sources and model agreement do not increase independent support. Contradictory evidence remains attached to its claim, including when the final result is unable to verify.
 
+## Declared possibility space
+
+Each context-v1 receipt includes a `VerificationPossibilitySpace`. It is a versioned, program-scoped declaration of the interpretation alternatives, claim types, evidence-relation types, assessment outcomes, and abstention boundaries available to the run. The selected interpretation must reference one of its declared alternatives. The space is fingerprinted with the program and included in the canonical receipt hash, so a later change to permissible distinctions is a new program/receipt condition rather than an invisible change to a label.
+
+For lightweight integrations, MAMV records a built-in evidential assessment space instead of omitting the declaration. Custom programs should provide their own space. This makes “unable to verify,” contradictions, qualifications, duplicate-source handling, and interpretation ambiguity explicit alternatives rather than implicit behavior.
+
 ## Re-verification and comparison
 
 Re-verification always creates a new receipt. It may use the original program version, the newest version of that program, a permitted different program, or updated evidence. The new receipt stores its predecessor and a concise change summary. Receipt comparison reports differences in program, assessment conditions, interpretation, claims, evidence, limitations, and verdict, using the neutral conclusion: “Different verification conditions produced different evidential assessments.”

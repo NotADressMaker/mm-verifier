@@ -24,7 +24,7 @@ export function independentSupportCount(relations: EvidenceRelation[]): number {
   return new Set(relations.filter((r) => r.relationType === 'supports' && r.provenanceKind === 'evidence' && r.sourceIndependenceGroup).map((r) => r.sourceIndependenceGroup!)).size;
 }
 
-export type VerificationBoundary = 'INSUFFICIENT_EVIDENCE_COVERAGE' | 'UNSUPPORTED_CLAIM_TYPE' | 'SOURCE_INDEPENDENCE_UNAVAILABLE' | 'REQUIRED_SOURCE_INACCESSIBLE' | 'AMBIGUOUS_INTERPRETATION' | 'MALFORMED_EVIDENCE' | 'PROGRAM_RULE_MISSING' | 'MATERIAL_CLAIM_UNASSESSABLE';
+export type VerificationBoundary = 'INSUFFICIENT_EVIDENCE_COVERAGE' | 'UNSUPPORTED_CLAIM_TYPE' | 'SOURCE_INDEPENDENCE_UNAVAILABLE' | 'REQUIRED_SOURCE_INACCESSIBLE' | 'AMBIGUOUS_INTERPRETATION' | 'MALFORMED_EVIDENCE' | 'PROGRAM_RULE_MISSING' | 'MATERIAL_CLAIM_UNASSESSABLE' | 'coverage_below_threshold' | 'evidence_inaccessible_or_malformed' | 'material_claim_unassessable' | 'claim_type_rules_missing' | 'source_independence_unestablished';
 export function contextVerdict(input: Parameters<typeof verdictFromEvidence>[0] & { boundary?: VerificationBoundary }): { verdict: Verdict; explanation: string } {
   if (input.boundary) return { verdict: 'Unable to verify', explanation: `Unable to verify: ${input.boundary.replace(/_/g, ' ').toLowerCase()}.` };
   const verdict = verdictFromEvidence(input);
