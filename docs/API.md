@@ -16,7 +16,7 @@
 Response:
 
 ```json
-{ "taskId": "demo-1", "receipt": { "receipt_id": "0x...", "verification_status": "Likely" } }
+{ "taskId": "demo-1", "receipt": { "receipt_id": "0x...", "verification_status": "Mostly supported" } }
 ```
 
 ## Fetch a receipt

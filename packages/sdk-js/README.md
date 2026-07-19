@@ -23,7 +23,7 @@ console.log(receipt?.verification_status, receipt?.confidence_score);
 
 ```ts
 function label(receipt) {
-  return receipt.verification_status ?? (receipt.verdict ? 'Likely' : 'Unverified');
+  return receipt.verification_status ?? 'Unable to verify';
 }
 ```
 

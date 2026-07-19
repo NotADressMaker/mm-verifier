@@ -17,11 +17,7 @@ UI and docs prefer `quorum_status`. Existing `bft_quorum` fields remain accepted
 
 ## Receipt labels
 
-- **Verified:** strong support and quorum met.
-- **Likely:** good support with lower confidence than Verified.
-- **Mixed:** meaningful support and meaningful uncertainty.
-- **Unverified:** verification did not establish enough support.
-- **Risky:** high-severity warnings, contradictions, or low score.
+Receipts use the documented evidence verdicts: **Supported**, **Mostly supported**, **Mixed evidence**, **Unsupported**, **Contradicted**, and **Unable to verify**. Each label has ordered thresholds, required measurements, and explanation rules; it does not assert that an output is true. See [Public verdict policy](VERDICTS.md).
 
 ## Verification
 

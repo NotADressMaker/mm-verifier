@@ -1,15 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Receipt } from '../types';
 
-type PublicStatus = 'Verified' | 'Likely' | 'Mixed' | 'Unverified' | 'Risky';
+type PublicStatus = 'Supported' | 'Mostly supported' | 'Mixed evidence' | 'Unsupported' | 'Contradicted' | 'Unable to verify';
 
 function statusFromReceipt(receipt: Receipt): PublicStatus {
   if (receipt.verification_status) return receipt.verification_status;
-  if (receipt.score_bps >= 9000) return 'Verified';
-  if (receipt.score_bps >= 7500) return 'Likely';
-  if (receipt.score_bps >= 5000) return 'Mixed';
-  if (receipt.score_bps >= 3000) return 'Unverified';
-  return 'Risky';
+  // A score alone cannot satisfy the evidence-verdict policy.
+  return 'Unable to verify';
 }
 
 export default function ReceiptCard({ receipt }: { receipt: Receipt | null }) {

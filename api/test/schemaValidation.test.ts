@@ -85,7 +85,7 @@ const validReceipt = {
   receipt_id: '0x' + '44'.repeat(32),
   created_at: '2024-01-01T00:00:00Z',
   claim_summary: 'A public claim summary',
-  verification_status: 'Likely',
+  verification_status: 'Mostly supported',
   confidence_score: 0.9,
   warnings: [{ code: 'citation_gap', severity: 'medium', message: 'One citation needs review.' }],
   votes: [{ provider: 'openai', model: 'gpt-4', vote: 'support', score_bps: 9000 }],

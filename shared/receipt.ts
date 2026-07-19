@@ -8,6 +8,8 @@
  * 3. Audit the evidence bundle
  */
 
+import type { Verdict } from './verdicts';
+
 import { hashCanonical, canonicalize } from "./canonicalJson";
 import {
   ProgramDefinitionWithLimits,
@@ -84,8 +86,8 @@ export interface VerificationReceipt {
   /** Score meets "worthy" threshold (default 8000 bps) */
   worthy: boolean;
 
-  /** Public label for receipt viewers: Verified, Likely, Mixed, Unverified, or Risky */
-  verification_status?: "Verified" | "Likely" | "Mixed" | "Unverified" | "Risky";
+  /** Evidence verdict; see docs/VERDICTS.md. */
+  verification_status?: Verdict;
 
   /** Confidence score normalized from 0..1 for public UI/SDK use */
   confidence_score?: number;
@@ -474,7 +476,8 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     score_bps: params.score_bps,
     verdict: params.score_bps >= passThreshold,
     worthy: params.score_bps >= worthyThreshold,
-    verification_status: params.score_bps >= 9000 ? "Verified" : params.score_bps >= 7500 ? "Likely" : params.score_bps >= 5000 ? "Mixed" : params.score_bps >= 3000 ? "Unverified" : "Risky",
+    // A score alone cannot establish an evidence verdict.
+    verification_status: "Unable to verify",
     confidence_score: Math.round((params.score_bps / 10000) * 100) / 100,
     warnings: explain.checks_fired.map((check) => ({ code: check.id, severity: check.severity, message: check.summary })),
     votes: explain.model_disagreement.models.map((model) => ({ provider: params.llm_provider, model, vote: params.score_bps >= 5000 ? "support" : "contradict", score_bps: params.score_bps })),
