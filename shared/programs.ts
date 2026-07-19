@@ -13,6 +13,7 @@ import {
   ProgramStepType,
   ProgramIO,
 } from './httpSchemas';
+import { validateVerificationPossibilitySpace } from './possibilitySpace';
 
 // ============================================================================
 // Metering Limits
@@ -87,6 +88,7 @@ const FINGERPRINT_FIELDS = [
   'scoring',
   'thresholds',
   'receipt',
+  'possibility_space',
   'limits',
   'schema_version',
 ] as const;
@@ -414,6 +416,13 @@ export function validateProgram(
     }
   }
 
+  // A supplied possibility space is part of the executable program contract.
+  // It is optional for old program records; receipt construction supplies the
+  // explicit built-in space for those records.
+  if (p.possibility_space !== undefined) {
+    errors.push(...validateVerificationPossibilitySpace(p.possibility_space));
+  }
+
   // Warnings
   if (p.description === undefined) {
     warnings.push('description is recommended for program documentation');
@@ -423,6 +432,9 @@ export function validateProgram(
     warnings.push(
       'limits not specified, default metering limits will be applied'
     );
+  }
+  if (p.possibility_space === undefined) {
+    warnings.push('possibility_space not specified; the built-in assessment space will be declared on receipts');
   }
 
   return {

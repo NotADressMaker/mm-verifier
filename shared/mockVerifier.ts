@@ -1,5 +1,6 @@
 import { hashUtf8, hashCanonical } from './canonicalJson';
 import { buildReceipt, ReceiptExplain, VerificationReceipt } from './receipt';
+import { DEFAULT_VERIFICATION_POSSIBILITY_SPACE } from './possibilitySpace';
 import { EvidenceBundle, EvidenceBundleV01, ModelRun, Claim, Metrics } from './types';
 
 export type MockScenario = 'happy' | 'fail' | 'dispute';
@@ -326,6 +327,7 @@ export function buildMockReceipt(params: {
       evidence_scope: 'mock evidence bundle',
       policy_thresholds: { minimum_evidence_coverage: 1 },
       source_independence_rules: { model_agreement_is_independent_evidence: false },
+      possibility_space: DEFAULT_VERIFICATION_POSSIBILITY_SPACE,
       run_timestamp: new Date().toISOString(),
       software_version: '0.1.0',
     },

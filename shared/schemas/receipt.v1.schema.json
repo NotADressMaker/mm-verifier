@@ -1095,6 +1095,201 @@
           ]
         }
       }
+    },
+    "context_version": {
+      "type": "string",
+      "enum": [
+        "legacy",
+        "context-v1"
+      ]
+    },
+    "verification_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_program_id",
+        "verification_program_version",
+        "verification_program_fingerprint",
+        "evidence_scope",
+        "policy_thresholds",
+        "source_independence_rules",
+        "possibility_space",
+        "run_timestamp"
+      ],
+      "properties": {
+        "verification_program_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification_program_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification_program_fingerprint": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$"
+        },
+        "evidence_scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_thresholds": {
+          "type": "object"
+        },
+        "source_independence_rules": {
+          "type": "object"
+        },
+        "possibility_space": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "interpretation_alternatives",
+            "claim_types",
+            "evidence_relation_types",
+            "assessment_outcomes",
+            "boundary_outcomes"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "interpretation_alternatives": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "label"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "claim_types": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "evidence_relation_types": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "assessment_outcomes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "boundary_outcomes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "domain": {
+          "type": "string"
+        },
+        "jurisdiction_locale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enabled_models": {
+          "type": "array"
+        },
+        "interpretation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selected_interpretation_id",
+            "summary",
+            "assumptions",
+            "ambiguity_status"
+          ],
+          "properties": {
+            "selected_interpretation_id": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "ambiguity_status": {
+              "type": "string",
+              "enum": [
+                "unambiguous",
+                "assumption_recorded",
+                "user_clarification_required",
+                "multiple_interpretations_verified"
+              ]
+            }
+          }
+        },
+        "run_timestamp": {
+          "type": "string"
+        },
+        "software_version": {
+          "type": "string"
+        }
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "context_version": {
+            "const": "context-v1"
+          }
+        },
+        "required": [
+          "context_version"
+        ]
+      },
+      "then": {
+        "required": [
+          "verification_context"
+        ]
+      }
+    }
+  ]
 }
