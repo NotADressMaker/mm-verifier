@@ -29,6 +29,7 @@ import { renderJobBoardDashboard } from './views/jobBoardDashboard';
 import { isMockChainEnabled, isMockVerifierEnabled } from './utils/mockMode';
 import { apiMetrics } from './observability/metrics';
 import { organizationRoutes } from './routes/organizations';
+import { receiptRoutes } from './routes/receipts';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env.runtime') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
@@ -87,6 +88,7 @@ app.use('/api/mamv', mamvRoutes);
 app.use('/api/mmv', mamvRoutes);
 app.use('/api/validation', validationRoutes);
 app.use('/api/organizations', organizationRoutes);
+app.use('/api/receipts', receiptRoutes);
 app.use('/v1/verify', verifyV1Routes);
 app.use('/v1/education', limiter, educationV1Routes);
 app.use('/v1/programs', programV1Routes);

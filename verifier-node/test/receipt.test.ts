@@ -119,6 +119,18 @@ describe('VerificationReceipt', () => {
 
       expect(hash1).toBe(hash2);
     });
+
+    it('binds a material verification-context change', () => {
+      const contextual = {
+        ...sampleReceipt,
+        context_version: 'context-v1' as const,
+        verification_context: {
+          verification_program_id: 'factual-consensus', verification_program_version: '1.0.0', verification_program_fingerprint: '0x' + 'aa'.repeat(32),
+          evidence_scope: 'submitted sources', policy_thresholds: { coverage: 0.8 }, source_independence_rules: { distinct_domains: true }, run_timestamp: '2026-07-19T00:00:00.000Z',
+        },
+      };
+      expect(computeReceiptHash(contextual)).not.toBe(computeReceiptHash({ ...contextual, verification_context: { ...contextual.verification_context, evidence_scope: 'regulatory sources only' } }));
+    });
   });
 
   describe('buildReceipt', () => {
@@ -305,6 +317,10 @@ describe('VerificationReceipt', () => {
       expect(validateReceipt(null).valid).toBe(false);
       expect(validateReceipt('string').valid).toBe(false);
       expect(validateReceipt(123).valid).toBe(false);
+    });
+
+    it('requires a populated context for context-v1 receipts', () => {
+      expect(validateReceipt({ ...sampleReceipt, context_version: 'context-v1' }).errors).toContain('verification_context is required for context-v1 receipts');
     });
   });
 

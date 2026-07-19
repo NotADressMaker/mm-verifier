@@ -12,6 +12,8 @@ import {
   Receipt,
   VerifyOptions,
   OnchainVerifyResult,
+  ReceiptComparison,
+  ReverifyRequest,
 } from './types';
 
 // Default configuration
@@ -231,6 +233,28 @@ export class MAMVClient {
       }
       throw error;
     }
+  }
+
+  /** Fetch the public assessment conditions bound to a receipt. */
+  async getReceiptContext(receiptId: string): Promise<NonNullable<VerificationReceipt['verification_context']>> {
+    return this.request(`/api/receipts/${encodeURIComponent(receiptId)}/context`);
+  }
+
+  async getReceiptClaims(receiptId: string): Promise<NonNullable<VerificationReceipt['claims']>> {
+    return this.request(`/api/receipts/${encodeURIComponent(receiptId)}/claims`);
+  }
+
+  async getEvidenceRelations(receiptId: string): Promise<NonNullable<VerificationReceipt['evidence_relations']>> {
+    return this.request(`/api/receipts/${encodeURIComponent(receiptId)}/evidence-relations`);
+  }
+
+  async reverifyReceipt(receiptId: string, request: ReverifyRequest): Promise<VerificationReceipt> {
+    return this.request(`/api/receipts/${encodeURIComponent(receiptId)}/reverify`, { method: 'POST', body: JSON.stringify(request) });
+  }
+
+  async compareReceipts(left: string, right: string): Promise<ReceiptComparison> {
+    const query = new URLSearchParams({ left, right });
+    return this.request(`/api/receipts/compare?${query}`);
   }
 
   /**

@@ -27,6 +27,49 @@ export const RECEIPT_SCHEMA_VERSION = "1" as const;
 
 /** Hash scheme: legacy receipts omit this field; context-v1 binds assessment conditions. */
 export type ReceiptContextVersion = "legacy" | "context-v1";
+export type InterpretationAmbiguityStatus = "unambiguous" | "assumption_recorded" | "user_clarification_required" | "multiple_interpretations_verified";
+export type EvidenceRelationType = "supports" | "contradicts" | "qualifies" | "contextualizes" | "duplicates" | "derives_from" | "inconclusive";
+export type VerificationBoundaryCode = "INSUFFICIENT_EVIDENCE_COVERAGE" | "UNSUPPORTED_CLAIM_TYPE" | "SOURCE_INDEPENDENCE_UNAVAILABLE" | "REQUIRED_SOURCE_INACCESSIBLE" | "AMBIGUOUS_INTERPRETATION" | "MALFORMED_EVIDENCE" | "PROGRAM_RULE_MISSING" | "MATERIAL_CLAIM_UNASSESSABLE";
+
+/** Conditions captured with a context-v1 assessment. This is part of the receipt commitment. */
+export interface VerificationContext {
+  verification_program_id: string;
+  verification_program_version: string;
+  verification_program_fingerprint: string;
+  evidence_scope: string;
+  policy_thresholds: Record<string, unknown>;
+  source_independence_rules: Record<string, unknown>;
+  domain?: string;
+  jurisdiction_locale?: string | null;
+  enabled_models?: Array<{ provider: string; model: string; role: string }>;
+  interpretation?: { selected_interpretation_id: string; summary: string; assumptions: string[]; ambiguity_status: InterpretationAmbiguityStatus };
+  run_timestamp: string;
+  software_version?: string;
+}
+
+export interface VerificationProgramSnapshot {
+  program_id: string;
+  version: string;
+  fingerprint: string;
+  definition: ProgramDefinitionWithLimits;
+  captured_at: string;
+}
+
+export interface VerificationBoundary {
+  code: VerificationBoundaryCode;
+  affected_claim_ids: string[];
+  explanation: string;
+  required_next_information?: string[];
+}
+
+export interface ReceiptChangeSummary {
+  program_changed: boolean;
+  context_changed: boolean;
+  interpretation_changed: boolean;
+  claim_structure_changed: boolean;
+  evidence_changed: boolean;
+  verdict_changed: boolean;
+}
 
 // ============================================================================
 // Verification Receipt
@@ -94,13 +137,14 @@ export interface VerificationReceipt {
 
   /** Legacy receipts keep their original hash scheme. New context receipts bind this data. */
   context_version?: ReceiptContextVersion;
-  verification_context?: {
-    verification_program_id: string; verification_program_version: string; evidence_scope: string;
-    policy_thresholds: Record<string, unknown>; source_independence_rules: Record<string, unknown>;
-    jurisdiction_locale?: string | null; domain?: string; run_timestamp: string; software_version?: string;
-  };
-  claims?: Array<{ id: string; original_text: string; normalized_text: string; claim_type: string; materiality_weight: number; status: string; version: number }>;
-  evidence_relations?: Array<{ claim_id: string; evidence_id: string; relation_type: string; weight?: number; source_independence_group?: string; rationale?: string }>;
+  verification_context?: VerificationContext;
+  verification_program_snapshot?: VerificationProgramSnapshot;
+  claims?: Array<{ id: string; original_text: string; normalized_text: string; claim_type: string; materiality_weight: number; status: string; version: number; assumptions?: string[]; scope?: string | null; parent_claim_id?: string | null; derived_from_claim_ids?: string[]; source_span?: { start: number; end: number } }>;
+  evidence_relations?: Array<{ claim_id: string; evidence_id: string; relation_type: EvidenceRelationType; weight?: number; source_independence_group?: string; rationale?: string }>;
+  verification_boundaries?: VerificationBoundary[];
+  previous_receipt_id?: string;
+  reverify_reason?: string;
+  change_summary?: ReceiptChangeSummary;
   limitations?: string[];
   verdict_explanation?: string;
 
@@ -368,10 +412,15 @@ const RECEIPT_HASH_FIELDS = [
   "verification_status",
   "context_version",
   "verification_context",
+  "verification_program_snapshot",
   "claims",
   "evidence_relations",
   "limitations",
   "verdict_explanation",
+  "verification_boundaries",
+  "previous_receipt_id",
+  "reverify_reason",
+  "change_summary",
   "confidence_score",
   "warnings",
   "votes",
@@ -409,6 +458,26 @@ function normalizeReceiptForHash(
   }
 
   return normalized;
+}
+
+/**
+ * Normalizes old portable receipts for callers without changing their hash
+ * scheme.  In particular, do not add `context_version` before hashing an old
+ * receipt: doing so would create a different receipt commitment.
+ */
+export function normalizeReceipt(receipt: VerificationReceipt): VerificationReceipt {
+  if (receipt.context_version !== undefined) return receipt;
+  return { ...receipt, context_version: "legacy" };
+}
+
+function contextValidationErrors(context: unknown): string[] {
+  if (!context || typeof context !== "object") return ["verification_context is required for context-v1 receipts"];
+  const value = context as Record<string, unknown>;
+  const requiredStrings = ["verification_program_id", "verification_program_version", "verification_program_fingerprint", "evidence_scope", "run_timestamp"];
+  const errors = requiredStrings.filter((key) => typeof value[key] !== "string" || !(value[key] as string).trim()).map((key) => `verification_context.${key} is required`);
+  if (!value.policy_thresholds || typeof value.policy_thresholds !== "object" || Array.isArray(value.policy_thresholds)) errors.push("verification_context.policy_thresholds is required");
+  if (!value.source_independence_rules || typeof value.source_independence_rules !== "object" || Array.isArray(value.source_independence_rules)) errors.push("verification_context.source_independence_rules is required");
+  return errors;
 }
 
 /**
@@ -454,6 +523,17 @@ export interface BuildReceiptParams {
   software_version?: string;
   worthy_threshold_bps?: number;
   explain?: ReceiptExplain;
+  /** Required assessment conditions for every newly generated receipt. */
+  verification_context?: VerificationContext;
+  verification_program_snapshot?: VerificationProgramSnapshot;
+  claims?: VerificationReceipt["claims"];
+  evidence_relations?: VerificationReceipt["evidence_relations"];
+  verification_boundaries?: VerificationBoundary[];
+  limitations?: string[];
+  verdict_explanation?: string;
+  previous_receipt_id?: string;
+  reverify_reason?: string;
+  change_summary?: ReceiptChangeSummary;
 }
 
 /**
@@ -499,6 +579,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     worthy: params.score_bps >= worthyThreshold,
     // A score alone cannot establish an evidence verdict.
     verification_status: "Unable to verify",
+    context_version: "context-v1",
     confidence_score: Math.round((params.score_bps / 10000) * 100) / 100,
     warnings: explain.checks_fired.map((check) => ({ code: check.id, severity: check.severity, message: check.summary })),
     votes: explain.model_disagreement.models.map((model) => ({ provider: params.llm_provider, model, vote: params.score_bps >= 5000 ? "support" : "contradict", score_bps: params.score_bps })),
@@ -531,6 +612,33 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
       hash: params.program_hash ?? fingerprint.replace(/^0x/, ""),
     };
   }
+
+  const programFingerprint = receipt.program?.hash ? `0x${receipt.program.hash.replace(/^0x/, "")}` : undefined;
+  // The builder has historically been used by lightweight integrations that
+  // do not pass a filesystem program.  Give those receipts an explicit,
+  // declared built-in program rather than emitting an uncontextualized receipt.
+  const context = params.verification_context ?? {
+    verification_program_id: receipt.program?.id ?? "builtin-score",
+    verification_program_version: receipt.program?.version ?? "1",
+    verification_program_fingerprint: programFingerprint ?? hashCanonical({ program_id: "builtin-score", version: "1" }),
+    evidence_scope: "submitted evidence bundle",
+    policy_thresholds: {},
+    source_independence_rules: {},
+    run_timestamp: receipt.created_at!,
+    software_version: params.software_version,
+  };
+  const contextErrors = contextValidationErrors(context);
+  if (contextErrors.length) throw new Error(`Cannot create context-v1 receipt: ${contextErrors.join(", ")}`);
+  receipt.verification_context = context as VerificationContext;
+  receipt.verification_program_snapshot = params.verification_program_snapshot;
+  receipt.claims = params.claims;
+  receipt.evidence_relations = params.evidence_relations;
+  receipt.verification_boundaries = params.verification_boundaries;
+  receipt.limitations = params.limitations;
+  receipt.verdict_explanation = params.verdict_explanation;
+  receipt.previous_receipt_id = params.previous_receipt_id;
+  receipt.reverify_reason = params.reverify_reason;
+  receipt.change_summary = params.change_summary;
 
   // Add metering if provided
   if (params.metering) {
@@ -589,7 +697,9 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
 
   const r = receipt as Record<string, unknown>;
   const receiptVersion = r.receipt_version as string | undefined;
-  const isLegacy = receiptVersion === "1.0";
+  // A receipt created before context-v1 has no context marker even when it
+  // already used the current portable receipt envelope.
+  const isLegacy = receiptVersion === "1.0" || r.context_version === undefined || r.context_version === "legacy";
 
   // Version check
   if (receiptVersion !== RECEIPT_VERSION && receiptVersion !== "1.0") {
@@ -674,6 +784,11 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
     if (!r.explain || typeof r.explain !== "object") {
       errors.push("explain is required");
     }
+
+    if (r.context_version !== "context-v1" && r.context_version !== "legacy") {
+      errors.push('context_version must be "context-v1" or "legacy"');
+    }
+    if (r.context_version === "context-v1") errors.push(...contextValidationErrors(r.verification_context));
 
     if (r.program !== undefined) {
       const program = r.program as Record<string, unknown>;
