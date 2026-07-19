@@ -22,6 +22,7 @@ import {
   VerificationPossibilitySpace,
   validateVerificationPossibilitySpace,
 } from './possibilitySpace';
+import type { WorldAssessment, DistinctionCheck, StabilizedClaim, WorldEvidenceRelation } from './possibilityAwareVerification';
 
 // ============================================================================
 // Receipt Version
@@ -32,10 +33,11 @@ export const EXPLAIN_VERSION = "1.0.0" as const;
 export const RECEIPT_SCHEMA_VERSION = "1" as const;
 
 /** Hash scheme: legacy receipts omit this field; context-v1 binds assessment conditions. */
-export type ReceiptContextVersion = "legacy" | "context-v1";
+/** context-v2 adds a frozen scenario snapshot; legacy hashes are never rewritten. */
+export type ReceiptContextVersion = "legacy" | "context-v1" | "context-v2";
 export type InterpretationAmbiguityStatus = "unambiguous" | "assumption_recorded" | "user_clarification_required" | "multiple_interpretations_verified";
 export type EvidenceRelationType = "supports" | "contradicts" | "qualifies" | "contextualizes" | "duplicates" | "derives_from" | "inconclusive";
-export type VerificationBoundaryCode = "INSUFFICIENT_EVIDENCE_COVERAGE" | "UNSUPPORTED_CLAIM_TYPE" | "SOURCE_INDEPENDENCE_UNAVAILABLE" | "REQUIRED_SOURCE_INACCESSIBLE" | "AMBIGUOUS_INTERPRETATION" | "MALFORMED_EVIDENCE" | "PROGRAM_RULE_MISSING" | "MATERIAL_CLAIM_UNASSESSABLE";
+export type VerificationBoundaryCode = "INSUFFICIENT_EVIDENCE_COVERAGE" | "UNSUPPORTED_CLAIM_TYPE" | "SOURCE_INDEPENDENCE_UNAVAILABLE" | "REQUIRED_SOURCE_INACCESSIBLE" | "AMBIGUOUS_INTERPRETATION" | "MALFORMED_EVIDENCE" | "PROGRAM_RULE_MISSING" | "MATERIAL_CLAIM_UNASSESSABLE" | "RIVAL_WORLDS_INDISTINGUISHABLE" | "POSSIBILITY_SPACE_INCOMPLETE" | "WORLD_LIMIT_REACHED" | "DISTINGUISHING_EVIDENCE_UNAVAILABLE" | "EQUIVALENT_WORLDS_UNMERGED";
 
 /** Conditions captured with a context-v1 assessment. This is part of the receipt commitment. */
 export interface VerificationContext {
@@ -145,6 +147,8 @@ export interface VerificationReceipt {
 
   /** Legacy receipts keep their original hash scheme. New context receipts bind this data. */
   context_version?: ReceiptContextVersion;
+  /** Hash format is explicit so a verifier can preserve historical commitments. */
+  receipt_hash_version?: "legacy-v1" | "context-v1" | "context-v2";
   verification_context?: VerificationContext;
   verification_program_snapshot?: VerificationProgramSnapshot;
   claims?: Array<{ id: string; original_text: string; normalized_text: string; claim_type: string; materiality_weight: number; status: string; version: number; assumptions?: string[]; scope?: string | null; parent_claim_id?: string | null; derived_from_claim_ids?: string[]; source_span?: { start: number; end: number } }>;
@@ -155,6 +159,12 @@ export interface VerificationReceipt {
   change_summary?: ReceiptChangeSummary;
   limitations?: string[];
   verdict_explanation?: string;
+  possibility_space?: VerificationPossibilitySpace;
+  world_assessments?: WorldAssessment[];
+  distinction_check?: DistinctionCheck;
+  stabilized_claims?: StabilizedClaim[];
+  selected_world_ids?: string[];
+  unresolved_world_ids?: string[];
 
   /** Confidence score normalized from 0..1 for public UI/SDK use */
   confidence_score?: number;
@@ -419,10 +429,17 @@ const RECEIPT_HASH_FIELDS = [
   "worthy",
   "verification_status",
   "context_version",
+  "receipt_hash_version",
   "verification_context",
   "verification_program_snapshot",
   "claims",
   "evidence_relations",
+  "possibility_space",
+  "world_assessments",
+  "distinction_check",
+  "stabilized_claims",
+  "selected_world_ids",
+  "unresolved_world_ids",
   "limitations",
   "verdict_explanation",
   "verification_boundaries",
@@ -461,11 +478,24 @@ function normalizeReceiptForHash(
   for (const field of RECEIPT_HASH_FIELDS) {
     const value = receipt[field as keyof VerificationReceipt];
     if (value !== undefined) {
-      normalized[field] = value;
+      normalized[field] = normalizeHashValue(field, value);
     }
   }
 
   return normalized;
+}
+
+/** Arrays that model sets are sorted by stable identity before canonical JSON. */
+function normalizeHashValue(field: string, value: unknown): unknown {
+  const sortById = (items: unknown[], key = 'id') => [...items].sort((a, b) => String((a as Record<string, unknown>)[key] ?? '').localeCompare(String((b as Record<string, unknown>)[key] ?? '')));
+  if (field === 'selected_world_ids' || field === 'unresolved_world_ids') return [...value as string[]].sort();
+  if (field === 'world_assessments' || field === 'stabilized_claims' || field === 'claims') return sortById(value as unknown[]);
+  if (field === 'evidence_relations') return sortById(value as unknown[], 'id');
+  if (field === 'possibility_space') {
+    const space = value as VerificationPossibilitySpace;
+    return { ...space, worlds: space.worlds ? sortById(space.worlds) : undefined, interpretation_alternatives: sortById(space.interpretation_alternatives) };
+  }
+  return value;
 }
 
 /**
@@ -549,6 +579,12 @@ export interface BuildReceiptParams {
   previous_receipt_id?: string;
   reverify_reason?: string;
   change_summary?: ReceiptChangeSummary;
+  possibility_space?: VerificationPossibilitySpace;
+  world_assessments?: WorldAssessment[];
+  distinction_check?: DistinctionCheck;
+  stabilized_claims?: StabilizedClaim[];
+  selected_world_ids?: string[];
+  unresolved_world_ids?: string[];
 }
 
 /**
@@ -594,7 +630,8 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     worthy: params.score_bps >= worthyThreshold,
     // A score alone cannot establish an evidence verdict.
     verification_status: "Unable to verify",
-    context_version: "context-v1",
+    context_version: params.possibility_space ? "context-v2" : "context-v1",
+    receipt_hash_version: params.possibility_space ? "context-v2" : "context-v1",
     confidence_score: Math.round((params.score_bps / 10000) * 100) / 100,
     warnings: explain.checks_fired.map((check) => ({ code: check.id, severity: check.severity, message: check.summary })),
     votes: explain.model_disagreement.models.map((model) => ({ provider: params.llm_provider, model, vote: params.score_bps >= 5000 ? "support" : "contradict", score_bps: params.score_bps })),
@@ -655,6 +692,12 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   receipt.previous_receipt_id = params.previous_receipt_id;
   receipt.reverify_reason = params.reverify_reason;
   receipt.change_summary = params.change_summary;
+  receipt.possibility_space = params.possibility_space;
+  receipt.world_assessments = params.world_assessments;
+  receipt.distinction_check = params.distinction_check;
+  receipt.stabilized_claims = params.stabilized_claims;
+  receipt.selected_world_ids = params.selected_world_ids;
+  receipt.unresolved_world_ids = params.unresolved_world_ids;
 
   // Add metering if provided
   if (params.metering) {
@@ -801,10 +844,13 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
       errors.push("explain is required");
     }
 
-    if (r.context_version !== "context-v1" && r.context_version !== "legacy") {
-      errors.push('context_version must be "context-v1" or "legacy"');
+    if (r.context_version !== "context-v1" && r.context_version !== "context-v2" && r.context_version !== "legacy") {
+      errors.push('context_version must be "context-v1", "context-v2", or "legacy"');
     }
-    if (r.context_version === "context-v1") errors.push(...contextValidationErrors(r.verification_context));
+    if (r.context_version === "context-v1" || r.context_version === "context-v2") errors.push(...contextValidationErrors(r.verification_context));
+    if (r.context_version === "context-v2") {
+      for (const field of ['possibility_space', 'world_assessments', 'distinction_check', 'stabilized_claims', 'selected_world_ids', 'unresolved_world_ids']) if (r[field] === undefined) errors.push(`${field} is required for context-v2 receipts`);
+    }
 
     if (r.program !== undefined) {
       const program = r.program as Record<string, unknown>;
