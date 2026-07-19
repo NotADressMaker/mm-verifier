@@ -39,10 +39,8 @@ export async function queryAnthropic(
       max_tokens: request.max_tokens ?? 2000,
       temperature: request.temperature ?? 0.1,
       top_p: request.top_p,
+      system: request.system_prompt,
       messages: [
-        ...(request.system_prompt
-          ? [{ role: 'system', content: request.system_prompt }]
-          : []),
         { role: 'user', content: request.prompt },
       ],
     });
