@@ -212,6 +212,26 @@ export interface ReceiptResponse {
   receipt: VerificationReceipt;
 }
 
+export interface ReceiptComparison {
+  same_input: boolean;
+  program_diff: Record<string, unknown>;
+  context_diff: Record<string, unknown>;
+  interpretation_diff: Record<string, unknown>;
+  claim_diff: Record<string, unknown>;
+  evidence_diff: Record<string, unknown>;
+  limitation_diff: Record<string, unknown>;
+  verdict_diff: Record<string, unknown>;
+  summary: string;
+}
+
+export interface ReverifyRequest {
+  mode: 'same_program_version' | 'latest_program_version' | 'another_program';
+  program_id?: string;
+  program_version?: string;
+  updated_evidence?: unknown;
+  reason: string;
+}
+
 // ============================================================================
 // Compact Receipt (for quickstart API)
 // ============================================================================

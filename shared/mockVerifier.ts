@@ -319,6 +319,16 @@ export function buildMockReceipt(params: {
     llm_model: 'mock-llm',
     verifier_node: params.nodeId ?? 'mock-node',
     software_version: '0.1.0',
+    verification_context: {
+      verification_program_id: 'mock-factual-consensus',
+      verification_program_version: '1.0.0',
+      verification_program_fingerprint: '0x' + '00'.repeat(32),
+      evidence_scope: 'mock evidence bundle',
+      policy_thresholds: { minimum_evidence_coverage: 1 },
+      source_independence_rules: { model_agreement_is_independent_evidence: false },
+      run_timestamp: new Date().toISOString(),
+      software_version: '0.1.0',
+    },
     explain: buildMockExplain({ scoreBps: params.scoreBps, scenario: params.scenario }),
     metering: {
       llm_calls: 1,
