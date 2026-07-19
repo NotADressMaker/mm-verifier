@@ -8,7 +8,64 @@ export interface WorldEvidenceRelation { id: string; organization_id: string; ve
 export interface WorldAssessment { world_id: string; supported_claim_ids: string[]; contradicted_claim_ids: string[]; qualified_claim_ids: string[]; inconclusive_claim_ids: string[]; unresolved_claim_ids: string[]; independent_support_count: number; evidence_coverage: number; contradiction_severity: number; unresolved_material_claim_count: number; status: 'supported'|'plausible'|'weakened'|'rejected'|'unresolved'; explanation: string; }
 export interface DistinctionCheck { distinguishable: boolean; surviving_world_ids: string[]; rejected_world_ids: string[]; equivalent_world_groups?: string[][]; unresolved_differences: Array<{ world_ids: string[]; difference: string; affected_claim_ids: string[] }>; next_information_needed: string[]; recommended_action: 'produce_verdict'|'retrieve_more_evidence'|'request_clarification'|'verify_multiple_worlds'|'unable_to_verify'; }
 export interface StabilizedClaim { id: string; source_claim_ids: string[]; normalized_text: string; scope: string; assumptions: string[]; supporting_world_ids: string[]; contradicted_world_ids: string[]; unresolved_world_ids: string[]; evidence_relation_ids: string[]; status: 'supported'|'qualified'|'contradicted'|'mixed'|'unable_to_verify'; stabilization_reason: string; }
+/**
+ * An auditable observation from a distinct assessment of the same claim.  An
+ * observation is a challenge only when it actually considered a material rival
+ * scenario; repeated checks of the same scenario must not inflate rivalry.
+ */
+export interface ClaimRivalryObservation {
+  receipt_id: string;
+  assessed_at: string;
+  program_fingerprint: string;
+  considered_world_ids: string[];
+  rival_world_ids: string[];
+  outcome: 'survived' | 'contradicted' | 'unresolved';
+  evidence_relation_ids: string[];
+}
+
+/**
+ * A descriptive history of challenges and repeat assessments.  Counts are
+ * traceability measurements, never a probability or a truth score.
+ */
+export interface ClaimRivalryHistory {
+  claim_id: string;
+  observation_count: number;
+  re_verification_depth: number;
+  genuine_rivalry_count: number;
+  survived_rivalry_count: number;
+  contradicted_rivalry_count: number;
+  unresolved_rivalry_count: number;
+  distinct_rival_world_ids: string[];
+  distinct_program_fingerprints: string[];
+  first_assessed_at?: string;
+  last_assessed_at?: string;
+  stability_status: 'not_yet_challenged' | 'survived_rivalry' | 'mixed_history' | 'contradicted' | 'unresolved';
+  interpretation: string;
+}
 export interface PossibilityAwareVerdict { status: Verdict; selected_world_ids: string[]; unresolved_world_ids: string[]; explanation: string; metrics: { world_count: number; surviving_world_count: number; rejected_world_count: number; stabilized_claim_count: number; supported_claim_count: number; contradicted_claim_count: number; qualified_claim_count: number; unresolved_claim_count: number; independent_support_count: number; evidence_coverage: number }; alternatives_considered: Array<{ world_id: string; final_status: string; rationale: string }>; }
+
+/** Build a claim's challenge record without translating its history into truth probability. */
+export function claimRivalryHistory(claim_id: string, observations: ClaimRivalryObservation[]): ClaimRivalryHistory {
+  const ordered = [...observations].sort((a, b) => a.assessed_at.localeCompare(b.assessed_at));
+  const genuine = ordered.filter((observation) => observation.rival_world_ids.length > 0);
+  const count = (outcome: ClaimRivalryObservation['outcome']) => genuine.filter((observation) => observation.outcome === outcome).length;
+  const survived = count('survived'), contradicted = count('contradicted'), unresolved = count('unresolved');
+  const stability_status: ClaimRivalryHistory['stability_status'] = !genuine.length
+    ? 'not_yet_challenged'
+    : contradicted > 0 && survived > 0 ? 'mixed_history'
+    : contradicted > 0 ? 'contradicted'
+    : unresolved > 0 ? 'unresolved'
+    : 'survived_rivalry';
+  return {
+    claim_id, observation_count: ordered.length, re_verification_depth: Math.max(0, ordered.length - 1),
+    genuine_rivalry_count: genuine.length, survived_rivalry_count: survived, contradicted_rivalry_count: contradicted,
+    unresolved_rivalry_count: unresolved,
+    distinct_rival_world_ids: [...new Set(genuine.flatMap((observation) => observation.rival_world_ids))].sort(),
+    distinct_program_fingerprints: [...new Set(ordered.map((observation) => observation.program_fingerprint))].sort(),
+    first_assessed_at: ordered[0]?.assessed_at, last_assessed_at: ordered.at(-1)?.assessed_at, stability_status,
+    interpretation: `This history records ${genuine.length} genuine rival-scenario challenge${genuine.length === 1 ? '' : 's'} across ${ordered.length} assessment${ordered.length === 1 ? '' : 's'}; it is not a probability that the claim is true.`,
+  };
+}
 
 export function validateWorlds(worlds: PossibleWorld[], policy = DEFAULT_GENERATION_POLICY): string[] { const e: string[] = []; if (!worlds.length) e.push('at least one world is required'); if (worlds.length > policy.max_worlds) e.push('world count exceeds generation_policy.max_worlds'); const ids = new Set<string>(); for (const w of worlds) { if (!w.id || ids.has(w.id)) e.push('world ids must be unique'); ids.add(w.id); if (!w.assumptions.length) e.push(`world ${w.id} requires an assumption`); if (policy.require_distinguishing_condition && !w.distinguishing_conditions.length) e.push(`world ${w.id} requires a distinguishing condition`); if (!w.material_difference.trim() && worlds.length > 1) e.push(`world ${w.id} requires a material difference`); } return e; }
 export function mergeEquivalentWorlds(worlds: PossibleWorld[]): PossibleWorld[] { const seen = new Map<string, PossibleWorld>(); for (const w of worlds) { const key = `${w.world_type}:${w.interpretation.trim().toLowerCase()}:${[...w.assumptions].sort().join('|')}`; const old = seen.get(key); if (!old) seen.set(key, w); else old.distinguishing_conditions = [...new Set([...old.distinguishing_conditions, ...w.distinguishing_conditions])].sort(); } return [...seen.values()]; }

@@ -1,5 +1,5 @@
 import { buildReceipt, computeReceiptHash, validateReceipt } from '../../shared/receipt';
-import { buildPossibilitySpace, assessAllWorlds, evaluateWorldDistinction, stabilizeClaims, possibilityAwareVerdict, type WorldClaim, type WorldEvidenceRelation } from '../../shared/possibilityAwareVerification';
+import { buildPossibilitySpace, assessAllWorlds, evaluateWorldDistinction, stabilizeClaims, possibilityAwareVerdict, claimRivalryHistory, type WorldClaim, type WorldEvidenceRelation } from '../../shared/possibilityAwareVerification';
 
 const now = '2026-07-19T00:00:00.000Z'; const hash = `0x${'b'.repeat(64)}` as `0x${string}`;
 const world = (id: string, interpretation: string) => ({ id, interpretation, world_type: 'interpretive' as const, assumptions: ['The date refers to the report date.'], material_difference: interpretation, distinguishing_conditions: ['An official dated record'], predicted_observations: ['A dated record exists'], status: 'candidate' as const });
@@ -22,5 +22,17 @@ describe('possibility-aware verification', () => {
     expect(() => buildPossibilitySpace({ input_summary: 'x', organization_id: 'o', program_id: 'p', program_version: '1', program_fingerprint: hash, worlds: Array.from({ length: 5 }, (_, i) => world(`w${i}`, `reading ${i}`)) })).toThrow('world count');
     const worlds = [world('a', 'date means authored'), world('b', 'date means published')], claims = [claim(['a', 'b'])], assessments = assessAllWorlds(worlds, claims, []), check = evaluateWorldDistinction(worlds, claims, assessments);
     expect(check.recommended_action).toBe('retrieve_more_evidence'); expect(check.next_information_needed).toContain('An official dated record');
+  });
+  it('measures genuine rival challenges and re-verification depth without assigning truth probability', () => {
+    const history = claimRivalryHistory('claim-1', [
+      { receipt_id: 'r1', assessed_at: '2026-01-01T00:00:00.000Z', program_fingerprint: 'program-a', considered_world_ids: ['ordinary'], rival_world_ids: [], outcome: 'survived', evidence_relation_ids: ['e1'] },
+      { receipt_id: 'r2', assessed_at: '2026-02-01T00:00:00.000Z', program_fingerprint: 'program-a', considered_world_ids: ['ordinary', 'rival-a'], rival_world_ids: ['rival-a'], outcome: 'survived', evidence_relation_ids: ['e2'] },
+      { receipt_id: 'r3', assessed_at: '2026-03-01T00:00:00.000Z', program_fingerprint: 'program-b', considered_world_ids: ['ordinary', 'rival-b'], rival_world_ids: ['rival-b'], outcome: 'unresolved', evidence_relation_ids: ['e3'] },
+    ]);
+    expect(history.re_verification_depth).toBe(2); expect(history.genuine_rivalry_count).toBe(2);
+    expect(history.survived_rivalry_count).toBe(1); expect(history.stability_status).toBe('unresolved');
+    expect(history.interpretation).toMatch(/not a probability/i);
+    const receipt = buildReceipt({ task_id: 'history-1', input_hash: hash, output_hash: hash, score_bps: 7000, bundle_hash: hash, bundle_uri: 'ipfs://bundle', llm_provider: 'test', llm_model: 'test', claim_rivalry_history: [history] });
+    expect(computeReceiptHash(receipt)).not.toBe(computeReceiptHash({ ...receipt, claim_rivalry_history: [{ ...history, genuine_rivalry_count: 99 }] }));
   });
 });
