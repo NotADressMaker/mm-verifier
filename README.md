@@ -29,6 +29,10 @@ npm install
 npm run dev
 ```
 
+## Multi-tenant local development
+
+MAMV is a shared deployment with organization-scoped data. After configuring PostgreSQL and Redis, run `npm run seed` to create two development organizations, a shared owner, and admin/member/viewer memberships. See [multi-tenancy architecture](docs/MULTI_TENANCY.md) for the migration and authenticated organization API flow.
+
 Create a mocked trust receipt in local development:
 
 ```bash

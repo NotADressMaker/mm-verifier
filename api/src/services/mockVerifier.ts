@@ -10,6 +10,7 @@ import {
 
 export async function createMockJob(params: {
   jobId: string;
+  organizationId?: string;
   prompt: string;
   promptHash: string;
   models: string[];
@@ -30,8 +31,9 @@ export async function createMockJob(params: {
     storageMode: shouldStoreEvidence ? 'encrypted' : 'hashed-only',
   });
 
-  await client.set(MOCK_REDIS_KEYS.job(params.jobId), JSON.stringify(record));
-  await client.rPush(MOCK_REDIS_KEYS.jobs, params.jobId);
+  const organizationId = params.organizationId || 'legacy';
+  await client.set(MOCK_REDIS_KEYS.job(organizationId, params.jobId), JSON.stringify({ ...record, organizationId }));
+  await client.rPush(MOCK_REDIS_KEYS.jobs(organizationId), params.jobId);
 
   logger.info('Mock job created', { jobId: params.jobId, scenario: params.scenario });
 
@@ -43,7 +45,7 @@ export async function updateMockJobStatus(
   status: MockJobStatus,
   extras?: Partial<MockJobRecord>
 ): Promise<MockJobRecord | null> {
-  const record = await getMockJob(jobId);
+  const record = await getMockJob('legacy', jobId);
   if (!record) {
     return null;
   }
@@ -60,21 +62,23 @@ export async function updateMockJobStatus(
   };
 
   const client = getRedisClient();
-  await client.set(MOCK_REDIS_KEYS.job(jobId), JSON.stringify(updated));
+  await client.set(MOCK_REDIS_KEYS.job((record as any).organizationId || 'legacy', jobId), JSON.stringify(updated));
 
   return updated;
 }
 
-export async function getMockJob(jobId: string): Promise<MockJobRecord | null> {
+export async function getMockJob(organizationIdOrJobId: string, maybeJobId?: string): Promise<MockJobRecord | null> {
+  const organizationId = maybeJobId ? organizationIdOrJobId : 'legacy';
+  const jobId = maybeJobId || organizationIdOrJobId;
   const client = getRedisClient();
-  const raw = await client.get(MOCK_REDIS_KEYS.job(jobId));
+  const raw = await client.get(MOCK_REDIS_KEYS.job(organizationId, jobId));
   return raw ? (JSON.parse(raw) as MockJobRecord) : null;
 }
 
-export async function listMockJobs(): Promise<MockJobRecord[]> {
+export async function listMockJobs(organizationId = 'legacy'): Promise<MockJobRecord[]> {
   const client = getRedisClient();
-  const ids = await client.lRange(MOCK_REDIS_KEYS.jobs, 0, -1);
-  const records = await Promise.all(ids.map((id) => getMockJob(id)));
+  const ids = await client.lRange(MOCK_REDIS_KEYS.jobs(organizationId), 0, -1);
+  const records = await Promise.all(ids.map((id) => getMockJob(organizationId, id)));
   return records.filter((record): record is MockJobRecord => Boolean(record));
 }
 

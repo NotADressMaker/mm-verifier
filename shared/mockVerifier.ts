@@ -20,6 +20,7 @@ export type MockDisputeEvent = {
 
 export type MockJobRecord = {
   jobId: string;
+  organizationId?: string;
   status: MockJobStatus;
   createdAt: string;
   updatedAt: string;
@@ -38,8 +39,8 @@ export type MockJobRecord = {
 };
 
 export const MOCK_REDIS_KEYS = {
-  jobs: 'mock:jobs',
-  job: (jobId: string) => `mock:job:${jobId}`,
+  jobs: (organizationId: string) => `mock:org:${organizationId}:jobs`,
+  job: (organizationId: string, jobId: string) => `mock:org:${organizationId}:job:${jobId}`,
   receipt: (jobId: string) => `mock:receipt:${jobId}`,
   bundle: (jobId: string) => `mock:bundle:${jobId}`,
   disputes: (jobId: string) => `mock:disputes:${jobId}`,
