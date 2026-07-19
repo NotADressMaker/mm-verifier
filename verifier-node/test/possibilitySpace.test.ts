@@ -1,5 +1,5 @@
 import { buildReceipt, computeReceiptHash, validateReceipt } from '../../shared/receipt';
-import { DEFAULT_VERIFICATION_POSSIBILITY_SPACE, validateVerificationPossibilitySpace } from '../../shared/possibilitySpace';
+import { DEFAULT_VERIFICATION_POSSIBILITY_SPACE, deriveLegacyPossibilitySpaceFields, normalizeVerificationPossibilitySpace, validateVerificationPossibilitySpace } from '../../shared/possibilitySpace';
 import { computeProgramFingerprint } from '../../shared/programs';
 
 const hash = `0x${'a'.repeat(64)}` as `0x${string}`;
@@ -12,8 +12,13 @@ const program = {
 };
 
 describe('VerificationPossibilitySpace', () => {
-  it('rejects an empty distinction set', () => {
-    expect(validateVerificationPossibilitySpace({ ...DEFAULT_VERIFICATION_POSSIBILITY_SPACE, interpretation_alternatives: [] })).toContain('possibility_space.interpretation_alternatives must be non-empty');
+  it('rejects inconsistent legacy fields rather than silently ignoring them', () => {
+    expect(validateVerificationPossibilitySpace({ ...DEFAULT_VERIFICATION_POSSIBILITY_SPACE, interpretation_alternatives: [] })).toContain('interpretation_alternatives must be derived from worlds');
+  });
+  it('normalizes legacy-only program declarations and derives compatibility fields', () => {
+    const normalized = normalizeVerificationPossibilitySpace({ id: 'legacy', version: '1', claim_types: ['factual'], evidence_relation_types: ['supports'], assessment_outcomes: ['Supported'], boundary_outcomes: ['AMBIGUOUS_INTERPRETATION'], interpretation_alternatives: [{ id: 'ordinary-reading', label: 'Ordinary reading' }] });
+    expect(normalized.allowed_claim_types).toEqual(['factual']);
+    expect(deriveLegacyPossibilitySpaceFields(normalized).claim_types).toEqual(['factual']);
   });
 
   it('commits the program fingerprint to permitted distinctions', () => {

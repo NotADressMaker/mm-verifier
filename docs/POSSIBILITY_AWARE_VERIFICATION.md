@@ -33,3 +33,25 @@ The history is deliberately descriptive: it is not a confidence score, calibrati
 The default policy permits at most four scenarios and two rounds. `minimum_material_difference` defaults to `0.2`; programs may configure all three values. The program metering limits (`max_execution_ms`, `max_llm_calls`, `max_total_tokens`, and retrieval limits) remain a hard ceiling independent of rounds. This prevents a difficult input from spending unbounded resources.
 
 Completed receipts are immutable. Re-verification must create a new receipt, preserving the prior context for comparison. Public views should disclose safe summaries and never hidden model reasoning.
+## Canonical possibility-space fields
+
+`worlds`, `allowed_claim_types`, `allowed_evidence_relation_types`,
+`allowed_verdicts`, and `boundary_conditions` are the canonical representation
+for new programs and context-v2 receipt snapshots. The older
+`interpretation_alternatives`, `claim_types`, `evidence_relation_types`,
+`assessment_outcomes`, and `boundary_outcomes` fields remain portable
+compatibility projections. A payload that provides both representations must
+make them agree; the runtime rejects disagreements rather than silently
+choosing one value.
+
+The normalizer accepts an existing legacy-only declaration and derives the
+canonical representation, then regenerates legacy projections for consumers
+that still read them. This preserves historical receipts and program files
+without permitting independently-settable duplicate policy.
+
+## Metering boundary
+
+Scenario generation has a hard global elapsed-time ceiling of five minutes
+(`GLOBAL_POSSIBILITY_METERING_CEILING_MS`). A program may use stricter
+generation limits, but cannot bypass that ceiling with its own `max_rounds` or
+`max_worlds` settings.

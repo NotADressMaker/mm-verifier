@@ -497,7 +497,7 @@ function normalizeHashValue(field: string, value: unknown): unknown {
   if (field === 'evidence_relations') return sortById(value as unknown[], 'id');
   if (field === 'possibility_space') {
     const space = value as VerificationPossibilitySpace;
-    return { ...space, worlds: space.worlds ? sortById(space.worlds) : undefined, interpretation_alternatives: sortById(space.interpretation_alternatives) };
+    return { ...space, worlds: space.worlds ? sortById(space.worlds) : undefined, interpretation_alternatives: space.interpretation_alternatives ? sortById(space.interpretation_alternatives) : undefined };
   }
   return value;
 }
