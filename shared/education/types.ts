@@ -13,4 +13,14 @@ export interface EducationVerifyRequest {
   privacy_acknowledged: true; options?: { extract_claims?: boolean; check_citations?: boolean; include_model_votes?: boolean };
 }
 export interface EducationClaim { id: string; text: string; classification: ClaimClassification; confidence: number; explanation: string; evidence: never[]; warnings: string[]; }
-export interface EducationResult { support_level: SupportLevel; confidence_score: number; summary: string; claims: EducationClaim[]; model_agreement: { agreement_score: number; votes: Array<{ provider: string; model: string; vote: string; score: number }>; outliers: string[] }; citation_review: { status: 'not_provided' | 'format_checked'; warnings: string[]; detected: string[] }; review_questions: string[]; warnings: string[]; limitations: string[]; demo_mode: boolean; }
+export type AssessmentStatus = 'high' | 'medium' | 'low' | 'format_checked' | 'not_assessed';
+export interface VerificationDimensions {
+  evidence_coverage: { assessed_claims: number; total_claims: number; percentage: number };
+  source_reliability: { status: AssessmentStatus; detail: string };
+  model_agreement: { agreeing_models: number; total_models: number; detail: string };
+  source_independence: { status: AssessmentStatus; detail: string };
+  recency: { status: AssessmentStatus; detail: string };
+  contradictions: { count: number; severity: 'none' | 'minor' | 'material'; detail: string };
+  receipt_integrity: { status: 'hash_verified' | 'unverified'; detail: string };
+}
+export interface EducationResult { support_level: SupportLevel; confidence_score: number; summary: string; claims: EducationClaim[]; verification_dimensions: VerificationDimensions; model_agreement: { agreement_score: number; votes: Array<{ provider: string; model: string; vote: string; score: number }>; outliers: string[] }; citation_review: { status: 'not_provided' | 'format_checked'; warnings: string[]; detected: string[] }; review_questions: string[]; warnings: string[]; limitations: string[]; demo_mode: boolean; }
