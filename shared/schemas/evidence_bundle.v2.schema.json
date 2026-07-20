@@ -115,7 +115,7 @@
               }
             }
           },
-          "confidence": { "type": "number" },
+          "process_confidence": { "type": "number" },
           "entities": { "type": "array", "items": { "type": "string" } },
           "temporal": { "type": "array", "items": { "type": "string" } }
         }

@@ -106,13 +106,13 @@ function buildExplain(bundle, context) {
       });
     }
 
-    const confidence = claim.confidence;
-    if ((typeof confidence === 'number' && confidence < 0.6) || supportCount === 0) {
+    const processConfidence = claim.process_confidence;
+    if ((typeof processConfidence === 'number' && processConfidence < 0.6) || supportCount === 0) {
       uncertainClaims.push({
         claim_id: claimId,
         text: claim.text,
-        confidence,
-        reason: typeof confidence === 'number' && confidence < 0.6 ? 'low_confidence' : 'insufficient_citations',
+        process_confidence: processConfidence,
+        reason: typeof processConfidence === 'number' && processConfidence < 0.6 ? 'low_process_confidence' : 'insufficient_citations',
       });
     }
   }

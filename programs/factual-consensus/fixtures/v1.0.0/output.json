@@ -123,7 +123,7 @@
       {
         "claim_id": "c2",
         "text": "Pluto is a planet.",
-        "confidence": 0.48,
+        "process_confidence": 0.48,
         "reason": "low_confidence"
       }
     ],

@@ -285,7 +285,7 @@ export interface Claim {
   contradictions: Evidence[];
 
   // Metadata
-  confidence?: number;             // 0-1 confidence in claim extraction
+  process_confidence?: number;     // 0-1 confidence in claim extraction process
   entities?: string[];             // Named entities in claim
   temporal?: string[];             // Time references
 }
