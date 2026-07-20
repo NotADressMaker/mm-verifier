@@ -30,7 +30,7 @@
           }
         ],
         "contradictions": [],
-        "confidence": 0.92
+        "process_confidence": 0.92
       },
       {
         "claim_id": "c2",
@@ -44,7 +44,7 @@
             "quote_hash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
           }
         ],
-        "confidence": 0.48
+        "process_confidence": 0.48
       }
     ],
     "metrics": {
