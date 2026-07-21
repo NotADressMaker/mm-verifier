@@ -91,6 +91,8 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/v1/verify', verifyV1Routes);
 app.use('/v1/education', limiter, educationV1Routes);
+// Canonical v1 API path. The shorter /v1 alias remains during the transition.
+app.use('/api/v1/education', educationV1Routes);
 app.use('/v1/programs', programV1Routes);
 app.use('/v1/tasks', tasksV1Routes);
 app.use('/v1', schemaV1Routes);
