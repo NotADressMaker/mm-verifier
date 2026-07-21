@@ -1,35 +1,21 @@
-import type { Verdict } from '../verdicts';
-
-export const EDUCATION_MODES = ['student_answer', 'teacher_content', 'research_summary', 'exam_preparation'] as const;
+/** Education assessments describe reviewed evidence in a declared frame; they do not determine truth. */
+export const EDUCATION_DOMAINS = ['history', 'science', 'civics', 'public-policy', 'literature', 'mathematics', 'general'] as const;
 export const EDUCATION_LEVELS = ['elementary', 'middle-school', 'high-school', 'undergraduate', 'graduate', 'adult-learning'] as const;
-export const SUPPORT_LEVELS = ['Supported', 'Mostly supported', 'Mixed evidence', 'Unsupported', 'Contradicted', 'Unable to verify'] as const;
-export const CLAIM_CLASSIFICATIONS = ['supported', 'partially_supported', 'disputed', 'unsupported', 'uncertain', 'not_evaluated'] as const;
-export type EducationMode = typeof EDUCATION_MODES[number];
+export type EducationDomain = typeof EDUCATION_DOMAINS[number];
 export type EducationLevel = typeof EDUCATION_LEVELS[number];
-export type SupportLevel = Verdict;
-export type ClaimClassification = typeof CLAIM_CLASSIFICATIONS[number];
-export interface EducationSource { title?: string; url?: string; citation?: string; }
-export interface EducationVerifyRequest {
-  mode: EducationMode; question?: string; content: string; subject: string; education_level: EducationLevel;
-  content_type: string; rubric?: string; learning_objectives?: string[]; provided_sources?: EducationSource[];
-  privacy_acknowledged: true; options?: { extract_claims?: boolean; check_citations?: boolean; include_model_votes?: boolean };
-}
-export interface EducationClaim { id: string; text: string; classification: ClaimClassification; confidence: number; explanation: string; evidence: never[]; warnings: string[]; }
-export type AssessmentStatus = 'high' | 'medium' | 'low' | 'format_checked' | 'not_assessed';
-export interface VerificationDimensions {
-  evidence_coverage: { assessed_claims: number; total_claims: number; percentage: number };
-  source_reliability: { status: AssessmentStatus; detail: string };
-  model_agreement: { agreeing_models: number; total_models: number; detail: string };
-  source_independence: { status: AssessmentStatus; detail: string };
-  recency: { status: AssessmentStatus; detail: string };
-  contradictions: { count: number; severity: 'none' | 'minor' | 'material'; detail: string };
-  receipt_integrity: { status: 'hash_verified' | 'unverified'; detail: string };
-}
-export type ReasoningIndicatorStatus = 'observed' | 'not_observed' | 'not_assessed';
-export interface EpistemicLiteracyAssessment {
-  score: number;
-  summary: string;
-  indicators: Array<{ id: 'claim' | 'evidence' | 'qualification' | 'alternative'; label: string; status: ReasoningIndicatorStatus; detail: string }>;
-  next_steps: string[];
-}
-export interface EducationResult { support_level: SupportLevel; confidence_score: number; summary: string; claims: EducationClaim[]; verification_dimensions: VerificationDimensions; epistemic_literacy: EpistemicLiteracyAssessment; model_agreement: { agreement_score: number; votes: Array<{ provider: string; model: string; vote: string; score: number }>; outliers: string[] }; citation_review: { status: 'not_provided' | 'format_checked'; warnings: string[]; detected: string[] }; review_questions: string[]; warnings: string[]; limitations: string[]; demo_mode: boolean; }
+export type ClaimType = 'factual' | 'interpretive' | 'causal' | 'predictive' | 'normative' | 'opinion' | 'procedural';
+export type ClaimAssessmentStatus = 'supported' | 'mostly_supported' | 'mixed_evidence' | 'contradicted' | 'unresolved' | 'insufficient_evidence' | 'interpretation_dependent' | 'outside_scope' | 'unable_to_verify';
+export type EvidenceRelation = 'supports' | 'contradicts' | 'qualifies' | 'contextualizes' | 'duplicates' | 'inconclusive';
+
+export interface EvidenceScope { sources: 'provided_and_curated_fixture'; temporalScope?: string; jurisdiction?: string; exclusions: string[]; }
+export interface MethodManifest { extractor: string; classifier: string; evidenceRetriever: string; relationClassifier: string; metrics: string; }
+export interface VerificationFrame { id: string; programId: string; programVersion: string; domain: EducationDomain; gradeLevel?: string; jurisdiction?: string; curriculumStandard?: string; interpretation?: string; assessmentTime: string; evidenceScope: EvidenceScope; policyVersion: string; methodManifest: MethodManifest; }
+export interface AtomicClaim { id: string; responseId: string; text: string; canonicalForm?: { subject?: string; predicate?: string; object?: string; temporalScope?: string; geographicScope?: string; assumptions?: string[] }; claimType: ClaimType; verifiability: 'directly_verifiable' | 'partially_verifiable' | 'interpretation_dependent' | 'not_empirically_verifiable'; }
+export interface ClaimEvidenceRelation { claimId: string; evidenceId: string; relation: EvidenceRelation; strength?: number; explanation: string; independenceCluster?: string; scopeMatch?: { semantic: boolean; temporal: boolean; jurisdictional: boolean }; }
+export interface EducationalAssessmentMetrics { claimClarity: number; evidenceCoverage: number; supportRatio: number; contradictionRatio: number; sourceQuality: number; sourceIndependence: number; citationIntegrity?: number; logicalConsistency: number; temporalValidity?: number; counterargumentCoverage: number; unresolvedAmbiguity: number; processReliability: number; }
+export interface EducationalFeedback { claimId?: string; category: 'claim_precision' | 'evidence_quality' | 'source_independence' | 'reasoning' | 'counterargument' | 'uncertainty' | 'citation' | 'revision'; severity: 'info' | 'suggestion' | 'warning'; message: string; suggestedAction?: string; }
+export interface EducationEvidence { id: string; title: string; source: string; quality: number; independenceCluster: string; limitation?: string; }
+export interface EducationVerdictPolicy { id: string; version: string; evaluate(metrics: EducationalAssessmentMetrics, claim: AtomicClaim, evidence: ClaimEvidenceRelation[]): ClaimAssessmentStatus; }
+export interface EducationVerificationReport { id: string; responseId: string; verificationFrame: VerificationFrame; summary: { overallStatus: ClaimAssessmentStatus; totalClaims: number; supportedClaims: number; contradictedClaims: number; unresolvedClaims: number; interpretationDependentClaims: number; }; claims: Array<{ claim: AtomicClaim; assessment: { status: ClaimAssessmentStatus; explanation: string; evidentialStrength?: number; limitations: string[] }; evidenceRelations: ClaimEvidenceRelation[]; feedback: EducationalFeedback[] }>; metrics: EducationalAssessmentMetrics; reflectionPrompts: string[]; integrity: { claimSetHash?: string; frameHash?: string; evidenceRoot?: string; receiptHash?: string; }; }
+export interface EducationVerifyRequest { prompt?: string; aiResponse?: string; subject: string; gradeLevel?: EducationLevel; verificationMode?: 'instructional'; curriculumStandard?: string | null; jurisdiction?: string; interpretation?: string; providedSources?: Array<{ title?: string; url?: string; citation?: string; independenceCluster?: string }>; }
+export interface EducationVerifyResponse { reportId: string; overallStatus: ClaimAssessmentStatus; claims: EducationVerificationReport['claims']; metrics: EducationalAssessmentMetrics; feedback: EducationalFeedback[]; reflectionPrompts: string[]; receipt: Record<string, unknown>; report: EducationVerificationReport; }

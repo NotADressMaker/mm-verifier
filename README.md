@@ -75,9 +75,9 @@ Use the receipt verifier package or API to recompute the receipt hash, check sig
 
 See `docs/ABOUT.md`, `docs/VERDICTS.md`, `docs/RECEIPTS.md`, `docs/API.md`, `docs/ANCHORING.md`, and `docs/ROADMAP.md` for details.
 
-## MAMV Education MVP
+## MAMV Education Verification Mode
 
-The dashboard includes an education vertical slice at `/education`. Use **Check an AI Answer** for student-answer review or **Review Teaching Material** for educator content. Start with `MOCK_VERIFIER=true`; education responses are visibly labeled deterministic demo mode and do not need paid provider credentials. The education receipt documents visible epistemic practices—claim, evidence, qualifications, and alternatives—so it can assess reasoning process rather than merely reward answer production. See [Education documentation](docs/EDUCATION.md). MAMV provides evidence and confidence signals, not guarantees of truth, originality, fairness, or academic acceptability.
+`POST /api/v1/education/verify` produces a deterministic, evidence-conditioned education report: atomic claims, claim types, declared verification frame, explicit evidence relations, multidimensional metrics, revision feedback, reflection prompts, and a hash-bound portable receipt. It reports support by reviewed evidence, contradiction, uncertainty, and interpretation dependence instead of claiming absolute truth or issuing grades. The initial local fixtures cover history, science, and civics; see [Education documentation](docs/EDUCATION.md) for its limitations and responsible-use guidance.
 
 ## Verification context
 
