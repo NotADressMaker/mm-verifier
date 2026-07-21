@@ -25,4 +25,11 @@ export interface VerificationDimensions {
   contradictions: { count: number; severity: 'none' | 'minor' | 'material'; detail: string };
   receipt_integrity: { status: 'hash_verified' | 'unverified'; detail: string };
 }
-export interface EducationResult { support_level: SupportLevel; confidence_score: number; summary: string; claims: EducationClaim[]; verification_dimensions: VerificationDimensions; model_agreement: { agreement_score: number; votes: Array<{ provider: string; model: string; vote: string; score: number }>; outliers: string[] }; citation_review: { status: 'not_provided' | 'format_checked'; warnings: string[]; detected: string[] }; review_questions: string[]; warnings: string[]; limitations: string[]; demo_mode: boolean; }
+export type ReasoningIndicatorStatus = 'observed' | 'not_observed' | 'not_assessed';
+export interface EpistemicLiteracyAssessment {
+  score: number;
+  summary: string;
+  indicators: Array<{ id: 'claim' | 'evidence' | 'qualification' | 'alternative'; label: string; status: ReasoningIndicatorStatus; detail: string }>;
+  next_steps: string[];
+}
+export interface EducationResult { support_level: SupportLevel; confidence_score: number; summary: string; claims: EducationClaim[]; verification_dimensions: VerificationDimensions; epistemic_literacy: EpistemicLiteracyAssessment; model_agreement: { agreement_score: number; votes: Array<{ provider: string; model: string; vote: string; score: number }>; outliers: string[] }; citation_review: { status: 'not_provided' | 'format_checked'; warnings: string[]; detected: string[] }; review_questions: string[]; warnings: string[]; limitations: string[]; demo_mode: boolean; }

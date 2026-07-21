@@ -10,7 +10,15 @@ MAMV Education is a privacy-conscious review flow for AI-assisted student answer
 {"mode":"student_answer","question":"Why do seasons occur?","content":"Earth's axial tilt causes seasons.","subject":"earth-science","education_level":"middle-school","content_type":"answer","privacy_acknowledged":true}
 ```
 
-The response includes extracted claims, configurable MVP support thresholds, model-vote signals, citation-format warnings, review questions, and a hash-only receipt. Citation review detects formatting only; it neither retrieves nor validates source content.
+The response includes extracted claims, configurable MVP support thresholds, model-vote signals, citation-format warnings, review questions, an **epistemic-literacy** section, and a hash-only receipt. Citation review detects formatting only; it neither retrieves nor validates source content.
+
+## From informational relativity to epistemic literacy
+
+MAMV treats an assessment as relative to a declared verification frame: its interpretation, evidence scope, policy, method, and time. The resulting measurements are kept distinct from the policy that turns them into a verdict. This makes the conditions for knowledge assessment inspectable rather than presenting an answer as context-free certainty.
+
+In the education flow, that idea becomes a small, visible reasoning-process assessment. The `epistemic_literacy` result records whether the submitted work visibly contains a checkable claim, an evidence connection, a qualification or condition, and an alternative explanation. It also returns concrete next steps for missing practices. These are prompts for student reflection and educator review—not a score for correctness, a grade, or an inference about private chain-of-thought.
+
+The same process indicators are embedded in the trust receipt alongside verification dimensions. A recipient can therefore inspect what was evaluated, which reasoning practices were visible, and the limits of the assessment without storing the submitted content itself.
 
 ## Privacy and deployment
 
