@@ -107,6 +107,7 @@ export interface VerifyRequest {
   idempotency_key?: string;
   store_evidence?: boolean;
   allusions?: import('./allusions').AllusionOptions;
+  coherence?: import('./coherence').CoherenceConfig;
 }
 
 export interface VerifyResponse {
@@ -249,6 +250,10 @@ export const VerifyRequestSchema = {
         num_samples: { type: 'integer', minimum: 1, maximum: 5 }, max_refine_iterations: { type: 'integer', minimum: 0, maximum: 3 },
         verify_sources: { type: 'boolean' }, include_philosophical_allusions: { type: 'boolean' }, minimum_detection_confidence: { type: 'number', minimum: 0, maximum: 1 }, expose_reasoning_summaries: { type: 'boolean' },
       },
+    },
+    coherence: {
+      type: 'object', additionalProperties: false,
+      properties: { enabled: { type: 'boolean' }, analyze_fragmentation: { type: 'boolean' }, analyze_integration: { type: 'boolean' }, analyze_path_dependence: { type: 'boolean' }, analyze_boundaries: { type: 'boolean' }, calculate_score: { type: 'boolean' }, include_in_receipt: { type: 'boolean' }, max_paths: { type: 'integer', minimum: 1, maximum: 4 }, max_perturbations: { type: 'integer', minimum: 0, maximum: 5 }, integration_budget: { type: 'number', minimum: 0, maximum: 1 }, minimum_material_change: { type: 'number', minimum: 0, maximum: 1 } },
     },
   },
 } as const;
