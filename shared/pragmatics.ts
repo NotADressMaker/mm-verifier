@@ -1,4 +1,6 @@
 import type { VerificationBoundary } from './receipt';
+export { detectAllusions, isDirectQuotation, isLikelyAllusion, isLiteralUsage, isParaphraseCandidate, requiresContextForInterpretation } from './allusions';
+export type { AllusionAssessment, AllusionCandidate, AllusionDeliberation, AllusionOptions, AllusionType, AllusionVerification } from './allusions';
 
 /** The minimum confidence required before automated statement/reference handling is decisive. */
 export const PRAGMATICS_CONFIDENCE_THRESHOLD = 0.8;

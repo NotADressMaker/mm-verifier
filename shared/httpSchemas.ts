@@ -106,6 +106,7 @@ export interface VerifyRequest {
   program_version?: string;
   idempotency_key?: string;
   store_evidence?: boolean;
+  allusions?: import('./allusions').AllusionOptions;
 }
 
 export interface VerifyResponse {
@@ -241,6 +242,14 @@ export const VerifyRequestSchema = {
     program_version: { type: 'string' },
     idempotency_key: { type: 'string' },
     store_evidence: { type: 'boolean' },
+    allusions: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        enabled: { type: 'boolean' }, strategy: { type: 'string', enum: ['direct', 'structured_reasoning', 'self_consistency', 'self_refine'] },
+        num_samples: { type: 'integer', minimum: 1, maximum: 5 }, max_refine_iterations: { type: 'integer', minimum: 0, maximum: 3 },
+        verify_sources: { type: 'boolean' }, include_philosophical_allusions: { type: 'boolean' }, minimum_detection_confidence: { type: 'number', minimum: 0, maximum: 1 }, expose_reasoning_summaries: { type: 'boolean' },
+      },
+    },
   },
 } as const;
 

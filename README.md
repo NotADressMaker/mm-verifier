@@ -8,6 +8,10 @@ Before an AI answer goes to your boss, into a report, or out to the public, you 
 
 MAMV does **AI verification**, not truth magic. Optional **onchain anchoring** can make a receipt tamper-evident for higher-stakes accountability, but blockchain anchoring does not prove an AI answer is correct.
 
+## Allusion verification
+
+MAMV can optionally identify implicit cultural, historical, literary, religious, mythological, philosophical, idiomatic, and conceptual references. Detection is probabilistic and source attribution can remain ambiguous. Model agreement is not evidence, and concise reasoning summaries are not hidden chain-of-thought. MAMV records reviewed support and limitations in receipts; it does not establish absolute truth. See [Allusion verification](docs/ALLUSION_VERIFICATION.md).
+
 ## What a trust receipt helps you do
 
 A MAMV receipt gives teams and readers a practical answer to the questions that matter:

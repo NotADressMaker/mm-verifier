@@ -1275,16 +1275,53 @@
     "metacognitive_assessment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["strategy", "steps", "critiques", "candidates", "unresolved_uncertainties", "limitations"],
+      "required": [
+        "strategy",
+        "steps",
+        "critiques",
+        "candidates",
+        "unresolved_uncertainties",
+        "limitations"
+      ],
       "properties": {
-        "strategy": { "enum": ["direct", "structured_reasoning", "self_consistency", "self_refine", "multi_model_debate"] },
-        "steps": { "type": "array" },
-        "critiques": { "type": "array" },
-        "candidates": { "type": "array" },
-        "selected_candidate_id": { "type": "string" },
-        "consensus_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-        "unresolved_uncertainties": { "type": "array", "items": { "type": "string" } },
-        "limitations": { "type": "array", "items": { "type": "string" } }
+        "strategy": {
+          "enum": [
+            "direct",
+            "structured_reasoning",
+            "self_consistency",
+            "self_refine",
+            "multi_model_debate"
+          ]
+        },
+        "steps": {
+          "type": "array"
+        },
+        "critiques": {
+          "type": "array"
+        },
+        "candidates": {
+          "type": "array"
+        },
+        "selected_candidate_id": {
+          "type": "string"
+        },
+        "consensus_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "unresolved_uncertainties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "genericity_assessment": {
@@ -1347,6 +1384,150 @@
           }
         },
         "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "allusion_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidates",
+        "verifications",
+        "overall_warnings"
+      ],
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "allusion_id",
+              "text_span",
+              "type",
+              "explicitness",
+              "interpretation",
+              "confidence",
+              "context_sensitive",
+              "alternative_interpretations",
+              "evidence_ids",
+              "warnings"
+            ],
+            "properties": {
+              "allusion_id": {
+                "type": "string"
+              },
+              "text_span": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "historical",
+                  "literary",
+                  "religious",
+                  "mythological",
+                  "philosophical",
+                  "political",
+                  "cultural",
+                  "idiomatic",
+                  "conceptual",
+                  "quotation",
+                  "named_reference",
+                  "unknown"
+                ]
+              },
+              "explicitness": {
+                "type": "string",
+                "enum": [
+                  "explicit",
+                  "implicit",
+                  "ambiguous"
+                ]
+              },
+              "interpretation": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "context_sensitive": {
+                "type": "boolean"
+              },
+              "alternative_interpretations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "verifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "allusion_id",
+              "status",
+              "evidence_ids",
+              "limitations"
+            ],
+            "properties": {
+              "allusion_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "supported",
+                  "partially_supported",
+                  "unsupported",
+                  "ambiguous",
+                  "not_enough_information"
+                ]
+              },
+              "source_match": {
+                "type": "string"
+              },
+              "target_concept_match": {
+                "type": "string"
+              },
+              "evidence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "limitations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "overall_warnings": {
           "type": "array",
           "items": {
             "type": "string"

@@ -171,6 +171,8 @@ export interface VerificationReceipt {
   unresolved_world_ids?: string[];
   /** Concise inspectable summaries, not raw hidden chain-of-thought. */
   metacognitive_assessment?: MetacognitiveAssessment;
+  /** Optional, bounded allusion analysis. Classifier summaries and consensus are not evidence. */
+  allusion_assessment?: import('./allusions').AllusionAssessment;
 
   /** Optional linguistic-scope signal for the output claim; model-conditioned and non-verdict. */
   genericity_assessment?: { isGeneric: boolean; detectionConfidence: number; inferredQuantifier: 'all' | 'most' | 'some' | null; quantifierScores: { all: number; most: number; some: number }; contextSensitivity: number; weakGeneralization: boolean; overgeneralization: { detected: boolean; severity: 'none' | 'low' | 'medium' | 'high'; claimStrength: 'all' | 'most' | 'some' | 'generic' | 'unknown'; evidenceSupportedStrength: 'all' | 'most' | 'some' | 'unknown'; reason: string; suggestedRewrite?: string }; stereotypeRisk: { risk: 'none' | 'low' | 'medium' | 'high'; explicitGroupReference: boolean; universalizationRisk: boolean; reason: string; suggestedRewrite?: string }; warnings: string[]; limitations: string[]; suggestedRewrite?: string };

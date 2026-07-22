@@ -14,6 +14,7 @@ import { getMockJob, getMockReceipt } from '../services/mockVerifier';
 import { createDebugTrace, endStage, startStage } from '../../../shared/observability/debugTrace';
 import { storeDebugTrace } from '../services/debugTraceStore';
 import { TraceContext } from '../../../shared/observability/tracing';
+import { validateAllusionOptions } from '../../../shared/allusions';
 
 const router = Router();
 
@@ -43,6 +44,10 @@ router.post(
     body('programId').optional().isString().withMessage('Program ID must be a string'),
     body('programVersion').optional().isString().withMessage('Program version must be a string'),
     body('store_evidence').optional().isBoolean().withMessage('store_evidence must be a boolean'),
+    body('allusions').optional().isObject().withMessage('allusions must be an object'),
+    body('allusions.strategy').optional().isIn(['direct', 'structured_reasoning', 'self_consistency', 'self_refine']).withMessage('Invalid allusion strategy'),
+    body('allusions.num_samples').optional().isInt({ min: 1, max: 5 }).withMessage('allusions.num_samples must be between 1 and 5'),
+    body('allusions.max_refine_iterations').optional().isInt({ min: 0, max: 3 }).withMessage('allusions.max_refine_iterations must be between 0 and 3'),
   ],
   async (req: Request, res: Response) => {
     const requestStart = Date.now();
@@ -65,6 +70,7 @@ router.post(
         programId,
         programVersion,
         store_evidence,
+        allusions,
       }: {
         prompt: string;
         models: string[];
@@ -76,7 +82,11 @@ router.post(
         programId?: string;
         programVersion?: string;
         store_evidence?: boolean;
+        allusions?: import('../../../shared/allusions').AllusionOptions;
       } = req.body;
+
+      const allusionErrors = validateAllusionOptions(allusions);
+      if (allusionErrors.length) return res.status(400).json({ errors: allusionErrors.map(message => ({ msg: message, path: 'allusions' })) });
 
       let resolvedProgramId = programId;
       let resolvedProgramVersion = programVersion;
