@@ -39,6 +39,22 @@ Treat the following as architectural constraints for every contribution.
 - Do not use probability-like verdict labels. Integrity and anchoring attest to
   a payload or digest; they do not establish evidentiary correctness.
 
+## Rule-governed assessment frames
+
+- A field declared computationally material must affect a documented computation;
+  declared and administered rules must remain congruent.
+- Keep mutable primary rules distinct from recognition invariants. Claim and
+  evidence bindings are recognition rules, never ordinary comparison weights.
+- Attribute verifier identity and authority, enforce authority limits, and never
+  treat identity as evidentiary support or confidence.
+- Structural invalidity must not be collapsed into an evidentiary verdict.
+- Receipt diffs must distinguish a changed claim or evidence bundle from changed
+  policy. Predictions may reuse measurements only after compatibility is shown;
+  a prediction is not a completed verification.
+- Under strict operation unknown policy, jurisdiction, or interpretation rules
+  fail clearly. Do not use physics terminology to conceal governance failures.
+- Change documentation and code semantics together.
+
 ## Preserve inspectability and disagreement
 
 - Keep claim-, source-, and verifier-level results inspectable. Do not average
