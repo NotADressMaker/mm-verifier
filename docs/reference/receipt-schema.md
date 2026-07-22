@@ -23,3 +23,7 @@ Receipts that use public receipt verification should include a `chain_anchor` ob
 - `uri`: optional URI/CID pointing to the receipt or evidence bundle.
 
 The blockchain verifies the record, not the truth of the claim. Do not include raw prompts, raw AI outputs, sports picks text, stock thesis text, legal/medical text, private evidence, model traces, API keys, emails, user IDs, or PII/secrets in onchain fields.
+
+### Optional `distillation_watermark_assessment`
+
+Experimental receipt payloads may include a `distillation_watermark_assessment` with schema version `distillation-watermark-assessment/v1`. It is canonically committed only when present. It contains the scoped text-sample-set subject, declared configuration, non-secret key alias, token counts, statistical result, calibration provenance, independence record, limitations, alternative explanations, and human-review reasons. It is not a training, actor, intent, authorization, or enforcement finding. See [Distillation watermark assessment](../DISTILLATION_WATERMARK.md).

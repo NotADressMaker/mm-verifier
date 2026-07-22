@@ -79,3 +79,11 @@ Treat the following as architectural constraints for every contribution.
 - When an ambiguity would materially alter policy semantics, verifier authority,
   receipt compatibility, or privacy, ask for human clarification. Otherwise
   choose the narrower, more inspectable interpretation and document it.
+
+## Distillation-watermark assessments
+
+- A detected watermark signal is not proof of training; a negative signal is not proof that distillation did not occur.
+- Disclose the tested proposition, sample size, statistical method, thresholds, calibration, and limitations; never expose key material.
+- Never count detector reruns as independent support or silently select a favorable key/configuration; apply declared multiple-testing correction.
+- Preserve alternative explanations and require human review for positive or borderline signals.
+- Never connect watermark assessment output directly to enforcement, and keep it separate from factual answer verification.
