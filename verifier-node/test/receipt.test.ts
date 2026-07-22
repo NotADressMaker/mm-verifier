@@ -11,6 +11,7 @@ import {
   receiptsMatch,
   verifyReceiptHash,
 } from '../../shared/receipt';
+import { communicabilityAssessment, groundingBoundaries, validateMetacognitiveAssessment } from '../../shared/metacognitive';
 
 describe('VerificationReceipt', () => {
   const sampleReceipt: VerificationReceipt = {
@@ -376,5 +377,18 @@ describe('VerificationReceipt', () => {
 describe('Receipt Constants', () => {
   it('should have correct version', () => {
     expect(RECEIPT_VERSION).toBe('1.0.0');
+  });
+});
+
+describe('metacognitive receipt safeguards', () => {
+  it('keeps direct assessments out of a legacy receipt hash when omitted', () => {
+    const base = { schema_version: '1', version: '1.0.0', receipt_version: '1.0.0', task_id: 'direct', generated_at: 1, input_hash: `0x${'11'.repeat(32)}`, output_hash: `0x${'22'.repeat(32)}`, score_bps: 0, verdict: false, worthy: false, evidence: { bundle_hash: `0x${'33'.repeat(32)}`, bundle_uri: 'ipfs://bundle', bundle_version: '0.2' as const }, provenance: { llm_provider: 'test', llm_model: 'test' } } as VerificationReceipt;
+    expect(computeReceiptHash(base)).toBe(computeReceiptHash({ ...base, metacognitive_assessment: undefined }));
+  });
+
+  it('requires external support and rejects invalid stated confidence', () => {
+    expect(groundingBoundaries([{ id: 'claim-1', evidence_ids: ['model'] }], { model: 'model_inference' })).toHaveLength(1);
+    expect(validateMetacognitiveAssessment({ strategy: 'structured_reasoning', steps: [], critiques: [], candidates: [], consensus_confidence: 2, unresolved_uncertainties: [], limitations: [] })).toContain('consensus_confidence must be within [0,1]');
+    expect(communicabilityAssessment({ claim_summary: 'A claim' }).reviewable).toBe(false);
   });
 });

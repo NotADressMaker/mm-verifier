@@ -9,6 +9,7 @@
  */
 
 import type { Verdict } from './verdicts';
+import type { MetacognitiveAssessment } from './metacognitive';
 
 import { hashCanonical, canonicalize } from "./canonicalJson";
 import {
@@ -34,10 +35,10 @@ export const RECEIPT_SCHEMA_VERSION = "1" as const;
 
 /** Hash scheme: legacy receipts omit this field; context-v1 binds assessment conditions. */
 /** context-v2 adds a frozen scenario snapshot; legacy hashes are never rewritten. */
-export type ReceiptContextVersion = "legacy" | "context-v1" | "context-v2";
+export type ReceiptContextVersion = "legacy" | "context-v1" | "context-v2" | "context-v3";
 export type InterpretationAmbiguityStatus = "unambiguous" | "assumption_recorded" | "user_clarification_required" | "multiple_interpretations_verified";
 export type EvidenceRelationType = "supports" | "contradicts" | "qualifies" | "contextualizes" | "duplicates" | "derives_from" | "inconclusive";
-export type VerificationBoundaryCode = "INSUFFICIENT_EVIDENCE_COVERAGE" | "UNSUPPORTED_CLAIM_TYPE" | "SOURCE_INDEPENDENCE_UNAVAILABLE" | "REQUIRED_SOURCE_INACCESSIBLE" | "AMBIGUOUS_INTERPRETATION" | "MALFORMED_EVIDENCE" | "PROGRAM_RULE_MISSING" | "MATERIAL_CLAIM_UNASSESSABLE" | "RIVAL_WORLDS_INDISTINGUISHABLE" | "POSSIBILITY_SPACE_INCOMPLETE" | "WORLD_LIMIT_REACHED" | "DISTINGUISHING_EVIDENCE_UNAVAILABLE" | "EQUIVALENT_WORLDS_UNMERGED" | "STATEMENT_TYPE_UNCERTAIN" | "IMPLIED_CONTENT_AMBIGUOUS" | "QUOTATION_SOURCE_UNAVAILABLE" | "REFERENCE_AMBIGUOUS" | "REFERENCE_CONFLICTING" | "INDEXICAL_UNRESOLVED";
+export type VerificationBoundaryCode = "INSUFFICIENT_EVIDENCE_COVERAGE" | "UNSUPPORTED_CLAIM_TYPE" | "SOURCE_INDEPENDENCE_UNAVAILABLE" | "REQUIRED_SOURCE_INACCESSIBLE" | "AMBIGUOUS_INTERPRETATION" | "MALFORMED_EVIDENCE" | "PROGRAM_RULE_MISSING" | "MATERIAL_CLAIM_UNASSESSABLE" | "RIVAL_WORLDS_INDISTINGUISHABLE" | "POSSIBILITY_SPACE_INCOMPLETE" | "WORLD_LIMIT_REACHED" | "DISTINGUISHING_EVIDENCE_UNAVAILABLE" | "EQUIVALENT_WORLDS_UNMERGED" | "STATEMENT_TYPE_UNCERTAIN" | "IMPLIED_CONTENT_AMBIGUOUS" | "QUOTATION_SOURCE_UNAVAILABLE" | "REFERENCE_AMBIGUOUS" | "REFERENCE_CONFLICTING" | "INDEXICAL_UNRESOLVED" | "STRUCTURED_REASONING_PARSE_FAILED" | "GROUNDING_EXTERNAL_SUPPORT_REQUIRED" | "COMMUNICABILITY_REQUIREMENTS_UNMET";
 
 /** Conditions captured with a context-v1 assessment. This is part of the receipt commitment. */
 export interface VerificationContext {
@@ -148,7 +149,7 @@ export interface VerificationReceipt {
   /** Legacy receipts keep their original hash scheme. New context receipts bind this data. */
   context_version?: ReceiptContextVersion;
   /** Hash format is explicit so a verifier can preserve historical commitments. */
-  receipt_hash_version?: "legacy-v1" | "context-v1" | "context-v2";
+  receipt_hash_version?: "legacy-v1" | "context-v1" | "context-v2" | "context-v3";
   verification_context?: VerificationContext;
   verification_program_snapshot?: VerificationProgramSnapshot;
   claims?: Array<{ id: string; original_text: string; normalized_text: string; claim_type: string; materiality_weight: number; status: string; version: number; assumptions?: string[]; scope?: string | null; parent_claim_id?: string | null; derived_from_claim_ids?: string[]; source_span?: { start: number; end: number }; statement_type?: import('./pragmatics').StatementTypeClassification; content?: import('./pragmatics').ClaimContent; content_role?: 'literal'|'implied'|'hedge_disclosure'|'hedged_content'; verdict_label?: string }>;
@@ -168,6 +169,8 @@ export interface VerificationReceipt {
   claim_rivalry_history?: ClaimRivalryHistory[];
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
+  /** Concise inspectable summaries, not raw hidden chain-of-thought. */
+  metacognitive_assessment?: MetacognitiveAssessment;
 
   /** Optional linguistic-scope signal for the output claim; model-conditioned and non-verdict. */
   genericity_assessment?: { isGeneric: boolean; detectionConfidence: number; inferredQuantifier: 'all' | 'most' | 'some' | null; quantifierScores: { all: number; most: number; some: number }; contextSensitivity: number; weakGeneralization: boolean; overgeneralization: { detected: boolean; severity: 'none' | 'low' | 'medium' | 'high'; claimStrength: 'all' | 'most' | 'some' | 'generic' | 'unknown'; evidenceSupportedStrength: 'all' | 'most' | 'some' | 'unknown'; reason: string; suggestedRewrite?: string }; stereotypeRisk: { risk: 'none' | 'low' | 'medium' | 'high'; explicitGroupReference: boolean; universalizationRisk: boolean; reason: string; suggestedRewrite?: string }; warnings: string[]; limitations: string[]; suggestedRewrite?: string };
@@ -447,6 +450,7 @@ const RECEIPT_HASH_FIELDS = [
   "claim_rivalry_history",
   "selected_world_ids",
   "unresolved_world_ids",
+  "metacognitive_assessment",
   "limitations",
   "genericity_assessment",
   "verdict_explanation",
@@ -594,6 +598,7 @@ export interface BuildReceiptParams {
   claim_rivalry_history?: ClaimRivalryHistory[];
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
+  metacognitive_assessment?: MetacognitiveAssessment;
 }
 
 /**
@@ -639,8 +644,8 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     worthy: params.score_bps >= worthyThreshold,
     // A score alone cannot establish an evidence verdict.
     verification_status: "Unable to verify",
-    context_version: params.possibility_space ? "context-v2" : "context-v1",
-    receipt_hash_version: params.possibility_space ? "context-v2" : "context-v1",
+    context_version: params.metacognitive_assessment ? "context-v3" : params.possibility_space ? "context-v2" : "context-v1",
+    receipt_hash_version: params.metacognitive_assessment ? "context-v3" : params.possibility_space ? "context-v2" : "context-v1",
     confidence_score: Math.round((params.score_bps / 10000) * 100) / 100,
     warnings: explain.checks_fired.map((check) => ({ code: check.id, severity: check.severity, message: check.summary })),
     votes: explain.model_disagreement.models.map((model) => ({ provider: params.llm_provider, model, vote: params.score_bps >= 5000 ? "support" : "contradict", score_bps: params.score_bps })),
@@ -663,6 +668,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     },
     explain,
   };
+  if (params.metacognitive_assessment) receipt.metacognitive_assessment = params.metacognitive_assessment;
 
   // Add program reference if provided
   if (params.program) {
@@ -854,13 +860,14 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
       errors.push("explain is required");
     }
 
-    if (r.context_version !== "context-v1" && r.context_version !== "context-v2" && r.context_version !== "legacy") {
-      errors.push('context_version must be "context-v1", "context-v2", or "legacy"');
+    if (r.context_version !== "context-v1" && r.context_version !== "context-v2" && r.context_version !== "context-v3" && r.context_version !== "legacy") {
+      errors.push('context_version must be "context-v1", "context-v2", "context-v3", or "legacy"');
     }
-    if (r.context_version === "context-v1" || r.context_version === "context-v2") errors.push(...contextValidationErrors(r.verification_context));
+    if (r.context_version === "context-v1" || r.context_version === "context-v2" || r.context_version === "context-v3") errors.push(...contextValidationErrors(r.verification_context));
     if (r.context_version === "context-v2") {
       for (const field of ['possibility_space', 'world_assessments', 'distinction_check', 'stabilized_claims', 'selected_world_ids', 'unresolved_world_ids']) if (r[field] === undefined) errors.push(`${field} is required for context-v2 receipts`);
     }
+    if (r.context_version === "context-v3" && r.metacognitive_assessment === undefined) errors.push('metacognitive_assessment is required for context-v3 receipts');
 
     if (r.program !== undefined) {
       const program = r.program as Record<string, unknown>;
