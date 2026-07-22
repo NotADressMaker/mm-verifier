@@ -1,10 +1,17 @@
 /** Canonical and backwards-compatible declaration of a verification possibility space. */
 import type { EvidenceRelationType, VerificationBoundaryCode } from './receipt';
 
+/** Provenance authority for content used while assessing possible worlds. */
+export type EvidenceSourceKind = 'model_inference' | 'retrieved_evidence' | 'user_provided_evidence' | 'rule_or_policy' | 'external_tool_observation' | 'unsupported_model_assertion';
+export function is_evidence_backed(kind: EvidenceSourceKind): boolean { return kind === 'retrieved_evidence' || kind === 'user_provided_evidence' || kind === 'rule_or_policy' || kind === 'external_tool_observation'; }
+export function is_model_inference(kind: EvidenceSourceKind): boolean { return kind === 'model_inference' || kind === 'unsupported_model_assertion'; }
+export function requires_external_support(kind: EvidenceSourceKind): boolean { return is_model_inference(kind); }
+export function is_policy_authorized(kind: EvidenceSourceKind): boolean { return kind === 'rule_or_policy'; }
+
 export const DEFAULT_EVIDENCE_RELATION_TYPES = ['supports', 'contradicts', 'qualifies', 'contextualizes', 'duplicates', 'derives_from', 'inconclusive'] as const;
 export const DEFAULT_ASSESSMENT_OUTCOMES = ['Supported', 'Contradicted', 'Mixed evidence', 'Unable to verify'] as const;
 const VALID_RELATIONS = new Set<string>(DEFAULT_EVIDENCE_RELATION_TYPES);
-const VALID_BOUNDARIES = new Set<string>(['INSUFFICIENT_EVIDENCE_COVERAGE', 'UNSUPPORTED_CLAIM_TYPE', 'SOURCE_INDEPENDENCE_UNAVAILABLE', 'REQUIRED_SOURCE_INACCESSIBLE', 'AMBIGUOUS_INTERPRETATION', 'MALFORMED_EVIDENCE', 'PROGRAM_RULE_MISSING', 'MATERIAL_CLAIM_UNASSESSABLE', 'RIVAL_WORLDS_INDISTINGUISHABLE', 'POSSIBILITY_SPACE_INCOMPLETE', 'WORLD_LIMIT_REACHED', 'DISTINGUISHING_EVIDENCE_UNAVAILABLE', 'EQUIVALENT_WORLDS_UNMERGED', 'STATEMENT_TYPE_UNCERTAIN', 'IMPLIED_CONTENT_AMBIGUOUS', 'QUOTATION_SOURCE_UNAVAILABLE', 'REFERENCE_AMBIGUOUS', 'REFERENCE_CONFLICTING', 'INDEXICAL_UNRESOLVED']);
+const VALID_BOUNDARIES = new Set<string>(['INSUFFICIENT_EVIDENCE_COVERAGE', 'UNSUPPORTED_CLAIM_TYPE', 'SOURCE_INDEPENDENCE_UNAVAILABLE', 'REQUIRED_SOURCE_INACCESSIBLE', 'AMBIGUOUS_INTERPRETATION', 'MALFORMED_EVIDENCE', 'PROGRAM_RULE_MISSING', 'MATERIAL_CLAIM_UNASSESSABLE', 'RIVAL_WORLDS_INDISTINGUISHABLE', 'POSSIBILITY_SPACE_INCOMPLETE', 'WORLD_LIMIT_REACHED', 'DISTINGUISHING_EVIDENCE_UNAVAILABLE', 'EQUIVALENT_WORLDS_UNMERGED', 'STATEMENT_TYPE_UNCERTAIN', 'IMPLIED_CONTENT_AMBIGUOUS', 'QUOTATION_SOURCE_UNAVAILABLE', 'REFERENCE_AMBIGUOUS', 'REFERENCE_CONFLICTING', 'INDEXICAL_UNRESOLVED', 'STRUCTURED_REASONING_PARSE_FAILED', 'GROUNDING_EXTERNAL_SUPPORT_REQUIRED', 'COMMUNICABILITY_REQUIREMENTS_UNMET']);
 
 export interface VerificationAlternative { id: string; label: string; description?: string; }
 export type PossibleWorldType = 'interpretive' | 'causal' | 'temporal' | 'scope' | 'entity_identity' | 'source_reliability' | 'measurement_definition' | 'jurisdiction' | 'factual_outcome';

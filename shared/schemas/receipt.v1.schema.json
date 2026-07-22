@@ -1272,6 +1272,21 @@
         }
       }
     },
+    "metacognitive_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "steps", "critiques", "candidates", "unresolved_uncertainties", "limitations"],
+      "properties": {
+        "strategy": { "enum": ["direct", "structured_reasoning", "self_consistency", "self_refine", "multi_model_debate"] },
+        "steps": { "type": "array" },
+        "critiques": { "type": "array" },
+        "candidates": { "type": "array" },
+        "selected_candidate_id": { "type": "string" },
+        "consensus_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "unresolved_uncertainties": { "type": "array", "items": { "type": "string" } },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "genericity_assessment": {
       "type": "object",
       "additionalProperties": true,
