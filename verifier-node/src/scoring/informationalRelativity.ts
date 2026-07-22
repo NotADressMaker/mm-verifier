@@ -1,250 +1,73 @@
 import { createHash } from "crypto";
 
-/**
- * The declared conditions under which evidence is assessed.  A frame is not a
- * property of a claim; it is an input to every reproducible assessment.
- */
-export interface VerificationFrame {
-  id: string;
-  program: { id: string; version: number };
-  interpretation: string;
-  possibility_space_hash: `0x${string}`;
-  evidence_scope: Record<string, unknown>;
-  policy_hash: `0x${string}`;
-  jurisdiction: string;
-  domain: string;
-  assessment_time: string;
-  method_manifest_hash: `0x${string}`;
-}
+export type FrameFieldRole = "validity_invariant" | "evidence_selection_rule" | "interpretation_rule" | "verdict_policy_rule" | "authority_rule" | "descriptive_metadata" | "comparison_only_metadata";
+export interface FrameSemantics { schemaVersion: "frame-semantics/v1"; fields: Record<string, { role: FrameFieldRole; materialToAssessment: boolean; consumedBy: string[]; explanation: string; limitations: string[] }>; }
+export interface VerifierIdentity { verifierId: string; verifierType: "software" | "model" | "human" | "hybrid"; verifierVersion: string; organizationId?: string; implementationHash?: string; }
+export interface VerifierAuthority { authorityId: string; verifierId: string; authorizedClaimTypes: string[]; authorizedEvidenceTypes: string[]; authorizedMethods: string[]; maximumScope?: string; jurisdictionScope?: string[]; validFrom?: string; validUntil?: string; prohibitedAssertions: string[]; limitations: string[]; }
+export interface AssessmentRules { policyHash: `0x${string}`; policyVersion: string; jurisdiction?: string; interpretationProfile?: string; admissibilityPolicyId?: string; verdictPolicyId: string; reviewPolicyId?: string; }
+export interface AssessmentRecognitionRules { schemaVersion: "assessment-recognition-rules/v1"; requiredBindings: readonly ["claim_hash", "evidence_root", "frame_id", "policy_hash", "verifier_id"]; requireVerifierAuthority: boolean; requireRecognizedSchema: boolean; requireCanonicalIntegrity: boolean; }
+export const DEFAULT_RECOGNITION_RULES: AssessmentRecognitionRules = { schemaVersion: "assessment-recognition-rules/v1", requiredBindings: ["claim_hash", "evidence_root", "frame_id", "policy_hash", "verifier_id"], requireVerifierAuthority: true, requireRecognizedSchema: true, requireCanonicalIntegrity: true };
 
+/** Public declaration of the rules actually consumed by this module. */
+export const FRAME_SEMANTICS: FrameSemantics = { schemaVersion: "frame-semantics/v1", fields: {
+  id: { role: "validity_invariant", materialToAssessment: false, consumedBy: ["validateAssessmentReceipt"], explanation: "Binds a canonical frame identity.", limitations: ["It does not alter measurements."] },
+  policy_hash: { role: "verdict_policy_rule", materialToAssessment: true, consumedBy: ["verifyInFrame", "applyVerdictPolicy", "predictUnderFrame"], explanation: "Resolves the exact threshold policy applied to measurements.", limitations: ["Only registered canonical policies resolve."] },
+  interpretation: { role: "interpretation_rule", materialToAssessment: true, consumedBy: ["evaluateEvidence"], explanation: "Selects a versioned ambiguity rule.", limitations: ["It does not change bound claim or evidence content."] },
+  verifier: { role: "authority_rule", materialToAssessment: true, consumedBy: ["verifyInFrame", "validateAssessmentReceipt"], explanation: "Attributes and constrains the verifier and method.", limitations: ["Identity itself adds no support or confidence."] },
+  jurisdiction: { role: "descriptive_metadata", materialToAssessment: false, consumedBy: [], explanation: "Records intended use; this module does not select rules from it.", limitations: ["A jurisdiction change does not alter a verdict here."] },
+  assessment_time: { role: "validity_invariant", materialToAssessment: false, consumedBy: ["validateAssessmentReceipt"], explanation: "Allows authority validity windows to be checked.", limitations: ["It does not alter evidence measurements."] },
+  evidence_scope: { role: "evidence_selection_rule", materialToAssessment: false, consumedBy: ["createInformationalRelativityReceipt"], explanation: "Describes the bound evidence bundle scope.", limitations: ["The evidence root, not a prose scope, is the recognition binding."] },
+  program: { role: "comparison_only_metadata", materialToAssessment: false, consumedBy: [], explanation: "Identifies the program for comparison.", limitations: ["Program semantics are represented by explicit rules above."] },
+  possibility_space_hash: { role: "comparison_only_metadata", materialToAssessment: false, consumedBy: [], explanation: "Identifies declared alternatives for audit.", limitations: ["This lightweight evaluator does not execute it."] },
+  domain: { role: "descriptive_metadata", materialToAssessment: false, consumedBy: [], explanation: "Records the declared domain.", limitations: ["It does not confer authority."] },
+  method_manifest_hash: { role: "authority_rule", materialToAssessment: true, consumedBy: ["verifyInFrame", "validateAssessmentReceipt"], explanation: "Must be authorized for the verifier.", limitations: ["A hash does not establish correctness."] },
+} };
+
+export interface InterpretationProfile { interpretationProfileId: string; version: string; claimScopeRules: string[]; evidenceRelationRules: string[]; ambiguityRules: string[]; contradictionRules: string[]; limitations: string[]; ambiguityAdjustment?: number; }
+const profiles = new Map<string, InterpretationProfile>();
+export function registerInterpretationProfile(profile: InterpretationProfile): void { profiles.set(profile.interpretationProfileId, profile); }
+registerInterpretationProfile({ interpretationProfileId: "ordinary-v1", version: "1", claimScopeRules: ["recorded_claim_scope"], evidenceRelationRules: ["recorded_relations"], ambiguityRules: ["use_recorded_ambiguity"], contradictionRules: ["use_recorded_contradictions"], limitations: ["Does not infer unstated scope."], ambiguityAdjustment: 0 });
+registerInterpretationProfile({ interpretationProfileId: "strict-literal-v1", version: "1", claimScopeRules: ["literal_scope"], evidenceRelationRules: ["recorded_relations"], ambiguityRules: ["add_literal_ambiguity_margin"], contradictionRules: ["use_recorded_contradictions"], limitations: ["May require re-verification when claim decomposition changes."], ambiguityAdjustment: .1 });
+
+export interface VerificationFrame { id: string; program: { id: string; version: number }; interpretation: string; possibility_space_hash: `0x${string}`; evidence_scope: Record<string, unknown>; policy_hash: `0x${string}`; jurisdiction: string; domain: string; assessment_time: string; method_manifest_hash: `0x${string}`; verifier?: VerifierIdentity; verifier_authority?: VerifierAuthority; rules?: AssessmentRules; schema_version?: "assessment-frame/v1"; }
 type CanonicalValue = null | boolean | number | string | CanonicalValue[] | { [key: string]: CanonicalValue };
+export function canonicalSerialize(value: CanonicalValue): string { if (value === null || typeof value !== "object") return JSON.stringify(value); if (Array.isArray(value)) return `[${value.map(canonicalSerialize).join(",")}]`; return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${canonicalSerialize(value[k])}`).join(",")}}`; }
+const hashValue = (value: unknown): `0x${string}` => `0x${createHash("sha256").update(canonicalSerialize(value as CanonicalValue)).digest("hex")}`;
+export function hashVerificationFrame(frame: VerificationFrame): `0x${string}` { return hashValue(frame); }
 
-/** Serialize JSON values deterministically, including recursively sorted keys. */
-export function canonicalSerialize(value: CanonicalValue): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalSerialize).join(",")}]`;
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalSerialize(value[key])}`).join(",")}}`;
-}
-
-/** SHA-256 commitment to the complete frame, suitable for receipt integrity. */
-export function hashVerificationFrame(frame: VerificationFrame): `0x${string}` {
-  return `0x${createHash("sha256").update(canonicalSerialize(frame as unknown as CanonicalValue)).digest("hex")}`;
-}
-
-/** The complete, verdict-free output of evidence evaluation. */
-export interface MeasurementVector {
-  coverage: number;
-  support_ratio: number;
-  contradiction_ratio: number;
-  source_quality: number;
-  source_independence: number;
-  unresolved_ambiguity: number;
-  process_reliability: number;
-}
-
-export interface EvidenceEvaluationInput {
-  covered_claims: number;
-  total_claims: number;
-  supporting_relations: number;
-  contradicting_relations: number;
-  source_quality: number;
-  source_independence: number;
-  unresolved_ambiguity: number;
-  process_reliability: number;
-}
-
+export interface MeasurementVector { coverage: number; support_ratio: number; contradiction_ratio: number; source_quality: number; source_independence: number; unresolved_ambiguity: number; process_reliability: number; }
+export interface EvidenceEvaluationInput { covered_claims: number; total_claims: number; supporting_relations: number; contradicting_relations: number; source_quality: number; source_independence: number; unresolved_ambiguity: number; process_reliability: number; }
 const clampUnit = (value: number) => Math.max(0, Math.min(1, value));
-
-/**
- * Evaluates evidence in a declared frame. This deliberately returns only
- * measurements: policy verdicts are applied separately and later.
- */
-export function evaluateEvidence(_frame: VerificationFrame, input: EvidenceEvaluationInput): MeasurementVector {
-  const relations = input.supporting_relations + input.contradicting_relations;
-  return {
-    coverage: input.total_claims === 0 ? 0 : clampUnit(input.covered_claims / input.total_claims),
-    support_ratio: relations === 0 ? 0 : clampUnit(input.supporting_relations / relations),
-    contradiction_ratio: relations === 0 ? 0 : clampUnit(input.contradicting_relations / relations),
-    source_quality: clampUnit(input.source_quality),
-    source_independence: clampUnit(input.source_independence),
-    unresolved_ambiguity: clampUnit(input.unresolved_ambiguity),
-    process_reliability: clampUnit(input.process_reliability),
-  };
-}
+/** Evaluates only recorded evidence relations; interpretation applies its declared ambiguity rule. */
+export function evaluateEvidence(frame: VerificationFrame, input: EvidenceEvaluationInput): MeasurementVector { const profile = profiles.get(frame.interpretation); if (!profile) throw new Error(`Unknown interpretation profile: ${frame.interpretation}`); const relations = input.supporting_relations + input.contradicting_relations; return { coverage: input.total_claims === 0 ? 0 : clampUnit(input.covered_claims / input.total_claims), support_ratio: relations === 0 ? 0 : clampUnit(input.supporting_relations / relations), contradiction_ratio: relations === 0 ? 0 : clampUnit(input.contradicting_relations / relations), source_quality: clampUnit(input.source_quality), source_independence: clampUnit(input.source_independence), unresolved_ambiguity: clampUnit(input.unresolved_ambiguity + (profile.ambiguityAdjustment ?? 0)), process_reliability: clampUnit(input.process_reliability) }; }
 
 export type Verdict = "mostly_supported" | "mixed_evidence" | "contradicted" | "unable_to_verify";
+export interface VerdictPolicyThresholds { minimum_coverage: number; minimum_source_independence: number; maximum_unresolved_ambiguity: number; mostly_supported_minimum_support: number; mostly_supported_maximum_contradiction: number; }
+export interface VersionedVerdictPolicy { id: string; version: number; thresholds: VerdictPolicyThresholds; }
+const policies = new Map<string, VersionedVerdictPolicy>();
+export function hashVerdictPolicy(policy: VersionedVerdictPolicy): `0x${string}` { return hashValue(policy); }
+export function registerPolicy(policy: VersionedVerdictPolicy): `0x${string}` { const hash = hashVerdictPolicy(policy); policies.set(hash, policy); return hash; }
+export function resolvePolicy(policyHash: `0x${string}`): VersionedVerdictPolicy { const policy = policies.get(policyHash); if (!policy) throw new Error(`Unknown policy hash: ${policyHash}`); if (hashVerdictPolicy(policy) !== policyHash) throw new Error(`Policy hash does not bind resolved policy: ${policyHash}`); return policy; }
+export interface Abstention { reason: "insufficient_coverage" | "insufficient_source_independence" | "unresolved_ambiguity"; explanation: string; }
+export interface PolicyAssessment { verdict: Exclude<Verdict, "unable_to_verify">; policy_rule: string; }
+export interface UnableToVerifyAssessment { verdict: "unable_to_verify"; policy_rule: string; abstention: Abstention; }
+export function applyVerdictPolicy(m: MeasurementVector, policy: VersionedVerdictPolicy): PolicyAssessment | UnableToVerifyAssessment { const t = policy.thresholds; if (m.coverage < t.minimum_coverage) return { verdict: "unable_to_verify", policy_rule: "abstain_coverage", abstention: { reason: "insufficient_coverage", explanation: "Evidence coverage is below this policy version's minimum." } }; if (m.source_independence < t.minimum_source_independence) return { verdict: "unable_to_verify", policy_rule: "abstain_independence", abstention: { reason: "insufficient_source_independence", explanation: "Independent-source evidence is below this policy version's minimum." } }; if (m.unresolved_ambiguity > t.maximum_unresolved_ambiguity) return { verdict: "unable_to_verify", policy_rule: "abstain_ambiguity", abstention: { reason: "unresolved_ambiguity", explanation: "Material interpretation ambiguity remains unresolved." } }; if (m.support_ratio >= t.mostly_supported_minimum_support && m.contradiction_ratio <= t.mostly_supported_maximum_contradiction) return { verdict: "mostly_supported", policy_rule: "mostly_supported" }; if (m.contradiction_ratio > m.support_ratio) return { verdict: "contradicted", policy_rule: "contradicted" }; return { verdict: "mixed_evidence", policy_rule: "mixed_evidence" }; }
+function assertAuthorized(frame: VerificationFrame): void { const identity = frame.verifier, authority = frame.verifier_authority; if (!identity) throw new Error("Missing verifier identity"); if (!authority || authority.verifierId !== identity.verifierId) throw new Error("Unauthorized verifier"); if (!authority.authorizedMethods.includes(frame.method_manifest_hash)) throw new Error("Verifier is not authorized for method"); if (authority.jurisdictionScope && !authority.jurisdictionScope.includes(frame.jurisdiction)) throw new Error("Verifier is not authorized for jurisdiction"); const at = Date.parse(frame.assessment_time); if ((authority.validFrom && at < Date.parse(authority.validFrom)) || (authority.validUntil && at > Date.parse(authority.validUntil))) throw new Error("Verifier authority is outside its validity period"); }
+export interface VerificationResult { frame: VerificationFrame; measurements: MeasurementVector; assessment: PolicyAssessment | UnableToVerifyAssessment; policy: VersionedVerdictPolicy; }
+export function verifyInFrame(frame: VerificationFrame, input: EvidenceEvaluationInput, policy?: VersionedVerdictPolicy): VerificationResult { assertAuthorized(frame); const resolved = resolvePolicy(frame.policy_hash); if (policy && hashVerdictPolicy(policy) !== frame.policy_hash) throw new Error("Supplied policy does not match frame policy hash"); const measurements = evaluateEvidence(frame, input); return { frame, measurements, assessment: applyVerdictPolicy(measurements, resolved), policy: resolved }; }
 
-export interface VerdictPolicyThresholds {
-  minimum_coverage: number;
-  minimum_source_independence: number;
-  maximum_unresolved_ambiguity: number;
-  mostly_supported_minimum_support: number;
-  mostly_supported_maximum_contradiction: number;
-}
-
-export interface VersionedVerdictPolicy {
-  id: string;
-  version: number;
-  thresholds: VerdictPolicyThresholds;
-}
-
-export interface Abstention {
-  reason: "insufficient_coverage" | "insufficient_source_independence" | "unresolved_ambiguity";
-  explanation: string;
-}
-
-export interface PolicyAssessment {
-  verdict: Exclude<Verdict, "unable_to_verify">;
-  policy_rule: string;
-}
-
-export interface UnableToVerifyAssessment {
-  verdict: "unable_to_verify";
-  policy_rule: string;
-  abstention: Abstention;
-}
-
-/** The only function permitted to map measurements to a human-facing verdict. */
-export function applyVerdictPolicy(
-  measurements: MeasurementVector,
-  policy: VersionedVerdictPolicy,
-): PolicyAssessment | UnableToVerifyAssessment {
-  const { thresholds } = policy;
-  if (measurements.coverage < thresholds.minimum_coverage) {
-    return { verdict: "unable_to_verify", policy_rule: "abstain_coverage", abstention: { reason: "insufficient_coverage", explanation: "Evidence coverage is below this policy version's minimum." } };
-  }
-  if (measurements.source_independence < thresholds.minimum_source_independence) {
-    return { verdict: "unable_to_verify", policy_rule: "abstain_independence", abstention: { reason: "insufficient_source_independence", explanation: "Independent-source evidence is below this policy version's minimum." } };
-  }
-  if (measurements.unresolved_ambiguity > thresholds.maximum_unresolved_ambiguity) {
-    return { verdict: "unable_to_verify", policy_rule: "abstain_ambiguity", abstention: { reason: "unresolved_ambiguity", explanation: "Material interpretation ambiguity remains unresolved." } };
-  }
-  if (measurements.support_ratio >= thresholds.mostly_supported_minimum_support && measurements.contradiction_ratio <= thresholds.mostly_supported_maximum_contradiction) {
-    return { verdict: "mostly_supported", policy_rule: "mostly_supported" };
-  }
-  if (measurements.contradiction_ratio > measurements.support_ratio) return { verdict: "contradicted", policy_rule: "contradicted" };
-  return { verdict: "mixed_evidence", policy_rule: "mixed_evidence" };
-}
-
-export interface VerificationResult {
-  frame: VerificationFrame;
-  measurements: MeasurementVector;
-  assessment: PolicyAssessment | UnableToVerifyAssessment;
-}
-
-export function verifyInFrame(frame: VerificationFrame, input: EvidenceEvaluationInput, policy: VersionedVerdictPolicy): VerificationResult {
-  const measurements = evaluateEvidence(frame, input);
-  return { frame, measurements, assessment: applyVerdictPolicy(measurements, policy) };
-}
-
-export interface AssessmentReceiptForDiff {
-  claim: { id: string };
-  verification_frame: VerificationFrame;
-  measurements: MeasurementVector;
-  assessment: PolicyAssessment | UnableToVerifyAssessment;
-}
-
+export interface AssessmentReceiptForDiff { claim: { id: string; hash?: `0x${string}` }; verification_frame: VerificationFrame; measurements: MeasurementVector; assessment: PolicyAssessment | UnableToVerifyAssessment; evidence_root?: `0x${string}`; }
+export interface ReceiptFieldChange { field: string; left: unknown; right: unknown; explanation: string; }
 export type FrameChangeFactor = "interpretation" | "evidence" | "policy" | "time" | "jurisdiction" | "program_version" | "method" | "possibility_space";
-export interface AssessmentChangeAttribution {
-  factor: FrameChangeFactor;
-  materiality: number;
-  explanation: string;
-}
+export interface AssessmentChangeAttribution { factor: FrameChangeFactor; materiality: number; explanation: string; }
+export interface ReceiptFrameDiff { claim_id: string; changed_components: FrameChangeFactor[]; assessment_delta: Partial<Record<keyof MeasurementVector, number>>; attributions: AssessmentChangeAttribution[]; relation: "identical" | "same_subject_different_primary_rules" | "same_claim_different_evidence" | "different_claim" | "different_verifier" | "invalid_comparison"; invariantChanges: ReceiptFieldChange[]; primaryRuleChanges: ReceiptFieldChange[]; authorityChanges: ReceiptFieldChange[]; evidenceChanges: ReceiptFieldChange[]; descriptiveChanges: ReceiptFieldChange[]; expectedVerdictImpact: "none" | "possible" | "deterministic" | "requires_reverification" | "comparison_invalid"; explanation: string; limitations: string[]; }
+const compare = (field: string, left: unknown, right: unknown, explanation: string): ReceiptFieldChange[] => canonicalSerialize(left as CanonicalValue) === canonicalSerialize(right as CanonicalValue) ? [] : [{ field, left, right, explanation }];
+export function diffAssessmentReceipts(left: AssessmentReceiptForDiff, right: AssessmentReceiptForDiff): ReceiptFrameDiff { const claimHashLeft = left.claim.hash, claimHashRight = right.claim.hash; const invariantChanges = claimHashLeft && claimHashRight ? compare("claim_hash", claimHashLeft, claimHashRight, "Claims with different hashes are different assessment subjects.") : compare("claim_id", left.claim.id, right.claim.id, "Claim identifiers differ."); const evidenceChanges = compare("evidence_root", left.evidence_root, right.evidence_root, "Evidence roots bind different reviewed bundles."); const primaryRuleChanges = [...compare("policy_hash", left.verification_frame.policy_hash, right.verification_frame.policy_hash, "Threshold policy changed."), ...compare("interpretation", left.verification_frame.interpretation, right.verification_frame.interpretation, "Interpretation rule changed.")]; const authorityChanges = [...compare("verifier_id", left.verification_frame.verifier?.verifierId, right.verification_frame.verifier?.verifierId, "Verifier attribution changed."), ...compare("authority_id", left.verification_frame.verifier_authority?.authorityId, right.verification_frame.verifier_authority?.authorityId, "Authority limits changed."), ...compare("method_manifest_hash", left.verification_frame.method_manifest_hash, right.verification_frame.method_manifest_hash, "Method changed.")]; const descriptiveChanges = [...compare("jurisdiction", left.verification_frame.jurisdiction, right.verification_frame.jurisdiction, "Jurisdiction is descriptive in this evaluator."), ...compare("domain", left.verification_frame.domain, right.verification_frame.domain, "Domain is descriptive."), ...compare("assessment_time", left.verification_frame.assessment_time, right.verification_frame.assessment_time, "Time is checked for authority validity during recognition.")]; const changed_components: FrameChangeFactor[] = []; if (primaryRuleChanges.some(x => x.field === "interpretation")) changed_components.push("interpretation"); if (evidenceChanges.length) changed_components.push("evidence"); if (primaryRuleChanges.some(x => x.field === "policy_hash")) changed_components.push("policy"); if (descriptiveChanges.some(x => x.field === "assessment_time")) changed_components.push("time"); if (descriptiveChanges.some(x => x.field === "jurisdiction")) changed_components.push("jurisdiction"); if (authorityChanges.length) changed_components.push("method"); const relation = invariantChanges.length ? "different_claim" : evidenceChanges.length ? "same_claim_different_evidence" : authorityChanges.some(x => x.field === "verifier_id") ? "different_verifier" : primaryRuleChanges.length ? "same_subject_different_primary_rules" : "identical"; const impact = invariantChanges.length ? "comparison_invalid" : evidenceChanges.length || authorityChanges.length || primaryRuleChanges.some(x => x.field === "interpretation") ? "requires_reverification" : primaryRuleChanges.length ? "deterministic" : "none"; const delta = Object.fromEntries((Object.keys(left.measurements) as Array<keyof MeasurementVector>).map(k => [k, right.measurements[k] - left.measurements[k]])) as Partial<Record<keyof MeasurementVector, number>>; const attributed = changed_components.filter(x => x !== "jurisdiction" && x !== "time").map(factor => ({ factor, materiality: 1, explanation: `${factor} changed through an explicit rule or binding.` })); const total = attributed.length; return { claim_id: left.claim.id, changed_components, assessment_delta: delta, attributions: attributed.map(x => ({ ...x, materiality: total ? 1 / total : 0 })), relation, invariantChanges, primaryRuleChanges, authorityChanges, evidenceChanges, descriptiveChanges, expectedVerdictImpact: impact, explanation: relation === "different_claim" ? "Receipts assess different bound claims; frame-relative comparison is invalid." : `Receipts are ${relation.replace(/_/g, " ")}.`, limitations: ["Receipt differences do not establish which assessment is evidentially correct."] }; }
 
-export interface ReceiptFrameDiff {
-  claim_id: string;
-  changed_components: FrameChangeFactor[];
-  assessment_delta: Partial<Record<keyof MeasurementVector, number>>;
-  attributions: AssessmentChangeAttribution[];
-}
-
-const frameFactors: Array<{ factor: FrameChangeFactor; changed: (left: VerificationFrame, right: VerificationFrame) => boolean; weight: number }> = [
-  { factor: "interpretation", changed: (a, b) => a.interpretation !== b.interpretation, weight: 1 },
-  { factor: "evidence", changed: (a, b) => canonicalSerialize(a.evidence_scope) !== canonicalSerialize(b.evidence_scope), weight: 1 },
-  { factor: "policy", changed: (a, b) => a.policy_hash !== b.policy_hash, weight: 1 },
-  { factor: "time", changed: (a, b) => a.assessment_time !== b.assessment_time, weight: .5 },
-  { factor: "jurisdiction", changed: (a, b) => a.jurisdiction !== b.jurisdiction, weight: .75 },
-  { factor: "program_version", changed: (a, b) => a.program.id !== b.program.id || a.program.version !== b.program.version, weight: 1 },
-  { factor: "method", changed: (a, b) => a.method_manifest_hash !== b.method_manifest_hash, weight: .75 },
-  { factor: "possibility_space", changed: (a, b) => a.possibility_space_hash !== b.possibility_space_hash, weight: 1 },
-];
-
-/** Heuristic, normalized attribution: changed material frame components share one unit of materiality. */
-export function diffAssessmentReceipts(left: AssessmentReceiptForDiff, right: AssessmentReceiptForDiff): ReceiptFrameDiff {
-  if (left.claim.id !== right.claim.id) throw new Error("Receipts must concern the same claim");
-  const changed = frameFactors.filter((entry) => entry.changed(left.verification_frame, right.verification_frame));
-  const totalWeight = changed.reduce((sum, entry) => sum + entry.weight, 0);
-  const assessment_delta = Object.fromEntries(
-    (Object.keys(left.measurements) as Array<keyof MeasurementVector>).map((key) => [key, right.measurements[key] - left.measurements[key]]),
-  ) as Partial<Record<keyof MeasurementVector, number>>;
-  return {
-    claim_id: left.claim.id,
-    changed_components: changed.map((entry) => entry.factor),
-    assessment_delta,
-    attributions: changed.map((entry) => ({
-      factor: entry.factor,
-      materiality: totalWeight === 0 ? 0 : entry.weight / totalWeight,
-      explanation: `${entry.factor} changed between declared verification frames.`,
-    })),
-  };
-}
-
-export interface CanonicalClaim {
-  id: string;
-  canonical_form: Record<string, unknown>;
-  /** Claim-content commitment; receipt integrity commitments remain under integrity. */
-  hash: `0x${string}`;
-}
-
-export interface InformationalRelativityReceipt {
-  claim: CanonicalClaim;
-  verification_frame: VerificationFrame;
-  measurements: MeasurementVector;
-  assessment: (PolicyAssessment | UnableToVerifyAssessment) & {
-    explanation: string;
-    limitations: string[];
-  };
-  integrity: {
-    claim_hash: `0x${string}`;
-    frame_hash: `0x${string}`;
-    evidence_root: `0x${string}`;
-    receipt_hash: `0x${string}`;
-    signatures: string[];
-  };
-}
-
-const hashValue = (value: unknown): `0x${string}` =>
-  `0x${createHash("sha256").update(canonicalSerialize(value as CanonicalValue)).digest("hex")}`;
-
-/** Builds the portable receipt after evidence and policy evaluation are complete. */
-export function createInformationalRelativityReceipt(args: {
-  claim: Omit<CanonicalClaim, "hash"> & { hash?: `0x${string}` };
-  verification: VerificationResult;
-  evidence_root: `0x${string}`;
-  explanation: string;
-  limitations?: string[];
-  signatures?: string[];
-}): InformationalRelativityReceipt {
-  const claimHash = args.claim.hash ?? hashValue({ id: args.claim.id, canonical_form: args.claim.canonical_form });
-  const claim: CanonicalClaim = { ...args.claim, hash: claimHash };
-  const integrityWithoutReceiptHash = {
-    claim_hash: claimHash,
-    frame_hash: hashVerificationFrame(args.verification.frame),
-    evidence_root: args.evidence_root,
-    signatures: args.signatures ?? [],
-  };
-  const receiptHash = hashValue({
-    claim,
-    verification_frame: args.verification.frame,
-    measurements: args.verification.measurements,
-    assessment: args.verification.assessment,
-    integrity: integrityWithoutReceiptHash,
-  });
-  return {
-    claim,
-    verification_frame: args.verification.frame,
-    measurements: args.verification.measurements,
-    assessment: { ...args.verification.assessment, explanation: args.explanation, limitations: args.limitations ?? [] },
-    integrity: { ...integrityWithoutReceiptHash, receipt_hash: receiptHash },
-  };
-}
+export interface CanonicalClaim { id: string; canonical_form: Record<string, unknown>; hash: `0x${string}`; }
+export interface AssessmentValidity { status: "valid" | "invalid_claim_binding" | "invalid_evidence_binding" | "unknown_policy" | "missing_verifier_identity" | "unauthorized_verifier" | "unsupported_schema" | "integrity_failure" | "incomplete_frame"; recognitionRuleIds: string[]; failedRuleIds: string[]; explanation: string; limitations: string[]; }
+export interface InformationalRelativityReceipt { schema_version: "informational-relativity-receipt/v1"; claim: CanonicalClaim; verification_frame: VerificationFrame; measurements: MeasurementVector; assessment: (PolicyAssessment | UnableToVerifyAssessment) & { explanation: string; limitations: string[] }; integrity: { claim_hash: `0x${string}`; frame_hash: `0x${string}`; evidence_root: `0x${string}`; receipt_hash: `0x${string}`; signatures: string[] }; }
+export function validateAssessmentReceipt(receipt: InformationalRelativityReceipt): AssessmentValidity { const rules = ["claim_binding", "evidence_binding", "frame_binding", "policy_resolution", "verifier_identity", "verifier_authority", "schema", "canonical_integrity"]; if (receipt.schema_version !== "informational-relativity-receipt/v1") return { status: "unsupported_schema", recognitionRuleIds: rules, failedRuleIds: ["schema"], explanation: "Receipt schema is not recognized.", limitations: [] }; if (receipt.claim.hash !== receipt.integrity.claim_hash) return { status: "invalid_claim_binding", recognitionRuleIds: rules, failedRuleIds: ["claim_binding"], explanation: "Claim hash does not bind the receipt claim.", limitations: [] }; if (!receipt.integrity.evidence_root) return { status: "invalid_evidence_binding", recognitionRuleIds: rules, failedRuleIds: ["evidence_binding"], explanation: "Evidence root is missing.", limitations: [] }; if (!receipt.verification_frame.verifier) return { status: "missing_verifier_identity", recognitionRuleIds: rules, failedRuleIds: ["verifier_identity"], explanation: "Verifier identity is required.", limitations: [] }; try { resolvePolicy(receipt.verification_frame.policy_hash); } catch { return { status: "unknown_policy", recognitionRuleIds: rules, failedRuleIds: ["policy_resolution"], explanation: "Declared policy cannot be resolved.", limitations: [] }; } try { assertAuthorized(receipt.verification_frame); } catch { return { status: "unauthorized_verifier", recognitionRuleIds: rules, failedRuleIds: ["verifier_authority"], explanation: "Verifier authority does not satisfy declared limits.", limitations: [] }; } const expected = hashValue({ claim: receipt.claim, verification_frame: receipt.verification_frame, measurements: receipt.measurements, assessment: { verdict: receipt.assessment.verdict, policy_rule: receipt.assessment.policy_rule, ...(receipt.assessment.verdict === "unable_to_verify" ? { abstention: receipt.assessment.abstention } : {}) }, integrity: { claim_hash: receipt.integrity.claim_hash, frame_hash: receipt.integrity.frame_hash, evidence_root: receipt.integrity.evidence_root, signatures: receipt.integrity.signatures } }); if (expected !== receipt.integrity.receipt_hash || receipt.integrity.frame_hash !== hashVerificationFrame(receipt.verification_frame)) return { status: "integrity_failure", recognitionRuleIds: rules, failedRuleIds: ["canonical_integrity"], explanation: "Canonical receipt integrity does not validate.", limitations: [] }; return { status: "valid", recognitionRuleIds: rules, failedRuleIds: [], explanation: "All recognition rules passed; this does not establish evidentiary correctness.", limitations: ["Validity is distinct from the historical evidence verdict."] }; }
+export function createInformationalRelativityReceipt(args: { claim: Omit<CanonicalClaim, "hash"> & { hash?: `0x${string}` }; verification: VerificationResult; evidence_root: `0x${string}`; explanation: string; limitations?: string[]; signatures?: string[]; }): InformationalRelativityReceipt { const computedClaimHash = hashValue({ id: args.claim.id, canonical_form: args.claim.canonical_form }); if (args.claim.hash && args.claim.hash !== computedClaimHash) throw new Error("Claim hash does not bind canonical claim"); const claimHash = args.claim.hash ?? computedClaimHash; const claim: CanonicalClaim = { ...args.claim, hash: claimHash }; const integrityBase = { claim_hash: claimHash, frame_hash: hashVerificationFrame(args.verification.frame), evidence_root: args.evidence_root, signatures: args.signatures ?? [] }; const assessment = { ...args.verification.assessment, explanation: args.explanation, limitations: args.limitations ?? [] }; const receiptHash = hashValue({ claim, verification_frame: args.verification.frame, measurements: args.verification.measurements, assessment: args.verification.assessment, integrity: integrityBase }); return { schema_version: "informational-relativity-receipt/v1", claim, verification_frame: args.verification.frame, measurements: args.verification.measurements, assessment, integrity: { ...integrityBase, receipt_hash: receiptHash } }; }
+export interface FramePredictionResult { status: "predicted" | "requires_reverification" | "invalid_target_frame" | "unsupported_transformation"; sourceReceiptId: string; sourceFrameId: string; targetFrameId: string; predictedVerdict?: Verdict; predictionBasis: "threshold_reapplication" | "policy_reapplication" | "not_available"; reusedMeasurements: string[]; invalidatedMeasurements: string[]; changedRuleIds: string[]; assumptions: string[]; limitations: string[]; humanReviewRequired: boolean; }
+export function predictUnderFrame(receipt: InformationalRelativityReceipt, targetFrame: VerificationFrame): FramePredictionResult { const base = { sourceReceiptId: receipt.integrity.receipt_hash, sourceFrameId: receipt.verification_frame.id, targetFrameId: targetFrame.id, reusedMeasurements: [] as string[], invalidatedMeasurements: [] as string[], changedRuleIds: [] as string[], assumptions: [] as string[], limitations: ["This result re-applies declared rules to previously recorded measurements. It does not gather new evidence or constitute a new verification receipt."], humanReviewRequired: false }; try { resolvePolicy(targetFrame.policy_hash); assertAuthorized(targetFrame); } catch { return { ...base, status: "invalid_target_frame", predictionBasis: "not_available", humanReviewRequired: true }; } if (receipt.verification_frame.interpretation !== targetFrame.interpretation || canonicalSerialize(receipt.verification_frame.evidence_scope as CanonicalValue) !== canonicalSerialize(targetFrame.evidence_scope as CanonicalValue) || receipt.verification_frame.method_manifest_hash !== targetFrame.method_manifest_hash || receipt.verification_frame.verifier_authority?.authorityId !== targetFrame.verifier_authority?.authorityId) return { ...base, status: "requires_reverification", predictionBasis: "not_available", invalidatedMeasurements: Object.keys(receipt.measurements), changedRuleIds: ["incompatible_frame_rule"], humanReviewRequired: true }; const policy = resolvePolicy(targetFrame.policy_hash); return { ...base, status: "predicted", predictedVerdict: applyVerdictPolicy(receipt.measurements, policy).verdict, predictionBasis: "threshold_reapplication", reusedMeasurements: Object.keys(receipt.measurements), changedRuleIds: receipt.verification_frame.policy_hash === targetFrame.policy_hash ? [] : ["policy_hash"], assumptions: ["Claim and evidence bindings remain those of the source receipt."], humanReviewRequired: false }; }
