@@ -68,6 +68,7 @@ export default function ReceiptCard({ receipt }: { receipt: Receipt | null }) {
         {(receipt.outliers ?? []).map((outlier) => <div key={outlier.id}><strong>OUTLIER · {outlier.id}</strong><span>{outlier.reason}</span></div>)}
       </div>
 
+      {receipt.genericity_assessment && <section className="genericity-assessment"><h3>Genericity and scope</h3><p><strong>{receipt.genericity_assessment.inferredQuantifier ?? 'No inferred quantifier'}</strong> — model-conditioned linguistic signal, not a truth judgment.</p>{receipt.genericity_assessment.warnings.map((warning) => <p key={warning}><strong>{warning}</strong></p>)}<p>{receipt.genericity_assessment.overgeneralization.reason}</p><p>Limitations: {receipt.genericity_assessment.limitations.join(' ')}</p></section>}
       <h3>How to verify this receipt</h3>
       <ol>
         <li>Download the receipt JSON.</li>

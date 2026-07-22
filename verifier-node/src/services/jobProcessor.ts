@@ -35,6 +35,7 @@ import {
 import { storeDebugTrace, getDebugTrace } from './debugTraceStore';
 import { verifierMetrics } from '../observability/metrics';
 import { TraceContext } from '../../../shared/observability/tracing';
+import { assessGenericity } from '../verifiers/genericity';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -337,6 +338,13 @@ export async function startJobProcessor() {
 
           const programRunMs = Date.now() - programRunStart;
           endStage(trace, 'program scoring', 'ok', { duration_ms: programRunMs });
+          const assessedClaim = scoringResult.claim_graph.claim_summary[0]?.canonical_text;
+          const genericity = assessedClaim ? await assessGenericity({ claim: assessedClaim, evidenceRelations: receipt.evidence_relations }) : null;
+          if (genericity && (genericity.isGeneric || /^(all|most|some)\b/i.test(assessedClaim) || genericity.warnings.length)) {
+            receipt.genericity_assessment = genericity;
+            for (const message of genericity.warnings) receipt.warnings = [...(receipt.warnings ?? []), { code: 'genericity', severity: genericity.overgeneralization.severity === 'high' ? 'high' : 'medium', message }];
+          }
+
           if (receipt.explain) {
             receipt.explain.timings_ms = {
               ...receipt.explain.timings_ms,
