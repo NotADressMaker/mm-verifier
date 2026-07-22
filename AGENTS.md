@@ -4,6 +4,26 @@ MAMV issues portable, evidence-bounded assessments. It does not certify
 context-free truth, create an oracle, or turn model confidence into knowledge.
 Treat the following as architectural constraints for every contribution.
 
+## Language-model epistemic boundaries
+
+- Never infer confidence, grounding, evidentiary support, or a verdict from
+  fluency, rhetorical certainty, polish, verbosity, or response latency.
+- Never infer verification depth from prose length, a reasoning summary, token
+  count, or elapsed time; record completed external checks instead.
+- Describe observable resistance to revision as revision resistance, not as
+  psychological ego, embarrassment, pride, regret, or face-saving.
+- Describe outcome feedback as a structural consequence loop, not as a model's
+  lived consequence or a lesson the model learned, unless a persistent model or
+  policy change is separately evidenced.
+- Never describe textual familiarity as embodied experience or first-person
+  authority. Defer unresolved embodied or authority-sensitive claims to human
+  review.
+- Never treat model agreement, provider count, or sample consistency as
+  independent evidence. Preserve minority and contradictory results.
+- Preserve historical claims, receipts, and revisions as linked immutable
+  records. Keep presentation, evidence, governance, integrity, and outcome
+  signals separate.
+
 ## Preserve evidence-bounded verdicts
 
 - Read `docs/VERDICTS.md`, `docs/VERIFICATION_CONTEXT.md`, and the relevant

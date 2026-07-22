@@ -1,5 +1,17 @@
 # Schemas & Receipts
 
+## Ecosystem epistemic architecture
+
+- [AI Epistemic Differences](AI_EPISTEMIC_DIFFERENCES.md) defines the
+  functional differences between language-model generation and human belief
+  formation that require explicit accountability structures.
+- [Signal Taxonomy](SIGNAL_TAXONOMY.md) separates presentation, model-state,
+  retrieval, evidence, governance, integrity, and outcome signals and defines
+  forbidden conversions.
+- [Ecosystem Authority Boundaries](ECOSYSTEM_AUTHORITY_BOUNDARIES.md) assigns
+  MAMV-Model, MAMV, and MAMV-IR responsibilities and records the phased
+  cross-repository contract plan.
+
 This document describes the canonical ReceiptV1 and EvidenceBundleV1 schemas, the explainability payload, and schema validation behavior.
 
 ## ReceiptV1 (Schema v1)
