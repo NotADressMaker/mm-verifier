@@ -1534,6 +1534,257 @@
           }
         }
       }
+    },
+    "distillation_watermark_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "assessmentId",
+        "subject",
+        "status",
+        "detected",
+        "method",
+        "schemeId",
+        "schemeVersion",
+        "detectorVersion",
+        "keyVersion",
+        "tokenizerId",
+        "normalizationVersion",
+        "sampleCount",
+        "independentSessionCount",
+        "totalTokenCount",
+        "eligibleTokenCount",
+        "excludedTokenCount",
+        "observedGreenCount",
+        "expectedGreenRate",
+        "observedGreenRate",
+        "zScore",
+        "pValue",
+        "adjustedPValue",
+        "effectSize",
+        "testDirection",
+        "nullHypothesis",
+        "alternativeHypothesis",
+        "minimumEligibleTokens",
+        "detectionThreshold",
+        "borderlineThreshold",
+        "calibrationArtifactId",
+        "calibrationArtifactHash",
+        "falsePositiveBaseRate",
+        "falsePositiveBaseRateContext",
+        "multipleTestingCorrection",
+        "hypothesisCount",
+        "independenceAssessment",
+        "alternativeExplanations",
+        "warnings",
+        "limitations",
+        "humanReviewRequired",
+        "humanReviewReasonCodes"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "distillation-watermark-assessment/v1"
+        },
+        "assessmentId": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "not_evaluated",
+            "insufficient_sample",
+            "signal_not_detected",
+            "borderline",
+            "signal_detected",
+            "incompatible_configuration",
+            "invalid_sample"
+          ]
+        },
+        "detected": {
+          "type": "boolean"
+        },
+        "method": {
+          "const": "green_red_list_bias"
+        },
+        "schemeId": {
+          "type": "string"
+        },
+        "schemeVersion": {
+          "type": "string"
+        },
+        "detectorVersion": {
+          "type": "string"
+        },
+        "keyVersion": {
+          "type": "string"
+        },
+        "tokenizerId": {
+          "type": "string"
+        },
+        "normalizationVersion": {
+          "type": "string"
+        },
+        "sampleCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "independentSessionCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalTokenCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eligibleTokenCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excludedTokenCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observedGreenCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expectedGreenRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "observedGreenRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "zScore": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pValue": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "adjustedPValue": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "effectSize": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "testDirection": {
+          "const": "one_sided"
+        },
+        "nullHypothesis": {
+          "type": "string"
+        },
+        "alternativeHypothesis": {
+          "type": "string"
+        },
+        "minimumEligibleTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "detectionThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "borderlineThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "calibrationArtifactId": {
+          "type": "string"
+        },
+        "calibrationArtifactHash": {
+          "type": "string"
+        },
+        "falsePositiveBaseRate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "falsePositiveBaseRateContext": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "multipleTestingCorrection": {
+          "enum": [
+            "none",
+            "bonferroni",
+            "holm",
+            "benjamini_hochberg"
+          ]
+        },
+        "hypothesisCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "independenceAssessment": {
+          "type": "object"
+        },
+        "alternativeExplanations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "humanReviewRequired": {
+          "type": "boolean"
+        },
+        "humanReviewReasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "subject": {
+          "type": "object"
+        },
+        "tokenizerRevision": {
+          "type": "string"
+        },
+        "vocabularyHash": {
+          "type": "string"
+        },
+        "detectorPlanHash": {
+          "type": "string"
+        }
+      }
     }
   },
   "allOf": [

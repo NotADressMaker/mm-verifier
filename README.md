@@ -94,3 +94,7 @@ MAMV can optionally flag bare-plural generic claims, implicit quantifier strengt
 ## Coherence and stability analysis
 
 MAMV can optionally analyze observable verification structure across claims, evidence, context, and verdict history. It does **not** inspect hidden neural state space or private reasoning. Coherence is not truth, convergence is not evidence, and path sensitivity is a warning signal rather than proof of error. The feature is inspired by dynamical-systems language but is implemented entirely through inspectable MAMV records. See [Coherence Geometry](docs/COHERENCE_GEOMETRY.md).
+
+### Experimental downstream watermark assessment
+
+MAMV includes an optional, receipt-bound experimental detector for a declared statistical green/red-list signal. It is not an MAMV-Model emitter and cannot attribute training or trigger enforcement. Production ecosystem support remains deferred until a compatible MAMV-Model manifest and real-world calibration exist. See [the assessment boundary](docs/DISTILLATION_WATERMARK.md).

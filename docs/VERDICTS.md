@@ -40,3 +40,7 @@ Legacy receipt labels (`Verified`, `Likely`, `Mixed`, `Unverified`, and `Risky`)
 ## Verification context
 
 For context-v1 receipts, these measurements and the exact program version, evidence scope, and source-independence rules are frozen with the receipt. See [Verification Context](VERIFICATION_CONTEXT.md).
+
+## Scoped watermark-signal assessments
+
+The optional experimental distillation-watermark assessment maps only to the proposition that a declared sample set exhibits the tested signal. It never changes the factual-answer verdict. Repeated sessions using the same detector increase neither method independence nor `independentSupportCount`; only separately declared corroborating evidence routes may do so. See [Distillation watermark assessment](DISTILLATION_WATERMARK.md).

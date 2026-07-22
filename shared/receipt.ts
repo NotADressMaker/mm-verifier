@@ -11,6 +11,7 @@
 import type { Verdict } from './verdicts';
 import type { MetacognitiveAssessment } from './metacognitive';
 import type { CoherenceAssessment } from './coherence';
+import type { DistillationWatermarkAssessment } from './distillationWatermark';
 
 import { hashCanonical, canonicalize } from "./canonicalJson";
 import {
@@ -176,6 +177,9 @@ export interface VerificationReceipt {
   coherence_assessment?: CoherenceAssessment;
   /** Optional, bounded allusion analysis. Classifier summaries and consensus are not evidence. */
   allusion_assessment?: import('./allusions').AllusionAssessment;
+
+  /** Optional experimental scoped watermark-signal assessment; never an attribution or enforcement decision. */
+  distillation_watermark_assessment?: DistillationWatermarkAssessment;
 
   /** Optional linguistic-scope signal for the output claim; model-conditioned and non-verdict. */
   genericity_assessment?: { isGeneric: boolean; detectionConfidence: number; inferredQuantifier: 'all' | 'most' | 'some' | null; quantifierScores: { all: number; most: number; some: number }; contextSensitivity: number; weakGeneralization: boolean; overgeneralization: { detected: boolean; severity: 'none' | 'low' | 'medium' | 'high'; claimStrength: 'all' | 'most' | 'some' | 'generic' | 'unknown'; evidenceSupportedStrength: 'all' | 'most' | 'some' | 'unknown'; reason: string; suggestedRewrite?: string }; stereotypeRisk: { risk: 'none' | 'low' | 'medium' | 'high'; explicitGroupReference: boolean; universalizationRisk: boolean; reason: string; suggestedRewrite?: string }; warnings: string[]; limitations: string[]; suggestedRewrite?: string };
@@ -459,6 +463,7 @@ const RECEIPT_HASH_FIELDS = [
   "coherence_assessment",
   "limitations",
   "genericity_assessment",
+  "distillation_watermark_assessment",
   "verdict_explanation",
   "verification_boundaries",
   "previous_receipt_id",
@@ -509,6 +514,7 @@ function normalizeHashValue(field: string, value: unknown): unknown {
   if (field === 'selected_world_ids' || field === 'unresolved_world_ids') return [...value as string[]].sort();
   if (field === 'world_assessments' || field === 'stabilized_claims' || field === 'claim_rivalry_history' || field === 'claims') return sortById(value as unknown[], field === 'claim_rivalry_history' ? 'claim_id' : 'id');
   if (field === 'evidence_relations') return sortById(value as unknown[], 'id');
+  if (field === 'distillation_watermark_assessment') { const assessment = value as DistillationWatermarkAssessment; return { ...assessment, subject: { ...assessment.subject, sampleHashes: [...assessment.subject.sampleHashes].sort() }, independenceAssessment: { ...assessment.independenceAssessment, sessionIds: [...assessment.independenceAssessment.sessionIds].sort(), overlapWarnings: [...assessment.independenceAssessment.overlapWarnings].sort() }, alternativeExplanations: [...assessment.alternativeExplanations].sort(), warnings: [...assessment.warnings].sort(), limitations: [...assessment.limitations].sort(), humanReviewReasonCodes: [...assessment.humanReviewReasonCodes].sort() }; }
   if (field === 'possibility_space') {
     const space = value as VerificationPossibilitySpace;
     return { ...space, worlds: space.worlds ? sortById(space.worlds) : undefined, interpretation_alternatives: space.interpretation_alternatives ? sortById(space.interpretation_alternatives) : undefined };
@@ -606,6 +612,7 @@ export interface BuildReceiptParams {
   unresolved_world_ids?: string[];
   metacognitive_assessment?: MetacognitiveAssessment;
   coherence_assessment?: CoherenceAssessment;
+  distillation_watermark_assessment?: DistillationWatermarkAssessment;
 }
 
 /**
@@ -677,6 +684,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   };
   if (params.metacognitive_assessment) receipt.metacognitive_assessment = params.metacognitive_assessment;
   if (params.coherence_assessment) receipt.coherence_assessment = params.coherence_assessment;
+  if (params.distillation_watermark_assessment) receipt.distillation_watermark_assessment = params.distillation_watermark_assessment;
 
   // Add program reference if provided
   if (params.program) {
@@ -861,6 +869,12 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
     if (typeof p.llm_model !== "string") {
       errors.push("provenance.llm_model is required");
     }
+  }
+
+  const watermark = r.distillation_watermark_assessment;
+  if (watermark !== undefined) {
+    if (!watermark || typeof watermark !== "object") errors.push("distillation_watermark_assessment must be an object");
+    else { const a = watermark as Record<string, unknown>; if (a.schemaVersion !== "distillation-watermark-assessment/v1") errors.push("distillation_watermark_assessment.schemaVersion is unsupported"); if (a.detected !== (a.status === "signal_detected")) errors.push("distillation_watermark_assessment.detected must be derived from status"); if (!Array.isArray(a.limitations) || !a.limitations.length) errors.push("distillation_watermark_assessment.limitations must not be empty"); if (Object.prototype.hasOwnProperty.call(a, "watermarkDetected")) errors.push("distillation_watermark_assessment must not contain watermarkDetected"); }
   }
 
   if (!isLegacy) {
