@@ -15,6 +15,10 @@ export type ProviderRequest = {
 export type ProviderCallResult = {
   provider_id: string;
   model_name: string;
+  /** Declared lineage metadata; absent metadata is not independence. */
+  model_family?: string;
+  provider_org?: string;
+  retrieval_context_fingerprints?: string[];
   model_version?: string;
   model_commitment_hash?: string;
   latency_ms: number;

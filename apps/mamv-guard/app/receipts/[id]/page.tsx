@@ -69,7 +69,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
           <h2 className="text-3xl font-bold">{resultPasses ? 'Verified' : 'Needs review'}</h2>
           <p className="pb-1">{verification.policyDecision ? `Policy decision: ${verification.policyDecision.replace('_', ' ')}` : verification.status}</p>
         </div>
-        <p className="mt-3 text-sm opacity-90">{resultPasses ? 'The checked output met the configured verification threshold.' : 'The checked output did not meet the configured threshold or requires human review.'}</p>
+        <p className="mt-3 text-sm opacity-90"><strong>Thresholds are policy choices, not calibrated confidence.</strong> Natural-language explanations are generated text; fluency is not confidence or evidence.</p><p className="mt-3 text-sm opacity-90">{resultPasses ? 'The checked output met the configured verification threshold.' : 'The checked output did not meet the configured threshold or requires human review.'}</p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">

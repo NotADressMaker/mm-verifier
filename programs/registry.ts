@@ -14,6 +14,7 @@ import {
 import { validateEvidenceBundleV1, validateReceiptV1 } from '../shared/schemaValidation';
 import { EvidenceBundle } from '../shared/types';
 import { VerificationReceipt } from '../shared/receipt';
+import { validatePossibilitySpaceForRegistration } from '../shared/possibilitySpace';
 
 export type ProgramRegistryConfig = {
   programsDir?: string;
@@ -31,6 +32,9 @@ export function computeProgramHash(programDir: string, manifest: ProgramManifest
     id: manifest.id,
     version: manifest.version,
     entrypoint: manifest.entrypoint,
+    claim_domain: manifest.claim_domain,
+    program_provenance: manifest.program_provenance,
+    possibility_space: manifest.possibility_space,
   });
 
   const files = collectProgramFiles(programDir)
@@ -81,9 +85,14 @@ function loadManifest(programDir: string): ProgramManifest {
   const raw = fs.readFileSync(manifestPath, 'utf8');
   const manifest = JSON.parse(raw) as ProgramManifest;
 
-  if (!manifest.id || !manifest.version || !manifest.entrypoint) {
+  if (!manifest.id || !manifest.version || !manifest.entrypoint || !manifest.claim_domain || !manifest.program_provenance) {
     throw new Error(`Invalid manifest in ${programDir}`);
   }
+
+  if (!['empirical', 'normative', 'predictive', 'aesthetic'].includes(manifest.claim_domain)) throw new Error(`Invalid claim_domain in ${programDir}`);
+  const provenance = manifest.program_provenance;
+  if (!provenance.version || !provenance.author?.id || !provenance.created_at || !Array.isArray(provenance.changelog) || !provenance.evidence_admissibility_rules?.trim()) throw new Error(`Invalid program_provenance in ${programDir}`);
+  if (manifest.possibility_space) { const errors = validatePossibilitySpaceForRegistration(manifest.possibility_space); if (errors.length) throw new Error(`Invalid possibility space in ${programDir}: ${errors.join('; ')}`); }
 
   if (!isValidSemver(manifest.version)) {
     throw new Error(`Invalid semver version "${manifest.version}" in ${programDir}`);
@@ -282,6 +291,14 @@ export class ProgramRegistry {
     }
 
     const receipt = await record.program.run(bundle, context);
+    receipt.program_provenance = record.manifest.program_provenance;
+    receipt.claim_domain = record.manifest.claim_domain;
+    if (record.manifest.possibility_space) receipt.possibility_space = record.manifest.possibility_space;
+    if (record.manifest.claim_domain !== 'empirical') {
+      receipt.verification_status = 'Unable to verify';
+      receipt.verdict_explanation = `Unable to verify: ${record.manifest.claim_domain} claims are outside evidentiary verdict scoring.`;
+      receipt.verification_boundaries = [...(receipt.verification_boundaries ?? []), { code: 'UNSUPPORTED_CLAIM_TYPE', affected_claim_ids: [], explanation: receipt.verdict_explanation }];
+    }
 
     const outputSchemaValid = ajv.validate(record.program.output_schema, receipt);
     if (!outputSchemaValid) {

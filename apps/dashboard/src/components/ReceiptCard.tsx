@@ -44,6 +44,8 @@ export default function ReceiptCard({ receipt }: { receipt: Receipt | null }) {
         <div>
           <p className="section-title">Portable MAMV trust receipt</p>
           <h2>{status}</h2>
+          <p><strong>Policy thresholds:</strong> coverage ≥ 0.50; Supported requires support ratio ≥ 0.90 and 2 independent sources; Mostly supported requires ≥ 0.75 and 1. These are policy choices, not calibrated confidence.</p>
+          <p>Natural-language explanations are generated text: fluency is not confidence or evidence.</p>
           <p>MAMV checked an AI output and packaged the audit trail into a receipt you can view, share, download, and independently verify.</p>
         </div>
         <span className={`badge status-${status.toLowerCase()}`}>{status}</span>

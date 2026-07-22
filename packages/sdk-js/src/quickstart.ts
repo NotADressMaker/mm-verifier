@@ -48,6 +48,9 @@ let globalConfig: QuickstartConfig = {};
  *
  * Use this program for general factual Q&A verification.
  */
+/** Receipt explanations are generated text; fluency is not confidence or evidence. */
+export const RECEIPT_EXPLANATION_DISCLOSURE = 'Natural-language receipt explanations are generated text; fluency is not confidence or evidence.';
+
 export const FACTUAL_CONSENSUS_PROGRAM: ProgramSummary = {
   id: 'factual-consensus',
   version: '1.0.0',

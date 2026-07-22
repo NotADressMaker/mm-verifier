@@ -44,3 +44,7 @@ For context-v1 receipts, these measurements and the exact program version, evide
 ## Scoped watermark-signal assessments
 
 The optional experimental distillation-watermark assessment maps only to the proposition that a declared sample set exhibits the tested signal. It never changes the factual-answer verdict. Repeated sessions using the same detector increase neither method independence nor `independentSupportCount`; only separately declared corroborating evidence routes may do so. See [Distillation watermark assessment](DISTILLATION_WATERMARK.md).
+
+## Claim domains and independence disclosure
+
+Programs declare `claim_domain`. Normative, predictive, and aesthetic claims are outside empirical evidentiary verdict scoring and must return **Unable to verify** with that reason. Provider/model lineage and retrieval-context fingerprints are checked conservatively: shared family, provider organization, or retrieval context is correlated; missing lineage is recorded as `independence_basis: "unknown"` and is not silently counted as independent support.
