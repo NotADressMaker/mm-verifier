@@ -1271,6 +1271,73 @@
           "type": "string"
         }
       }
+    },
+    "genericity_assessment": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "isGeneric",
+        "detectionConfidence",
+        "inferredQuantifier",
+        "quantifierScores",
+        "contextSensitivity",
+        "weakGeneralization",
+        "overgeneralization",
+        "stereotypeRisk",
+        "warnings",
+        "limitations"
+      ],
+      "properties": {
+        "isGeneric": {
+          "type": "boolean"
+        },
+        "detectionConfidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "inferredQuantifier": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "all",
+            "most",
+            "some",
+            null
+          ]
+        },
+        "quantifierScores": {
+          "type": "object"
+        },
+        "contextSensitivity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "weakGeneralization": {
+          "type": "boolean"
+        },
+        "overgeneralization": {
+          "type": "object"
+        },
+        "stereotypeRisk": {
+          "type": "object"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "allOf": [

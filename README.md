@@ -82,3 +82,7 @@ See `docs/ABOUT.md`, `docs/VERDICTS.md`, `docs/RECEIPTS.md`, `docs/API.md`, `doc
 ## Verification context
 
 Receipts can bind a verdict to a frozen verification program, evidence scope, claims, evidence relations, and limitations. See [Verification Context](docs/VERIFICATION_CONTEXT.md) and the [verdict policy](docs/VERDICTS.md).
+
+### Genericity verification
+
+MAMV can optionally flag bare-plural generic claims, implicit quantifier strength, context sensitivity, and evidence-preserving overgeneralization risks. See [Genericity verification](docs/GENERICITY_VERIFICATION.md).

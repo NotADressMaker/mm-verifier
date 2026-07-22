@@ -169,6 +169,9 @@ export interface VerificationReceipt {
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
 
+  /** Optional linguistic-scope signal for the output claim; model-conditioned and non-verdict. */
+  genericity_assessment?: { isGeneric: boolean; detectionConfidence: number; inferredQuantifier: 'all' | 'most' | 'some' | null; quantifierScores: { all: number; most: number; some: number }; contextSensitivity: number; weakGeneralization: boolean; overgeneralization: { detected: boolean; severity: 'none' | 'low' | 'medium' | 'high'; claimStrength: 'all' | 'most' | 'some' | 'generic' | 'unknown'; evidenceSupportedStrength: 'all' | 'most' | 'some' | 'unknown'; reason: string; suggestedRewrite?: string }; stereotypeRisk: { risk: 'none' | 'low' | 'medium' | 'high'; explicitGroupReference: boolean; universalizationRisk: boolean; reason: string; suggestedRewrite?: string }; warnings: string[]; limitations: string[]; suggestedRewrite?: string };
+
   /** Confidence score normalized from 0..1 for public UI/SDK use */
   confidence_score?: number;
 
@@ -445,6 +448,7 @@ const RECEIPT_HASH_FIELDS = [
   "selected_world_ids",
   "unresolved_world_ids",
   "limitations",
+  "genericity_assessment",
   "verdict_explanation",
   "verification_boundaries",
   "previous_receipt_id",
