@@ -10,6 +10,7 @@
 
 import type { Verdict } from './verdicts';
 import type { MetacognitiveAssessment } from './metacognitive';
+import type { CoherenceAssessment } from './coherence';
 
 import { hashCanonical, canonicalize } from "./canonicalJson";
 import {
@@ -171,6 +172,8 @@ export interface VerificationReceipt {
   unresolved_world_ids?: string[];
   /** Concise inspectable summaries, not raw hidden chain-of-thought. */
   metacognitive_assessment?: MetacognitiveAssessment;
+  /** Optional observable coherence/stability summary; never model internals. */
+  coherence_assessment?: CoherenceAssessment;
   /** Optional, bounded allusion analysis. Classifier summaries and consensus are not evidence. */
   allusion_assessment?: import('./allusions').AllusionAssessment;
 
@@ -453,6 +456,7 @@ const RECEIPT_HASH_FIELDS = [
   "selected_world_ids",
   "unresolved_world_ids",
   "metacognitive_assessment",
+  "coherence_assessment",
   "limitations",
   "genericity_assessment",
   "verdict_explanation",
@@ -601,6 +605,7 @@ export interface BuildReceiptParams {
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
   metacognitive_assessment?: MetacognitiveAssessment;
+  coherence_assessment?: CoherenceAssessment;
 }
 
 /**
@@ -671,6 +676,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
     explain,
   };
   if (params.metacognitive_assessment) receipt.metacognitive_assessment = params.metacognitive_assessment;
+  if (params.coherence_assessment) receipt.coherence_assessment = params.coherence_assessment;
 
   // Add program reference if provided
   if (params.program) {
@@ -870,6 +876,13 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
       for (const field of ['possibility_space', 'world_assessments', 'distinction_check', 'stabilized_claims', 'selected_world_ids', 'unresolved_world_ids']) if (r[field] === undefined) errors.push(`${field} is required for context-v2 receipts`);
     }
     if (r.context_version === "context-v3" && r.metacognitive_assessment === undefined) errors.push('metacognitive_assessment is required for context-v3 receipts');
+    if (r.coherence_assessment !== undefined) {
+      const coherence = r.coherence_assessment as Record<string, unknown>;
+      for (const field of ['contradiction_density', 'coherence_score', 'convergence_stability']) {
+        const value = coherence[field];
+        if (value !== undefined && (typeof value !== 'number' || value < 0 || value > 1)) errors.push(`coherence_assessment.${field} must be between 0 and 1`);
+      }
+    }
 
     if (r.program !== undefined) {
       const program = r.program as Record<string, unknown>;

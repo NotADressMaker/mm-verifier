@@ -50,6 +50,10 @@ const requestValidators = [
   body('allusions.strategy').optional().isIn(['direct', 'structured_reasoning', 'self_consistency', 'self_refine']).withMessage('Invalid allusion strategy'),
   body('allusions.num_samples').optional().isInt({ min: 1, max: 5 }).withMessage('allusions.num_samples must be between 1 and 5'),
   body('allusions.max_refine_iterations').optional().isInt({ min: 0, max: 3 }).withMessage('allusions.max_refine_iterations must be between 0 and 3'),
+  body('coherence').optional().isObject().withMessage('coherence must be an object'),
+  body('coherence.max_paths').optional().isInt({ min: 1, max: 4 }).withMessage('coherence.max_paths must be between 1 and 4'),
+  body('coherence.max_perturbations').optional().isInt({ min: 0, max: 5 }).withMessage('coherence.max_perturbations must be between 0 and 5'),
+  body('coherence.integration_budget').optional().isFloat({ min: 0, max: 1 }).withMessage('coherence.integration_budget must be between 0 and 1'),
 ];
 
 function resolveRequest(body: any): VerifyRequest {
@@ -66,6 +70,7 @@ function resolveRequest(body: any): VerifyRequest {
     idempotency_key: body.idempotency_key ?? body.idempotencyKey,
     store_evidence: body.store_evidence ?? body.storeEvidence,
     allusions: body.allusions,
+    coherence: body.coherence,
   };
 }
 

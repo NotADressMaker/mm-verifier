@@ -90,3 +90,7 @@ Receipts can bind a verdict to a frozen verification program, evidence scope, cl
 ### Genericity verification
 
 MAMV can optionally flag bare-plural generic claims, implicit quantifier strength, context sensitivity, and evidence-preserving overgeneralization risks. See [Genericity verification](docs/GENERICITY_VERIFICATION.md).
+
+## Coherence and stability analysis
+
+MAMV can optionally analyze observable verification structure across claims, evidence, context, and verdict history. It does **not** inspect hidden neural state space or private reasoning. Coherence is not truth, convergence is not evidence, and path sensitivity is a warning signal rather than proof of error. The feature is inspired by dynamical-systems language but is implemented entirely through inspectable MAMV records. See [Coherence Geometry](docs/COHERENCE_GEOMETRY.md).
