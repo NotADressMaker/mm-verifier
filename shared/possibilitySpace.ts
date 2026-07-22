@@ -71,4 +71,15 @@ export function validateVerificationPossibilitySpaceDetailed(value: unknown): Po
   return errors;
 }
 export function validateVerificationPossibilitySpace(value: unknown): string[] { return validateVerificationPossibilitySpaceDetailed(value).map(error => error.message); }
+export function validatePossibilitySpaceForRegistration(value: VerificationPossibilitySpace): string[] {
+  const errors = validateVerificationPossibilitySpaceDetailed(value);
+  const worlds = normalizeVerificationPossibilitySpace(value).worlds ?? [];
+  if (worlds.length === 1) errors.push({ code: 'SINGLE_SCENARIO', path: 'worlds', message: 'program possibility spaces require at least two scenarios; use an explicit lightweight compatibility receipt instead' });
+  if (worlds.length > 1) {
+    const signatures = worlds.map(world => JSON.stringify({ conditions: [...world.distinguishing_conditions].sort(), observations: [...world.predicted_observations].sort() }));
+    if (new Set(signatures).size === 1) errors.push({ code: 'NON_DISTINGUISHING_SCENARIOS', path: 'worlds', message: 'program scenarios have identical distinguishing evidence relations' });
+  }
+  return errors.map(error => error.message);
+}
+
 export function interpretationIsDeclared(space: VerificationPossibilitySpace, id: string): boolean { return normalizeVerificationPossibilitySpace(space).worlds!.some(world => world.id === id); }

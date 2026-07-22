@@ -247,7 +247,17 @@
               "uri": { "type": "string" },
               "content_hash": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" },
               "content_type": { "type": "string", "enum": ["text", "json"] },
-              "retrieved_at": { "type": "integer" }
+              "retrieved_at": { "type": "integer" },
+              "evidence_provenance": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["origin", "source_is_model_generated"],
+                "properties": {
+                  "origin": { "type": "string", "enum": ["search_index", "user_upload", "policy_document", "tool_call"] },
+                  "source_is_model_generated": { "type": "boolean" },
+                  "chain_of_custody": { "type": "array", "items": { "type": "string" } }
+                }
+              }
             }
           }
         },

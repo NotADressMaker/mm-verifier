@@ -1,5 +1,89 @@
 {
   "id": "fixture-program",
   "version": "1.2.3",
-  "entrypoint": "index.js"
+  "entrypoint": "index.js",
+  "claim_domain": "empirical",
+  "program_provenance": {
+    "version": "1",
+    "author": {
+      "id": "mamv-maintainers",
+      "organization": "MAMV"
+    },
+    "created_at": "2026-07-22",
+    "changelog": [
+      {
+        "version": "1.2.3",
+        "date": "2026-07-22",
+        "summary": "Initial accountable program declaration."
+      }
+    ],
+    "evidence_admissibility_rules": "Only claim-linked, reviewable evidence with declared provenance is admissible; model agreement is not independent support."
+  },
+  "possibility_space": {
+    "id": "factual-alternatives",
+    "version": "1",
+    "worlds": [
+      {
+        "id": "ordinary-reading",
+        "interpretation": "Ordinary reading",
+        "world_type": "interpretive",
+        "assumptions": [
+          "Terms have their ordinary meaning."
+        ],
+        "material_difference": "Uses the ordinary interpretation.",
+        "distinguishing_conditions": [
+          "The text supplies no scoped alternative."
+        ],
+        "predicted_observations": [
+          "Evidence matches the ordinary reading."
+        ],
+        "status": "candidate"
+      },
+      {
+        "id": "scoped-reading",
+        "interpretation": "Scoped alternative reading",
+        "world_type": "scope",
+        "assumptions": [
+          "A material scope qualifier may apply."
+        ],
+        "material_difference": "Uses an explicitly scoped alternative interpretation.",
+        "distinguishing_conditions": [
+          "A source identifies a scope qualifier."
+        ],
+        "predicted_observations": [
+          "Evidence differs when the qualifier applies."
+        ],
+        "status": "candidate"
+      }
+    ],
+    "allowed_claim_types": [
+      "factual"
+    ],
+    "allowed_evidence_relation_types": [
+      "supports",
+      "contradicts",
+      "qualifies",
+      "contextualizes",
+      "duplicates",
+      "derives_from",
+      "inconclusive"
+    ],
+    "allowed_verdicts": [
+      "Supported",
+      "Contradicted",
+      "Mixed evidence",
+      "Unable to verify"
+    ],
+    "boundary_conditions": [
+      "INSUFFICIENT_EVIDENCE_COVERAGE",
+      "UNSUPPORTED_CLAIM_TYPE"
+    ],
+    "generation_policy": {
+      "max_worlds": 4,
+      "max_rounds": 2,
+      "minimum_material_difference": 0.2,
+      "merge_equivalent_worlds": true,
+      "require_distinguishing_condition": true
+    }
+  }
 }

@@ -1030,6 +1030,28 @@
           },
           "notes": {
             "type": "string"
+          },
+          "independence_basis": {
+            "type": "string",
+            "enum": [
+              "independent",
+              "correlated",
+              "unknown"
+            ]
+          },
+          "model_family": {
+            "type": "string"
+          },
+          "provider_org": {
+            "type": "string"
+          },
+          "retrieval_context_hash": {
+            "type": "string",
+            "pattern": "^0x[a-fA-F0-9]{64}$"
+          },
+          "evidence_provenance": {
+            "type": "object",
+            "additionalProperties": true
           }
         }
       }
@@ -1785,6 +1807,23 @@
           "type": "string"
         }
       }
+    },
+    "program_provenance": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "claim_domain": {
+      "type": "string",
+      "enum": [
+        "empirical",
+        "normative",
+        "predictive",
+        "aesthetic"
+      ]
+    },
+    "verifier_registry": {
+      "type": "object",
+      "additionalProperties": true
     }
   },
   "allOf": [

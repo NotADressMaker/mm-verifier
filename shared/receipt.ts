@@ -25,6 +25,7 @@ import {
   VerificationPossibilitySpace,
   validateVerificationPossibilitySpace,
 } from './possibilitySpace';
+import type { ProgramProvenance, ClaimDomain } from '../programs/interface';
 import type { WorldAssessment, DistinctionCheck, StabilizedClaim, ClaimRivalryHistory, WorldEvidenceRelation } from './possibilityAwareVerification';
 
 // ============================================================================
@@ -147,6 +148,10 @@ export interface VerificationReceipt {
 
   /** Evidence verdict; see docs/VERDICTS.md. */
   verification_status?: Verdict;
+  /** Immutable declaration of who authored the evidence-admissibility policy. */
+  program_provenance?: ProgramProvenance;
+  /** Non-empirical domains are routed to Unable to verify. */
+  claim_domain?: ClaimDomain;
 
   /** Legacy receipts keep their original hash scheme. New context receipts bind this data. */
   context_version?: ReceiptContextVersion;
@@ -203,12 +208,14 @@ export interface VerificationReceipt {
   vote_merkle_proofs?: Record<string, string[]>;
 
   /** Source/evidence metadata safe to show without raw bundle access */
-  evidence_sources?: Array<{ url?: string; title?: string; domain?: string; content_hash?: `0x${string}`; retrieved_at?: number; notes?: string }>;
+  evidence_sources?: Array<{ url?: string; title?: string; domain?: string; content_hash?: `0x${string}`; retrieved_at?: number; notes?: string; independence_basis?: 'independent' | 'correlated' | 'unknown'; model_family?: string; provider_org?: string; retrieval_context_hash?: `0x${string}`; evidence_provenance?: { origin: 'search_index' | 'user_upload' | 'policy_document' | 'tool_call'; source_is_model_generated: boolean; chain_of_custody?: string[] } }>;
 
   /** Canonical receipt hash for independent verification */
   receipt_hash?: `0x${string}`;
 
   /** Optional signer metadata without exposing private signing internals */
+  verifier_registry?: { verifier_id: string; verifier_registry_address?: `0x${string}`; auditor_registry_address?: `0x${string}`; historical_accuracy_uri?: string; stake_status?: 'unknown' | 'active' | 'inactive' | 'slashed' };
+
   signer?: { id?: string; address?: `0x${string}`; signature?: `0x${string}`; signed_at?: number; scheme?: string };
 
   /** Optional onchain anchoring metadata. Anchoring makes the receipt tamper-evident; it does not prove the answer true. */
@@ -446,6 +453,8 @@ const RECEIPT_HASH_FIELDS = [
   "verdict",
   "worthy",
   "verification_status",
+  "program_provenance",
+  "claim_domain",
   "context_version",
   "receipt_hash_version",
   "verification_context",
@@ -477,6 +486,7 @@ const RECEIPT_HASH_FIELDS = [
   "vote_merkle_root",
   "vote_merkle_proofs",
   "evidence_sources",
+  "verifier_registry",
   "signer",
   "onchain_anchor",
   "program",

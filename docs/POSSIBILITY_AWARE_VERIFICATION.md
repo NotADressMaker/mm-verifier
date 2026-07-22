@@ -55,3 +55,7 @@ Scenario generation has a hard global elapsed-time ceiling of five minutes
 (`GLOBAL_POSSIBILITY_METERING_CEILING_MS`). A program may use stricter
 generation limits, but cannot bypass that ceiling with its own `max_rounds` or
 `max_worlds` settings.
+
+## Registration audit
+
+Program registration rejects a single-scenario declaration and scenarios with identical distinguishing conditions and predicted observations. Receipts retain selected, rejected, and unresolved scenario IDs and each rejected scenario's recorded reason, so an auditor can distinguish a genuine bounded comparison from a gerrymandered presentation. This lint detects only these structural defects; it does not certify that a remaining scenario set is complete or fair.

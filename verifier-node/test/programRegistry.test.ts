@@ -141,3 +141,12 @@ describe('ProgramRegistry', () => {
     expect(receipt.program?.hash).toBe(record.hash);
   });
 });
+
+describe('program epistemic declarations', () => {
+  it('rejects a missing provenance declaration', () => {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'program-no-provenance-'));
+    fs.cpSync(path.join(fixturesDir, 'fixture-program'), temp, { recursive: true });
+    const manifestPath = path.join(temp, 'manifest.json'); const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); delete manifest.program_provenance; fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+    expect(() => new ProgramRegistry({ programsDir: path.dirname(temp) }).loadPrograms()).toThrow();
+  });
+});

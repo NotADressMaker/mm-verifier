@@ -56,3 +56,7 @@ or verdict; latency and prose length do not change verification depth; model
 agreement without demonstrated independent evidence does not count as
 independent support; and outcome records create linked review work rather than
 mutating historic receipts.
+
+## Tool and retrieval provenance
+
+External-tool and retrieval evidence is not trustworthy by default. Each evidence item records whether it came from a search index, user upload, policy document, or tool call, whether its immediate source was model-generated, and enough chain-of-custody references to reconstruct how it entered the receipt. Its evidentiary treatment remains proportional to that provenance; a model-written search snippet is not upgraded merely because it was retrieved.

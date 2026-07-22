@@ -10,3 +10,7 @@ answerability; it is not a trust score, independent evidence, or confidence.
 and authority mismatch, unauthorized methods or jurisdictions, and expired
 authority. Current lightweight evaluation does not infer claim or evidence types
 from prose; integrations must enforce any declared type limits before calling it.
+
+## Economic accountability is not source truth
+
+Receipts may link a verifier identity to its `VerifierRegistry`/`AuditorRegistry` record and a historical-accuracy record. Staking and slashing make specified dishonest or noncompliant conduct economically costly and make an accountable identity inspectable. They do **not** establish that a verifier's evidence sources are correct, make a signature independent evidence, or expand verifier authority.
