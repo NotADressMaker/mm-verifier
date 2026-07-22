@@ -18,3 +18,4 @@ export {
   EvidenceBundleV03,
   EvidenceBundleVersion,
 } from './types';
+export type { AllusionAssessment, AllusionCandidate, AllusionDeliberation, AllusionOptions, AllusionType, AllusionVerification } from './allusions';

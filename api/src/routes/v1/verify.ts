@@ -15,6 +15,7 @@ import { getIdempotencyRecord, setIdempotencyRecord } from '../../services/idemp
 import { createDebugTrace, endStage, startStage } from '../../../../shared/observability/debugTrace';
 import { storeDebugTrace } from '../../services/debugTraceStore';
 import { TraceContext } from '../../../../shared/observability/tracing';
+import { validateAllusionOptions } from '../../../../shared/allusions';
 
 const router = Router();
 
@@ -45,6 +46,10 @@ const requestValidators = [
   body('program_version').optional().isString().withMessage('Program version must be a string'),
   body('idempotency_key').optional().isString().withMessage('Idempotency key must be a string'),
   body('store_evidence').optional().isBoolean().withMessage('store_evidence must be a boolean'),
+  body('allusions').optional().isObject().withMessage('allusions must be an object'),
+  body('allusions.strategy').optional().isIn(['direct', 'structured_reasoning', 'self_consistency', 'self_refine']).withMessage('Invalid allusion strategy'),
+  body('allusions.num_samples').optional().isInt({ min: 1, max: 5 }).withMessage('allusions.num_samples must be between 1 and 5'),
+  body('allusions.max_refine_iterations').optional().isInt({ min: 0, max: 3 }).withMessage('allusions.max_refine_iterations must be between 0 and 3'),
 ];
 
 function resolveRequest(body: any): VerifyRequest {
@@ -60,6 +65,7 @@ function resolveRequest(body: any): VerifyRequest {
     program_version: body.program_version ?? body.programVersion,
     idempotency_key: body.idempotency_key ?? body.idempotencyKey,
     store_evidence: body.store_evidence ?? body.storeEvidence,
+    allusions: body.allusions,
   };
 }
 
@@ -101,6 +107,8 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     }
 
     const requestPayload = resolveRequest(req.body);
+    const allusionErrors = validateAllusionOptions(requestPayload.allusions);
+    if (allusionErrors.length) return res.status(400).json({ errors: allusionErrors.map(message => ({ code: 'INVALID_INPUT', message })) });
     const idempotencyKey = req.header('Idempotency-Key') || requestPayload.idempotency_key;
 
     if (idempotencyKey) {
