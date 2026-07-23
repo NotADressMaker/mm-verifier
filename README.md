@@ -28,6 +28,25 @@ Behind each receipt, MAMV runs verification against configured models, sources, 
 3. MAMV returns a portable trust receipt.
 4. Anyone can view, share, download, and independently verify the receipt hash/signature.
 
+## Open Verification Protocol (initial implementation)
+
+MAMV now includes an initial TypeScript implementation of **OVP (Open Verification
+Protocol)** in `verifier-node`. It decomposes supplied text into span-preserving
+claims, applies deterministic consistency, logical-qualification, and
+evidence-availability checks, and emits an inspectable JSON run. It is an
+adapter-ready verification engine—not a chatbot—and it does not call model
+review a proof.
+
+```bash
+npx ts-node verifier-node/src/cli/mamv.ts verify examples/countability.md
+npx ts-node verifier-node/src/cli/mamv.ts verify-claim "Decidability implies countable domain."
+```
+
+See [the OVP specification](docs/OVP_SPEC.md), [versioning policy](docs/OVP_VERSIONING.md),
+and [implementation plan](docs/OVP_IMPLEMENTATION_PLAN.md). The current slice
+does not yet provide the remote MCP, REST, GitHub Action, formal-tool, or
+third-party plugin adapters; those remain explicitly phased work.
+
 ## Quickstart
 
 ```bash
