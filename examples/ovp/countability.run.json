@@ -1,0 +1,1 @@
+{"ovp_version":"0.1.0","run_id":"example-run","input":{"type":"markdown","hash":"sha256:example"},"claims":[],"findings":[],"disagreements":[],"provenance":{"verifier_version":"0.1.0","profile":"strict-math","timestamp":"2026-01-01T00:00:00.000Z","input_hash":"sha256:example","checker_versions":{},"network_used":false,"llm_used":false,"checker_failures":[]}}
