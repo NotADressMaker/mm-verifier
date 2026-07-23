@@ -1,9 +1,16 @@
+import type { VerificationClaimType } from '../types';
+
 /** Education assessments describe reviewed evidence in a declared frame; they do not determine truth. */
 export const EDUCATION_DOMAINS = ['history', 'science', 'civics', 'public-policy', 'literature', 'mathematics', 'general'] as const;
 export const EDUCATION_LEVELS = ['elementary', 'middle-school', 'high-school', 'undergraduate', 'graduate', 'adult-learning'] as const;
 export type EducationDomain = typeof EDUCATION_DOMAINS[number];
 export type EducationLevel = typeof EDUCATION_LEVELS[number];
-export type ClaimType = 'factual' | 'interpretive' | 'causal' | 'predictive' | 'normative' | 'opinion' | 'procedural';
+/** Pedagogical categories intentionally outside the canonical verification taxonomy. */
+export type EducationOnlyClaimType = 'normative' | 'opinion' | 'procedural';
+/** Education extends the canonical verification categories explicitly. */
+export type EducationClaimType = VerificationClaimType | EducationOnlyClaimType;
+/** Backwards-compatible education-local name. */
+export type ClaimType = EducationClaimType;
 export type ClaimAssessmentStatus = 'supported' | 'mostly_supported' | 'mixed_evidence' | 'contradicted' | 'unresolved' | 'insufficient_evidence' | 'interpretation_dependent' | 'outside_scope' | 'unable_to_verify';
 export type EvidenceRelation = 'supports' | 'contradicts' | 'qualifies' | 'contextualizes' | 'duplicates' | 'inconclusive';
 

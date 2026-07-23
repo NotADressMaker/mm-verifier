@@ -174,6 +174,8 @@ export interface VerificationReceipt {
   stabilized_claims?: StabilizedClaim[];
   /** Descriptive challenge/re-verification histories, not probabilities of truth. */
   claim_rivalry_history?: ClaimRivalryHistory[];
+  /** Formal propositions and verifier-supplied proof-status assessments. */
+  formal_mathematical_claims?: import('./formalMathematicalVerification').FormalMathematicalReceiptEntry[];
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
   /** Concise inspectable summaries, not raw hidden chain-of-thought. */
@@ -466,6 +468,7 @@ const RECEIPT_HASH_FIELDS = [
   "distinction_check",
   "stabilized_claims",
   "claim_rivalry_history",
+  "formal_mathematical_claims",
   "selected_world_ids",
   "unresolved_world_ids",
   "metacognitive_assessment",
@@ -618,6 +621,7 @@ export interface BuildReceiptParams {
   distinction_check?: DistinctionCheck;
   stabilized_claims?: StabilizedClaim[];
   claim_rivalry_history?: ClaimRivalryHistory[];
+  formal_mathematical_claims?: VerificationReceipt["formal_mathematical_claims"];
   selected_world_ids?: string[];
   unresolved_world_ids?: string[];
   metacognitive_assessment?: MetacognitiveAssessment;
@@ -738,6 +742,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   receipt.distinction_check = params.distinction_check;
   receipt.stabilized_claims = params.stabilized_claims;
   receipt.claim_rivalry_history = params.claim_rivalry_history;
+  receipt.formal_mathematical_claims = params.formal_mathematical_claims;
   receipt.selected_world_ids = params.selected_world_ids;
   receipt.unresolved_world_ids = params.unresolved_world_ids;
 
