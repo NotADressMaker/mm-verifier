@@ -1,5 +1,6 @@
 /** Canonical and backwards-compatible declaration of a verification possibility space. */
 import type { EvidenceRelationType, VerificationBoundaryCode } from './receipt';
+import { VERIFICATION_CLAIM_TYPES } from './types';
 
 /** Provenance authority for content used while assessing possible worlds. */
 export type EvidenceSourceKind = 'model_inference' | 'retrieved_evidence' | 'user_provided_evidence' | 'rule_or_policy' | 'external_tool_observation' | 'unsupported_model_assertion';
@@ -34,7 +35,7 @@ export interface VerificationPossibilitySpace {
 }
 
 export const DEFAULT_GENERATION_POLICY: GenerationPolicy = { max_worlds: 4, max_rounds: 2, minimum_material_difference: 0.2, merge_equivalent_worlds: true, require_distinguishing_condition: true };
-const defaults = { worlds: [{ id: 'ordinary-reading', interpretation: 'Ordinary reading', world_type: 'interpretive' as const, assumptions: ['Terms have their ordinary meaning.'], material_difference: 'The ordinary reading is used.', distinguishing_conditions: ['The submitted text supplies no material ambiguity.'], predicted_observations: [], status: 'candidate' as const }], allowed_claim_types: ['factual', 'procedural', 'policy', 'citation'], allowed_evidence_relation_types: [...DEFAULT_EVIDENCE_RELATION_TYPES] as EvidenceRelationType[], allowed_verdicts: [...DEFAULT_ASSESSMENT_OUTCOMES], boundary_conditions: ['INSUFFICIENT_EVIDENCE_COVERAGE', 'UNSUPPORTED_CLAIM_TYPE', 'SOURCE_INDEPENDENCE_UNAVAILABLE', 'REQUIRED_SOURCE_INACCESSIBLE', 'AMBIGUOUS_INTERPRETATION', 'MALFORMED_EVIDENCE', 'PROGRAM_RULE_MISSING', 'MATERIAL_CLAIM_UNASSESSABLE'] as VerificationBoundaryCode[] };
+const defaults = { worlds: [{ id: 'ordinary-reading', interpretation: 'Ordinary reading', world_type: 'interpretive' as const, assumptions: ['Terms have their ordinary meaning.'], material_difference: 'The ordinary reading is used.', distinguishing_conditions: ['The submitted text supplies no material ambiguity.'], predicted_observations: [], status: 'candidate' as const }], allowed_claim_types: [...VERIFICATION_CLAIM_TYPES], allowed_evidence_relation_types: [...DEFAULT_EVIDENCE_RELATION_TYPES] as EvidenceRelationType[], allowed_verdicts: [...DEFAULT_ASSESSMENT_OUTCOMES], boundary_conditions: ['INSUFFICIENT_EVIDENCE_COVERAGE', 'UNSUPPORTED_CLAIM_TYPE', 'SOURCE_INDEPENDENCE_UNAVAILABLE', 'REQUIRED_SOURCE_INACCESSIBLE', 'AMBIGUOUS_INTERPRETATION', 'MALFORMED_EVIDENCE', 'PROGRAM_RULE_MISSING', 'MATERIAL_CLAIM_UNASSESSABLE'] as VerificationBoundaryCode[] };
 
 export function deriveLegacyPossibilitySpaceFields(space: VerificationPossibilitySpace): VerificationPossibilitySpace {
   const worlds = space.worlds ?? defaults.worlds;

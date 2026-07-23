@@ -2,6 +2,7 @@
  * Shared types for MAMV
  * Used across contracts, API, and verifier nodes
  */
+import type { ReasoningTraceCommitment, ZKProofAttachment } from './transparency';
 
 // ============================================================================
 // Evidence Bundle Structure (Specification v0.1)
@@ -201,7 +202,7 @@ export interface ScoringTrace {
   generated_at: number;
 }
 
-export interface EvidenceBundleV02 extends EvidenceBundleV01 {
+export interface EvidenceBundleV02 extends Omit<EvidenceBundleV01, 'version' | 'bundle_version'> {
   version: '1.1.0';
   bundle_version: '0.2';
   input: EvidenceBundleContent;
@@ -214,7 +215,7 @@ export interface EvidenceBundleV02 extends EvidenceBundleV01 {
   zk_proof?: ZKProofAttachment;
 }
 
-export interface EvidenceBundleV03 extends EvidenceBundleV02 {
+export interface EvidenceBundleV03 extends Omit<EvidenceBundleV02, 'bundle_version'> {
   bundle_version: '0.3';
   replay: EvidenceBundleReplay;
   privacy_mode?: boolean;
@@ -276,7 +277,7 @@ export interface ModelRun {
 export interface Claim {
   claim_id: string;                // "c1", "c2", etc.
   text: string;                    // Extracted claim sentence
-  type: ClaimType;                 // "factual" | "numeric" | "causal" | "policy"
+  type: ClaimType;
 
   // Supporting evidence
   support: Evidence[];
@@ -290,7 +291,15 @@ export interface Claim {
   temporal?: string[];             // Time references
 }
 
-export type ClaimType = 'factual' | 'numeric' | 'causal' | 'policy';
+/** Canonical claim categories for evidence-bearing verification programs. */
+export const VERIFICATION_CLAIM_TYPES = [
+  'factual', 'numeric', 'causal', 'policy', 'predictive', 'comparative',
+  'interpretive', 'definition', 'quotation', 'other', 'formal_mathematical',
+] as const;
+/** Formal mathematical claims are assessable by formal proof, refutation, counterexample, or formal-system-relative independence only. */
+export type VerificationClaimType = typeof VERIFICATION_CLAIM_TYPES[number];
+/** Backwards-compatible name for the canonical verification claim type. */
+export type ClaimType = VerificationClaimType;
 
 // ============================================================================
 // Evidence
